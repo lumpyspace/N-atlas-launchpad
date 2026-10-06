@@ -1,16 +1,24 @@
-# Ollama Modelfile for N-ATLAS (NCAIR1/N-ATLaS), Llama-3 8B fine-tune.
-# Build the GGUF first (see README.md), then: ollama create n-atlas -f ./Modelfile
+# Ollama Modelfile for N-ATLAS (NCAIR1/N-ATLaS), a Llama-3 8B fine-tune.
 #
-# The chat template below is the Llama-3 instruct format, which N-ATLaS inherits
-# from its base model. Adjust if the official model card specifies a different
-# template.
-
-FROM ./natlas-Q4_K_M.gguf
+# Ollama (>= 0.34) imports Hugging Face SAFETENSORS directly and can quantize
+# them itself — no llama.cpp build and no Python conversion required.
+#
+# Build it:
+#   ollama create n-atlas --quantize q4_K_M -f ./Modelfile
+#   ollama run n-atlas "Bawo ni?"
+#
+# FROM points at the folder of downloaded safetensors (see README.md).
+FROM ./natlas-weights
 
 PARAMETER temperature 0.2
-PARAMETER num_ctx 8092
+# 4096 is plenty for a CPU demo and keeps RAM/latency sane on this laptop.
+# The model supports up to ~8092; raise if you have headroom.
+PARAMETER num_ctx 4096
 PARAMETER stop "<|eot_id|>"
 
+# Llama-3 instruct chat template (N-ATLaS inherits it from its base model).
+# If the downloaded tokenizer_config.json already carries a chat_template,
+# Ollama may auto-detect it; this explicit template is a safe fallback.
 TEMPLATE """<|begin_of_text|>{{ if .System }}<|start_header_id|>system<|end_header_id|>
 
 {{ .System }}<|eot_id|>{{ end }}<|start_header_id|>user<|end_header_id|>
