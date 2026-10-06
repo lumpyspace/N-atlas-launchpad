@@ -1,0 +1,20 @@
+# Ollama Modelfile for N-ATLAS (NCAIR1/N-ATLaS), Llama-3 8B fine-tune.
+# Build the GGUF first (see README.md), then: ollama create n-atlas -f ./Modelfile
+#
+# The chat template below is the Llama-3 instruct format, which N-ATLaS inherits
+# from its base model. Adjust if the official model card specifies a different
+# template.
+
+FROM ./natlas-Q4_K_M.gguf
+
+PARAMETER temperature 0.2
+PARAMETER num_ctx 8092
+PARAMETER stop "<|eot_id|>"
+
+TEMPLATE """<|begin_of_text|>{{ if .System }}<|start_header_id|>system<|end_header_id|>
+
+{{ .System }}<|eot_id|>{{ end }}<|start_header_id|>user<|end_header_id|>
+
+{{ .Prompt }}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+"""

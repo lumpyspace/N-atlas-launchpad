@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Env files (NEVER commit real secrets)
+.env
+.env.*
+!.env.example
+*.local
+
+# Build output
+dist/
+build/
+frontend/dist/
+backend/dist/
+
+# Model weights — NEVER commit N-ATLAS weights (gated license + huge)
+inference/natlas-weights/
+inference/*.gguf
+*.safetensors
+
+# Logs / OS / editor
+*.log
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
