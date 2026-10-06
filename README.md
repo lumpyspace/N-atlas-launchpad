@@ -119,11 +119,17 @@ On Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
 - ✅ Verified against real N-ATLAS: 9/10 on the seed suite (surfaced a genuine
   Igbo-translation weakness).
 
+**Phase 3 — dashboard UI** (`frontend/`)
+- ✅ Evaluation dashboard: suite picker + optional max-cases, one-click run,
+  overall pass-rate, per-category bars, and expandable per-case results
+  (prompt, output, per-check pass/fail).
+- ✅ Tabbed shell (Evaluate / Playground) under a persistent REAL-vs-MOCK banner;
+  mock runs are loudly flagged as not-real in the results view too.
+
 ## What is NOT yet implemented
 
 - ⛔ Run persistence (saving scored runs to disk) + before/after comparison.
 - ⛔ Shareable report export (Markdown / HTML / PDF).
-- ⛔ The full dashboard UI (trigger evals, view results/scores in the browser).
 - ⛔ Broader suites (more security/jailbreak probes, larger language coverage).
 
 ## Engineering rules this repo follows

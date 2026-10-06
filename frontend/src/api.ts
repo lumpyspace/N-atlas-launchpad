@@ -46,3 +46,74 @@ export async function generate(
   }
   return res.json();
 }
+
+// --- Evaluation engine -----------------------------------------------------
+
+export interface SuiteInfo {
+  name: string;
+  description: string;
+  cases: number;
+}
+
+export interface CheckResult {
+  label: string;
+  type: string;
+  passed: boolean;
+  detail: string;
+  weight: number;
+}
+
+export interface CaseResult {
+  caseId: string;
+  category: string;
+  language?: string;
+  prompt: string;
+  output: string;
+  isMock: boolean;
+  passed: boolean;
+  score: number;
+  checks: CheckResult[];
+  latencyMs: number;
+  error?: string;
+}
+
+export interface SuiteRunResult {
+  suite: string;
+  provider: string;
+  model: string;
+  isMock: boolean;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  summary: {
+    total: number;
+    passed: number;
+    failed: number;
+    errored: number;
+    passRate: number;
+    byCategory: Record<string, { total: number; passed: number }>;
+  };
+  cases: CaseResult[];
+}
+
+export async function getSuites(): Promise<{ suites: SuiteInfo[]; default: string }> {
+  const res = await fetch(`${BASE}/api/suites`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function runEvaluation(
+  suite: string,
+  maxCases?: number,
+): Promise<SuiteRunResult> {
+  const res = await fetch(`${BASE}/api/evaluate`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ suite, maxCases }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(err.detail ?? err.error ?? `HTTP ${res.status}`);
+  }
+  return res.json();
+}
