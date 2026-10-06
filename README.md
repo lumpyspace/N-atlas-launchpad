@@ -42,13 +42,16 @@ docs/       Architecture + N-ATLAS integration guide
 
 **Honest status:** there is **no official public N-ATLAS API**. N-ATLAS is a
 **gated Llama-3 8B model on Hugging Face** that you run yourself. N-ATLAS Forge
-is wired to call a self-hosted, OpenAI-compatible N-ATLAS endpoint — but **no
-real N-ATLAS call has been made yet from this machine**, because serving the
-model first requires accepting the HF license and converting/serving the weights
-(this laptop has no GPU; CPU via Ollama is the local route).
+is wired to call a self-hosted, OpenAI-compatible N-ATLAS endpoint — and this
+has now been **verified with a real call from a local machine**: the HF license
+was accepted, a pre-quantized **Q4_K_M GGUF** (`QuantFactory/N-ATLaS-GGUF`) was
+served via **Ollama on CPU** (no GPU), and `npm run healthcheck` reached real
+N-ATLAS successfully (`ok: true`). Inference is slow on CPU (~1.4 tok/s, ~45s
+cold load) but genuine — the model answers in-character (e.g. *"I speak English
+and Hausa."*).
 
-Until you configure a real endpoint, the app runs on a **clearly-labelled MOCK
-provider** so the UI is developable. Mock output is flagged (`isMock: true`) in
+The app still **defaults to a clearly-labelled MOCK provider** so the UI is
+developable without a served model. Mock output is flagged (`isMock: true`) in
 the API and shown with a loud warning banner in the UI — it can never be mistaken
 for real N-ATLAS. Full details, licensing limits, and sources are in
 [`docs/N-ATLAS-INTEGRATION.md`](docs/N-ATLAS-INTEGRATION.md).
@@ -89,8 +92,9 @@ cd backend && npm run healthcheck
 
 On Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
 
-## What is currently implemented (Phase 1)
+## What is currently implemented
 
+**Phase 1 — integration plumbing**
 - ✅ Clean monorepo structure (`frontend` / `backend` / `inference` / `tests` / `docs`).
 - ✅ `NAtlasProvider` abstraction + `HttpNAtlasProvider` (real) + `MockNAtlasProvider` (labelled).
 - ✅ Environment-based configuration (no hard-coded secrets).
@@ -100,14 +104,27 @@ On Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
 - ✅ Secret-redacting logger; basic error handling.
 - ✅ Provider-contract / mock-safety tests.
 - ✅ Integration research + documentation with sources.
+- ✅ Real N-ATLAS call verified from this machine (Q4_K_M GGUF served via local
+  Ollama on CPU; `npm run healthcheck` → `ok: true`).
+
+**Phase 2 — evaluation engine** (`backend/src/eval/`)
+- ✅ Declarative test-case + check model (`containsAny/All`, `notContains`, `regex`,
+  `minLength`, `refusal`) with diacritic/case-insensitive matching for yo/ha/ig.
+- ✅ Seed **`nigerian-context`** suite: translation, Nigerian factual knowledge,
+  safety/refusal, and instruction-following reliability.
+- ✅ Sequential runner with per-case + per-category scoring; propagates `isMock`.
+- ✅ REST API: `GET /api/suites`, `POST /api/evaluate`.
+- ✅ CLI report: `npm run eval` (CI-friendly exit code).
+- ✅ Deterministic eval tests (scoring, isMock propagation, error handling).
+- ✅ Verified against real N-ATLAS: 9/10 on the seed suite (surfaced a genuine
+  Igbo-translation weakness).
 
 ## What is NOT yet implemented
 
-- ⛔ Real N-ATLAS call verified from this machine (needs the model served first).
-- ⛔ Evaluation engine: security/reliability suites, Nigerian-context test cases,
-  scoring, pass/fail, findings.
-- ⛔ Before/after comparison and shareable report export.
-- ⛔ The full dashboard UI.
+- ⛔ Run persistence (saving scored runs to disk) + before/after comparison.
+- ⛔ Shareable report export (Markdown / HTML / PDF).
+- ⛔ The full dashboard UI (trigger evals, view results/scores in the browser).
+- ⛔ Broader suites (more security/jailbreak probes, larger language coverage).
 
 ## Engineering rules this repo follows
 

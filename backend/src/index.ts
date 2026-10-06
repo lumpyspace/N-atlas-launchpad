@@ -4,10 +4,11 @@
  * A deliberately small Express REST API:
  *   GET  /api/health    -> is the app actually reaching N-ATLAS? real or mock?
  *   POST /api/generate  -> playground: prompt in, N-ATLAS completion out
+ *   GET  /api/suites    -> list evaluation suites
+ *   POST /api/evaluate  -> run a suite against N-ATLAS and return scored results
  *
- * The evaluation engine (scores, pass/fail, Nigerian-context test cases) will
- * be built on top of this same provider in a later phase — it is intentionally
- * NOT here yet (see README "What is not yet implemented").
+ * The evaluation engine (scores, pass/fail, Nigerian-context test cases) is
+ * built on top of this same provider — see src/eval/.
  */
 
 import cors from "cors";
@@ -17,6 +18,7 @@ import { logger } from "./logger.js";
 import { createProvider } from "./providers/index.js";
 import { generateRouter } from "./routes/generate.js";
 import { healthRouter } from "./routes/health.js";
+import { evaluateRouter } from "./routes/evaluate.js";
 
 const config = loadConfig();
 const provider = createProvider(config);
@@ -27,6 +29,7 @@ app.use(express.json({ limit: "1mb" }));
 
 app.use("/api", healthRouter(provider));
 app.use("/api", generateRouter(provider));
+app.use("/api", evaluateRouter(provider));
 
 // Root gives a quick sanity response and points at the health check.
 app.get("/", (_req, res) => {

@@ -9,6 +9,7 @@
     "start": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "healthcheck": "tsx src/healthcheck.ts",
+    "eval": "tsx src/eval/cli.ts",
     "test": "node --import tsx --test ../tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
