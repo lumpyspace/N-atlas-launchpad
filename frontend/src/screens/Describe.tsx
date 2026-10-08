@@ -40,6 +40,8 @@ export default function Describe() {
   const [text, setText] = useState(state.description);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const tooShort = wordCount > 0 && wordCount < 8;
 
   async function submit() {
     if (!text.trim()) return;
@@ -69,13 +71,20 @@ export default function Describe() {
         <textarea
           className="w-full resize-none rounded-lg border border-slate-300 p-3 text-sm focus:border-forge-500 focus:outline-none focus:ring-2 focus:ring-forge-500/20"
           rows={4}
-          placeholder="I want to build an AI assistant that helps Nigerian university students understand admission requirements."
+          placeholder="e.g. A gaming app for Nigerian players to find matches, track scores and get tips in Yoruba and English"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit();
           }}
         />
+        {tooShort && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <span className="font-semibold">Add a bit more detail</span> — who is it for, what should it do, and any specific features or languages?
+            <br />
+            <span className="text-amber-500">e.g. "A gaming app <span className="font-medium">for Nigerian players</span> to <span className="font-medium">find matches, track scores and get tips</span> in Yoruba"</span>
+          </div>
+        )}
 
         <div className="mt-4">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">

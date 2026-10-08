@@ -76,6 +76,108 @@ function derivePurpose(desc: string, fallback: string): string {
   return clean.length >= 8 ? clean.toLowerCase() : fallback;
 }
 
+// ── Domain inference (for short descriptions) ────────────────────────────────
+
+interface DomainDefaults {
+  users: string;
+  tasks: string[];
+}
+
+const DOMAIN_KEYWORDS: Array<{ words: string[]; defaults: DomainDefaults }> = [
+  {
+    words: ["gaming", "game", "games", "esport", "esports", "gamer", "gamers", "play"],
+    defaults: {
+      users: "Nigerian gamers and gaming enthusiasts",
+      tasks: ["Find and discover games", "Get gaming tips and strategies", "Track scores and achievements"],
+    },
+  },
+  {
+    words: ["health", "medical", "clinic", "hospital", "doctor", "patient", "medicine", "wellness"],
+    defaults: {
+      users: "Nigerian patients and health seekers",
+      tasks: ["Get health information", "Find healthcare providers", "Understand medical conditions"],
+    },
+  },
+  {
+    words: ["food", "recipe", "restaurant", "meal", "cook", "cooking", "delivery", "eat"],
+    defaults: {
+      users: "Nigerian food lovers and diners",
+      tasks: ["Discover Nigerian recipes", "Find restaurants", "Get cooking tips"],
+    },
+  },
+  {
+    words: ["travel", "tourism", "hotel", "flight", "trip", "vacation", "transport", "transport"],
+    defaults: {
+      users: "Nigerian travelers",
+      tasks: ["Plan trips", "Find hotels and transportation", "Discover tourist attractions"],
+    },
+  },
+  {
+    words: ["job", "jobs", "career", "hiring", "recruitment", "work", "employment", "cv", "resume"],
+    defaults: {
+      users: "Nigerian job seekers",
+      tasks: ["Search for jobs", "Get career advice", "Prepare for interviews"],
+    },
+  },
+  {
+    words: ["shop", "shopping", "ecommerce", "store", "product", "buy", "sell", "market", "marketplace"],
+    defaults: {
+      users: "Nigerian shoppers",
+      tasks: ["Discover products", "Track orders", "Get shopping assistance"],
+    },
+  },
+  {
+    words: ["property", "real estate", "housing", "house", "rent", "apartment", "land", "landlord"],
+    defaults: {
+      users: "Nigerian property seekers",
+      tasks: ["Search for properties", "Get rental guidance", "Access real estate information"],
+    },
+  },
+  {
+    words: ["fitness", "gym", "workout", "exercise", "sport", "sports", "football", "naija"],
+    defaults: {
+      users: "Nigerian sports and fitness enthusiasts",
+      tasks: ["Get fitness tips and workouts", "Track sports results", "Find local sports events"],
+    },
+  },
+  {
+    words: ["music", "artist", "song", "playlist", "entertainment", "movie", "film", "nollywood", "afrobeats"],
+    defaults: {
+      users: "Nigerian entertainment fans",
+      tasks: ["Discover Nigerian music and films", "Get artist information", "Find entertainment events"],
+    },
+  },
+  {
+    words: ["news", "media", "current affairs", "journalism", "headline"],
+    defaults: {
+      users: "Nigerian news readers",
+      tasks: ["Get the latest Nigerian news", "Explore topics and current affairs", "Stay informed"],
+    },
+  },
+  {
+    words: ["ride", "taxi", "transport", "commute", "bus", "uber", "bolt", "logistics", "delivery"],
+    defaults: {
+      users: "Nigerian commuters",
+      tasks: ["Book rides", "Get route and fare estimates", "Track deliveries"],
+    },
+  },
+  {
+    words: ["social", "community", "network", "connect", "chat", "messaging", "forum"],
+    defaults: {
+      users: "Nigerian social media and community users",
+      tasks: ["Connect with others", "Share content and ideas", "Discover trending topics"],
+    },
+  },
+];
+
+function inferFromDomain(desc: string): DomainDefaults | null {
+  const t = desc.toLowerCase();
+  for (const { words, defaults } of DOMAIN_KEYWORDS) {
+    if (words.some((w) => t.includes(w))) return defaults;
+  }
+  return null;
+}
+
 // ── Target users ──────────────────────────────────────────────────────────────
 
 const HELP_VERBS = "helps?|assists?|supports?|guides?|advises?|serves?";
@@ -105,10 +207,11 @@ function deriveTargetUsers(desc: string, fallback: string): string {
   }
 
   // "for [users]" at end of sentence (e.g. "A farming tool for Nigerian smallholders")
+  // Require 2+ words to avoid grabbing city/place names like "for Lagos"
   const m3 = s.match(/\bfor\s+([A-Za-z][^.,]+?)(?:\s+in\s+(?:yoruba|hausa|igbo|english)|[.,]|$)/i);
   if (m3) {
     const users = clean(m3[1]);
-    if (users.length >= 4 && users.split(" ").length <= 5) return capitalise(users);
+    if (users.length >= 4 && users.split(" ").length >= 2 && users.split(" ").length <= 5) return capitalise(users);
   }
 
   // "used by / serving / targeting [users]"
@@ -117,6 +220,10 @@ function deriveTargetUsers(desc: string, fallback: string): string {
     const users = clean(m4[1]);
     if (users.length >= 4) return capitalise(users);
   }
+
+  // Short description fallback — infer from domain keywords
+  const domain = inferFromDomain(desc);
+  if (domain) return domain.users;
 
   return fallback;
 }
@@ -196,6 +303,10 @@ function derivePrimaryTasks(desc: string, fallback: string[]): string[] {
     const raw = stripLangTrailer(withMatch[1].trim().replace(/\.$/, ""));
     if (raw.length >= 4) return [`Help with ${upAcronyms(raw.toLowerCase())}`];
   }
+
+  // Strategy 6: domain inference for short/keyword descriptions
+  const domain = inferFromDomain(desc);
+  if (domain) return domain.tasks;
 
   return fallback;
 }
