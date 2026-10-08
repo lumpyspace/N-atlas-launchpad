@@ -4,6 +4,7 @@ import { useProject } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 
 const CATEGORY_LABEL: Record<string, string> = {
+  "app-specific": "Your App",
   quality: "AI Quality",
   context: "Nigerian Context",
   language: "Language",
@@ -33,7 +34,7 @@ export default function Evaluate() {
     setRunning(true);
     setError(null);
     try {
-      const result = await runAppEvaluation(bp.sector, state.systemPrompt);
+      const result = await runAppEvaluation(bp.sector, state.systemPrompt, state.description);
       dispatch({ type: "setEvalResult", result });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

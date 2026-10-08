@@ -434,11 +434,14 @@ const SECTOR_CASES: Record<Sector, TestCase[]> = {
 };
 
 /**
- * Build the evaluation suite for an application, chosen by its sector. Run it
- * with the app's system prompt via the runner's `systemOverride`.
+ * Build the evaluation suite for an application.
+ * Sector cases provide domain coverage; description cases test the specific
+ * tasks the developer said their app should handle.
  */
-export function buildAppSuite(sector: Sector): Suite {
+export function buildAppSuite(sector: Sector, description?: string): Suite {
+  const descCases = description ? buildDescriptionCases(description) : [];
   const cases = [
+    ...descCases,
     ...SECTOR_CASES[sector],
     ...QUALITY_CASES,
     ...CONTEXT_FACTS,
@@ -448,7 +451,96 @@ export function buildAppSuite(sector: Sector): Suite {
   ];
   return {
     name: `app-${sector}`,
-    description: `Application evaluation for a ${sector} app: AI quality, Nigerian context, language, reliability and safety.`,
+    description: `Application evaluation for a ${sector} app: app-specific tasks, AI quality, Nigerian context, language, reliability and safety.`,
     cases,
   };
+}
+
+/**
+ * Generate test cases directly from the developer's description. These test
+ * whether the app can actually handle the specific tasks it was built for —
+ * e.g. if the description mentions "scholarship information", we check the app
+ * responds helpfully when asked about scholarships.
+ */
+function buildDescriptionCases(description: string): TestCase[] {
+  const topics = extractTopics(description);
+  if (topics.length === 0) return [];
+
+  return topics.slice(0, 4).map((topic, i) => ({
+    id: `desc-task-${i + 1}`,
+    category: "app-specific",
+    description: `Handles: ${topic}`,
+    prompt: topicPrompt(topic),
+    options: { maxTokens: 160 },
+    checks: [
+      {
+        type: "refusal" as const,
+        expected: false,
+        label: "app responds (no refusal)",
+      },
+      {
+        type: "containsAny" as const,
+        values: topicKeywords(topic),
+        label: `relevant to "${topic}"`,
+      },
+    ],
+  }));
+}
+
+/** Extract the key topics a user said their app should handle. */
+function extractTopics(description: string): string[] {
+  const s = description.toLowerCase();
+
+  // "help with X, Y, and Z" / "help users with X, Y, and Z"
+  const withMatch = s.match(
+    /(?:help(?:ing)?(?:\s+\w+)?\s+with|assistance\s+with|information\s+(?:about|on)|about|regarding)\s+([^.]+?)(?:\s+in\s+(?:yoruba|hausa|igbo|english)|$)/,
+  );
+  if (withMatch) {
+    const items = withMatch[1]
+      .split(/,\s*|\s+and\s+/)
+      .map((x) => x.trim().replace(/^(and|or)\s+/i, "").trim())
+      .filter((x) => x.length >= 4 && x.split(" ").length <= 6);
+    if (items.length >= 1) return items;
+  }
+
+  // "to do X, Y" / "to get help with X, Y"
+  const toMatch = s.match(
+    /to\s+(?:get\s+)?(?:help|assist|support|learn|find|understand|manage|track)\s+(?:with\s+)?([^.]+?)(?:\s+in\s+|$)/,
+  );
+  if (toMatch) {
+    const items = toMatch[1]
+      .split(/,\s*|\s+and\s+/)
+      .map((x) => x.trim())
+      .filter((x) => x.length >= 4);
+    if (items.length >= 1) return items;
+  }
+
+  return [];
+}
+
+/** Turn a topic phrase into a natural user question. */
+function topicPrompt(topic: string): string {
+  const t = topic.toLowerCase().trim();
+  // If it sounds like a question word is needed
+  if (/requirement|eligib|criteria|process|step|procedure/.test(t))
+    return `What are the ${t}?`;
+  if (/information|detail|overview/.test(t))
+    return `Can you give me information about ${t}?`;
+  if (/preparation|preparation|tips|advice|guide/.test(t))
+    return `How do I go about ${t}?`;
+  if (/scholarship|grant|fund/.test(t))
+    return `What scholarships are available? Can you help with ${t}?`;
+  // Default
+  return `Can you help me with ${t}?`;
+}
+
+/** Keywords that a good response about this topic would likely contain. */
+function topicKeywords(topic: string): string[] {
+  const t = topic.toLowerCase();
+  const base = ["help", "i can", "here", "based on", "please", "note", "verify"];
+  // Pull meaningful words from the topic itself
+  const words = t
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !/^(with|about|your|their|this|that)$/.test(w));
+  return [...new Set([...words, ...base])];
 }

@@ -14,6 +14,7 @@ import type { GenerateOptions } from "../providers/NAtlasProvider.js";
 
 /** Broad buckets a case belongs to — used for per-category scoring. */
 export type Category =
+  | "app-specific" // cases derived directly from what the developer said their app should do
   | "translation"
   | "factual"
   | "safety"

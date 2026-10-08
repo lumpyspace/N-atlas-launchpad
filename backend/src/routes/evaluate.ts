@@ -45,6 +45,9 @@ export function evaluateRouter(provider: NAtlasProvider): Router {
     const systemPrompt =
       typeof req.body?.systemPrompt === "string" ? req.body.systemPrompt : undefined;
 
+    const description =
+      typeof req.body?.description === "string" ? req.body.description.trim() : undefined;
+
     try {
       if (typeof sector === "string") {
         if (!SECTORS.includes(sector as Sector)) {
@@ -52,7 +55,7 @@ export function evaluateRouter(provider: NAtlasProvider): Router {
             .status(400)
             .json({ error: `Unknown sector "${sector}".`, available: SECTORS });
         }
-        const suite = buildAppSuite(sector as Sector);
+        const suite = buildAppSuite(sector as Sector, description);
         const run = await runSuite(suite, provider, { maxCases, systemOverride: systemPrompt });
         return res.json(run);
       }

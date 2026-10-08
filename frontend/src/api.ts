@@ -144,12 +144,13 @@ export async function runEvaluation(
 export async function runAppEvaluation(
   sector: string,
   systemPrompt: string,
+  description?: string,
   maxCases?: number,
 ): Promise<SuiteRunResult> {
   const res = await fetch(`${BASE}/api/evaluate`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ sector, systemPrompt, maxCases }),
+    body: JSON.stringify({ sector, systemPrompt, description, maxCases }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
