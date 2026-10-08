@@ -9,6 +9,7 @@ import type { AppConfig } from "../config.js";
 import { logger } from "../logger.js";
 import { HttpNAtlasProvider } from "./HttpNAtlasProvider.js";
 import { MockNAtlasProvider } from "./MockNAtlasProvider.js";
+import { ScriptedDemoProvider } from "./ScriptedDemoProvider.js";
 import type { NAtlasProvider } from "./NAtlasProvider.js";
 
 export function createProvider(config: AppConfig): NAtlasProvider {
@@ -22,6 +23,14 @@ export function createProvider(config: AppConfig): NAtlasProvider {
       model: config.natlasModel,
       timeoutMs: config.requestTimeoutMs,
     });
+  }
+
+  if (config.provider === "demo") {
+    logger.info(
+      "Using DEMO provider (scripted, story-coherent — NOT real N-ATLAS). " +
+        "Evaluation and security engines run for real against it.",
+    );
+    return new ScriptedDemoProvider();
   }
 
   logger.warn(

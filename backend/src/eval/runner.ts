@@ -20,6 +20,12 @@ import type { CaseResult, Category, Suite, SuiteRunResult } from "./types.js";
 export interface RunOptions {
   /** Run only the first N cases (handy for slow CPU demos). */
   maxCases?: number;
+  /**
+   * Run every case with THIS system prompt instead of the case's own. Used when
+   * evaluating a developer's application as configured — the whole point is to
+   * test their system prompt, so it overrides any per-case system.
+   */
+  systemOverride?: string;
   /** Optional progress callback (case index, total, latest result). */
   onProgress?: (done: number, total: number, result: CaseResult) => void;
 }
@@ -54,7 +60,7 @@ export async function runSuite(
 
     try {
       const gen = await provider.generate(tc.prompt, {
-        system: tc.system,
+        system: opts.systemOverride ?? tc.system,
         language: tc.language,
         ...tc.options,
       });

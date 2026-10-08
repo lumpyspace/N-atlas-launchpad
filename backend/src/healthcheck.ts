@@ -15,7 +15,7 @@ async function main() {
   const config = loadConfig();
   const provider = createProvider(config);
 
-  console.log("— N-ATLAS Forge health check —");
+  console.log("— N-ATLAS Launchpad health check —");
   console.log(`provider : ${provider.name}${provider.isMock ? "  (MOCK — not real N-ATLAS)" : ""}`);
 
   const status = await provider.health();

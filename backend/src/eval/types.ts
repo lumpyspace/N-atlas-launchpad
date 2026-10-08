@@ -18,7 +18,9 @@ export type Category =
   | "factual"
   | "safety"
   | "reliability"
-  | "language";
+  | "language"
+  | "quality" // AI quality: relevance, instruction-following, uncertainty
+  | "context"; // Nigerian-context knowledge for the app's sector
 
 /** Supported language tags for N-ATLAS (hint only). */
 export type Lang = "en" | "yo" | "ha" | "ig";

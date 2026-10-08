@@ -16,7 +16,17 @@ import { Router } from "express";
 import { logger } from "../logger.js";
 import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import { runSuite } from "../eval/runner.js";
-import { DEFAULT_SUITE, getSuite, listSuites } from "../eval/suites.js";
+import { buildAppSuite, DEFAULT_SUITE, getSuite, listSuites } from "../eval/suites.js";
+import type { Sector } from "../blueprint/types.js";
+
+const SECTORS: Sector[] = [
+  "education",
+  "finance",
+  "agriculture",
+  "legal",
+  "customer-support",
+  "general",
+];
 
 export function evaluateRouter(provider: NAtlasProvider): Router {
   const router = Router();
@@ -26,19 +36,35 @@ export function evaluateRouter(provider: NAtlasProvider): Router {
   });
 
   router.post("/evaluate", async (req, res) => {
-    const suite = typeof req.body?.suite === "string" ? req.body.suite : DEFAULT_SUITE;
     const maxCasesRaw = req.body?.maxCases;
     const maxCases =
       Number.isInteger(maxCasesRaw) && maxCasesRaw > 0 ? maxCasesRaw : undefined;
 
-    if (!getSuite(suite)) {
-      return res.status(404).json({
-        error: `Unknown suite "${suite}".`,
-        available: listSuites().map((s) => s.name),
-      });
-    }
+    // Application mode: run a sector suite against the app's own system prompt.
+    const sector = req.body?.sector;
+    const systemPrompt =
+      typeof req.body?.systemPrompt === "string" ? req.body.systemPrompt : undefined;
 
     try {
+      if (typeof sector === "string") {
+        if (!SECTORS.includes(sector as Sector)) {
+          return res
+            .status(400)
+            .json({ error: `Unknown sector "${sector}".`, available: SECTORS });
+        }
+        const suite = buildAppSuite(sector as Sector);
+        const run = await runSuite(suite, provider, { maxCases, systemOverride: systemPrompt });
+        return res.json(run);
+      }
+
+      // Registry mode (backwards compatible): run a named suite.
+      const suite = typeof req.body?.suite === "string" ? req.body.suite : DEFAULT_SUITE;
+      if (!getSuite(suite)) {
+        return res.status(404).json({
+          error: `Unknown suite "${suite}".`,
+          available: listSuites().map((s) => s.name),
+        });
+      }
       const run = await runSuite(suite, provider, { maxCases });
       return res.json(run);
     } catch (err) {

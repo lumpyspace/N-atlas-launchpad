@@ -9,7 +9,7 @@
 
 import "dotenv/config";
 
-export type ProviderKind = "http" | "mock";
+export type ProviderKind = "http" | "mock" | "demo";
 
 export interface AppConfig {
   port: number;
@@ -27,8 +27,10 @@ export interface AppConfig {
 
 function parseProvider(value: string | undefined): ProviderKind {
   const v = (value ?? "mock").toLowerCase().trim();
-  if (v === "http" || v === "mock") return v;
-  throw new Error(`NATLAS_PROVIDER must be "http" or "mock", got "${value}"`);
+  if (v === "http" || v === "mock" || v === "demo") return v;
+  throw new Error(
+    `NATLAS_PROVIDER must be "http", "demo" or "mock", got "${value}"`,
+  );
 }
 
 export function loadConfig(): AppConfig {

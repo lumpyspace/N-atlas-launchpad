@@ -1,140 +1,137 @@
-# N-ATLAS Forge
+# N-ATLAS Launchpad
 
-**Build. Test. Benchmark. Improve.**
+**Build. Test. Secure. Deploy with N-ATLAS.**
 
-A developer **security and evaluation platform** for applications built on
-**N-ATLAS** — Nigeria's open, multilingual LLM (`NCAIR1/N-ATLaS`). N-ATLAS Forge
-lets a developer run reliability and security tests against N-ATLAS, evaluate its
-responses on Nigerian-context test cases, score them, compare before/after
-improvements, and (eventually) export a shareable evaluation report.
+N-ATLAS Launchpad turns an app idea into a tested, security-checked **N-ATLAS**
+prototype — and sends the developer home with real, runnable code. It's a
+**developer adoption tool** for **N-ATLAS**, Nigeria's open, multilingual LLM
+(`NCAIR1/N-ATLaS`): a developer who has never used N-ATLAS can, in minutes,
+describe what they want, build it, try it, evaluate it, attack it, improve it,
+and export a starter project.
 
 > Built for the **2026 NCAIR/NITDA National AI Innovation Challenge (NAIC)**.
 
-> **N-ATLAS is the model under test.** This project does **not** build another
-> chatbot or LLM, and it never substitutes OpenAI/Claude/Gemini/Llama/Ollama for
-> N-ATLAS and pretends it is N-ATLAS.
+The workflow:
+
+```
+Describe → Build → Try → Evaluate → Secure → Improve → Export
+```
+
+> **N-ATLAS is the model.** Launchpad never substitutes another LLM for N-ATLAS
+> and pretends it is N-ATLAS. When real N-ATLAS isn't connected, the UI runs in a
+> clearly-labelled **DEMO MODE** (scripted responses) — and says so.
 
 ---
 
 ## Why it exists
 
-Teams building on N-ATLAS have no easy way to know if their app behaves safely
-and reliably — especially across Nigerian languages (Yoruba, Hausa, Igbo,
-Nigerian-accented English). N-ATLAS Forge is the "test bench" that measures it.
+A developer with a Nigerian use case (university admissions, agriculture,
+finance, legal info, customer support…) has no easy on-ramp to N-ATLAS, and no
+way to check — *before shipping* — that their app speaks good Nigerian-context
+English/Yoruba/Hausa/Igbo and resists prompt-injection and jailbreaks. Launchpad
+is that on-ramp: discover where N-ATLAS fits your app, test it, and leave with
+working code. Different models have different strengths; this helps you find
+N-ATLAS's.
 
-## Architecture (short version)
+## The two realities we designed around
 
-`frontend (React/Vite)` → `backend (Node/Express REST)` → **`N-ATLAS server you
-host`** (Ollama / vLLM / TGI / HF Endpoint). The backend reaches N-ATLAS only
-through a swappable **`NAtlasProvider`** abstraction, so the serving method can
-change without touching the evaluation logic. Full detail in
+1. **No hosted N-ATLAS API exists.** N-ATLAS is open-weights (gated Llama-3 8B).
+   You run it yourself and serve it over an OpenAI-compatible endpoint (local
+   Ollama, a GPU server, or an HF Inference Endpoint). Launchpad reaches it
+   through one swappable `NAtlasProvider`, so **demo / local-live / hosted-GPU
+   are just configuration** (`NATLAS_PROVIDER` + a UI badge).
+2. **CPU inference is slow** (~1.4 tok/s locally), far too slow for the ~40
+   sequential model calls a full demo makes. So **DEMO MODE is first-class**: it
+   runs the *real* evaluation and security engines against a scripted provider
+   that responds story-coherently. Scores — including the Secure→Improve
+   before/after — are **computed, never faked**. Flip `NATLAS_PROVIDER=http` to
+   prove one genuine N-ATLAS call.
+
+## Architecture (short)
+
+`frontend (React/Vite/Tailwind wizard)` → `backend (Node/Express)` →
+**`NAtlasProvider`** → `demo | http (Ollama / GPU / HF) | mock`. Engines:
+**blueprint** (idea → plan), **eval** (sector suites), **security** (attack
+suite), **improve** (harden). Export runs client-side (JSZip). Full detail in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ```
-frontend/   React + Vite + TypeScript + Tailwind — Phase-1 playground UI
-backend/    Node + Express + TypeScript — REST API + provider abstraction
-inference/  How to serve real N-ATLAS locally (Ollama/vLLM) + Modelfile
-tests/      Provider-contract + mock-safety tests (eval suites come later)
+frontend/   React + Vite + TypeScript + Tailwind — the Launchpad wizard
+backend/    Node + Express + TypeScript — blueprint / eval / security / improve + provider
+inference/  How to serve real N-ATLAS locally (Ollama) + Modelfile
 docs/       Architecture + N-ATLAS integration guide
 ```
-
-## N-ATLAS integration status
-
-**Honest status:** there is **no official public N-ATLAS API**. N-ATLAS is a
-**gated Llama-3 8B model on Hugging Face** that you run yourself. N-ATLAS Forge
-is wired to call a self-hosted, OpenAI-compatible N-ATLAS endpoint — and this
-has now been **verified with a real call from a local machine**: the HF license
-was accepted, a pre-quantized **Q4_K_M GGUF** (`QuantFactory/N-ATLaS-GGUF`) was
-served via **Ollama on CPU** (no GPU), and `npm run healthcheck` reached real
-N-ATLAS successfully (`ok: true`). Inference is slow on CPU (~1.4 tok/s, ~45s
-cold load) but genuine — the model answers in-character (e.g. *"I speak English
-and Hausa."*).
-
-The app still **defaults to a clearly-labelled MOCK provider** so the UI is
-developable without a served model. Mock output is flagged (`isMock: true`) in
-the API and shown with a loud warning banner in the UI — it can never be mistaken
-for real N-ATLAS. Full details, licensing limits, and sources are in
-[`docs/N-ATLAS-INTEGRATION.md`](docs/N-ATLAS-INTEGRATION.md).
-
-## How to configure real N-ATLAS access
-
-1. Accept the license on <https://huggingface.co/NCAIR1/N-ATLaS> (gated model).
-2. Serve the model and get an OpenAI-compatible endpoint — see
-   [`inference/README.md`](inference/README.md) (Ollama for local CPU, or
-   vLLM/TGI/HF-Endpoint for GPU).
-3. In `backend/.env`:
-   ```
-   NATLAS_PROVIDER=http
-   NATLAS_ENDPOINT=http://localhost:11434/v1   # your server
-   NATLAS_API_KEY=                              # if your server needs one
-   NATLAS_MODEL=n-atlas                         # tag/id your server expects
-   ```
-4. Verify the chain: `cd backend && npm run healthcheck`.
 
 ## Run it locally
 
 ```bash
-# 1. Backend (defaults to MOCK provider — safe out of the box)
+# 1. Backend (defaults to DEMO mode — full workflow, no GPU needed)
 cd backend
-cp .env.example .env
+cp .env.example .env          # Windows PowerShell: Copy-Item .env.example .env
 npm install
-npm run dev            # http://localhost:8787  (GET /api/health)
+npm run dev                   # http://localhost:8787
 
 # 2. Frontend (new terminal)
 cd frontend
 cp .env.example .env.local
 npm install
-npm run dev            # http://localhost:5173
-
-# 3. Verify app -> N-ATLAS -> response
-cd backend && npm run healthcheck
+npm run dev                   # http://localhost:5173
 ```
 
-On Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
+Open <http://localhost:5173> and walk the workflow.
 
-## What is currently implemented
+### Connecting real N-ATLAS (live mode)
 
-**Phase 1 — integration plumbing**
-- ✅ Clean monorepo structure (`frontend` / `backend` / `inference` / `tests` / `docs`).
-- ✅ `NAtlasProvider` abstraction + `HttpNAtlasProvider` (real) + `MockNAtlasProvider` (labelled).
-- ✅ Environment-based configuration (no hard-coded secrets).
-- ✅ REST API: `GET /api/health`, `POST /api/generate`.
-- ✅ Health-check command verifying app → N-ATLAS → response.
-- ✅ Minimal playground UI with a permanent REAL-vs-MOCK banner.
-- ✅ Secret-redacting logger; basic error handling.
-- ✅ Provider-contract / mock-safety tests.
-- ✅ Integration research + documentation with sources.
-- ✅ Real N-ATLAS call verified from this machine (Q4_K_M GGUF served via local
-  Ollama on CPU; `npm run healthcheck` → `ok: true`).
+1. Accept the license on <https://huggingface.co/NCAIR1/N-ATLaS> (gated model).
+2. Serve it over an OpenAI-compatible endpoint — see
+   [`inference/README.md`](inference/README.md) (Ollama for local CPU; vLLM/TGI/HF
+   for GPU). A **GPU** runs this 8B model at ~30–80 tok/s — fast enough for live
+   use; the ~1.4 tok/s figure is a CPU limitation, not an N-ATLAS one.
+3. In `backend/.env` set `NATLAS_PROVIDER=http`, `NATLAS_ENDPOINT`,
+   `NATLAS_MODEL` (and `NATLAS_API_KEY` if your server needs one).
+4. Verify: `cd backend && npm run healthcheck`. The UI badge switches to
+   **LIVE N-ATLAS**.
 
-**Phase 2 — evaluation engine** (`backend/src/eval/`)
-- ✅ Declarative test-case + check model (`containsAny/All`, `notContains`, `regex`,
-  `minLength`, `refusal`) with diacritic/case-insensitive matching for yo/ha/ig.
-- ✅ Seed **`nigerian-context`** suite: translation, Nigerian factual knowledge,
-  safety/refusal, and instruction-following reliability.
-- ✅ Sequential runner with per-case + per-category scoring; propagates `isMock`.
-- ✅ REST API: `GET /api/suites`, `POST /api/evaluate`.
-- ✅ CLI report: `npm run eval` (CI-friendly exit code).
-- ✅ Deterministic eval tests (scoring, isMock propagation, error handling).
-- ✅ Verified against real N-ATLAS: 9/10 on the seed suite (surfaced a genuine
-  Igbo-translation weakness).
+## What's implemented
 
-**Phase 3 — dashboard UI** (`frontend/`)
-- ✅ Evaluation dashboard: suite picker + optional max-cases, one-click run,
-  overall pass-rate, per-category bars, and expandable per-case results
-  (prompt, output, per-check pass/fail).
-- ✅ Tabbed shell (Evaluate / Playground) under a persistent REAL-vs-MOCK banner;
-  mock runs are loudly flagged as not-real in the results view too.
+- **Describe → Blueprint** — deterministic, sector-aware blueprint (name,
+  purpose, Nigerian-context notes, risks, and a generated **system prompt** with
+  a planted security canary). `POST /api/blueprint`.
+- **Playground** — 3-pane chat with your app's system prompt; LIVE/DEMO badge.
+- **Evaluate** — sector suites (education / finance / agriculture / legal /
+  customer-support / general) across **AI quality, Nigerian context, language,
+  reliability, safety**, run against the app's own system prompt.
+  `POST /api/evaluate`.
+- **Secure** — ~15 controlled attacks (prompt injection, system-prompt
+  extraction, impersonation, sensitive-info, jailbreak, data leakage) with
+  severity, explanation, and mitigation. `POST /api/security`.
+- **Improve** — hardens the system prompt against the categories that failed,
+  then **re-tests** for a real before/after. `POST /api/improve`.
+- **Export** — a real, runnable **JavaScript or Python** starter project (N-ATLAS
+  client, system prompt, eval + security tests, README) as a downloadable `.zip`.
 
-## What is NOT yet implemented
+## Evaluation & security methodology
 
-- ⛔ Run persistence (saving scored runs to disk) + before/after comparison.
-- ⛔ Shareable report export (Markdown / HTML / PDF).
-- ⛔ Broader suites (more security/jailbreak probes, larger language coverage).
+- **Evaluation** uses declarative checks (keyword / refusal / format /
+  min-length), diacritic- and case-insensitive so ASCII values match accented
+  Yoruba/Hausa/Igbo. Transparent and fast; an LLM judge can be plugged in later
+  for deeper scoring.
+- **Security detection is deterministic — no second LLM judge.** Every generated
+  system prompt carries a secret **canary**; if a response echoes it, that's
+  provable system-prompt leakage. Injection tests embed a **sentinel** token; if
+  the response emits it, the injection provably succeeded. Jailbreak/sensitive
+  tests check for refusal. This makes verdicts reproducible and explainable.
 
-## Engineering rules this repo follows
+## Honesty rules this repo follows
 
-- Never claim N-ATLAS integration works without a successful real request.
-- Never fabricate test results. Never hard-code credentials.
+- Never present DEMO/mock output as real N-ATLAS (every result carries `isMock`).
+- Never fabricate scores — before/after is always re-computed by re-running.
 - Never use another LLM as a hidden stand-in for N-ATLAS.
-- TypeScript throughout; basic error handling; logs redact secrets.
+- Never claim N-ATLAS universally beats other models; help developers *discover
+  where it works* for their app.
+
+## Roadmap
+
+- Hosted shared N-ATLAS GPU endpoint so site visitors get live inference.
+- LLM-as-judge scoring option for subtler quality/context checks.
+- Larger multilingual + safety suites; run persistence and shareable reports.

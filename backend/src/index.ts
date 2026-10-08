@@ -16,12 +16,17 @@ import express from "express";
 import { loadConfig } from "./config.js";
 import { logger } from "./logger.js";
 import { createProvider } from "./providers/index.js";
+import { ProviderRef } from "./providers/ProviderRef.js";
 import { generateRouter } from "./routes/generate.js";
 import { healthRouter } from "./routes/health.js";
 import { evaluateRouter } from "./routes/evaluate.js";
+import { blueprintRouter } from "./routes/blueprint.js";
+import { securityRouter } from "./routes/security.js";
+import { improveRouter } from "./routes/improve.js";
+import { modeRouter } from "./routes/mode.js";
 
 const config = loadConfig();
-const provider = createProvider(config);
+const provider = new ProviderRef(createProvider(config));
 
 const app = express();
 app.use(cors()); // dev convenience; lock this down before any real deployment
@@ -29,12 +34,16 @@ app.use(express.json({ limit: "1mb" }));
 
 app.use("/api", healthRouter(provider));
 app.use("/api", generateRouter(provider));
+app.use("/api", blueprintRouter());
 app.use("/api", evaluateRouter(provider));
+app.use("/api", securityRouter(provider));
+app.use("/api", improveRouter());
+app.use("/api", modeRouter(provider));
 
 // Root gives a quick sanity response and points at the health check.
 app.get("/", (_req, res) => {
   res.json({
-    name: "N-ATLAS Forge API",
+    name: "N-ATLAS Launchpad API",
     provider: provider.name,
     isMock: provider.isMock,
     hint: "GET /api/health to verify the app -> N-ATLAS -> response chain.",
@@ -42,7 +51,7 @@ app.get("/", (_req, res) => {
 });
 
 app.listen(config.port, () => {
-  logger.info(`N-ATLAS Forge backend listening on http://localhost:${config.port}`);
+  logger.info(`N-ATLAS Launchpad backend listening on http://localhost:${config.port}`);
   if (provider.isMock) {
     logger.warn(
       "MOCK provider active — responses are NOT real N-ATLAS output. " +

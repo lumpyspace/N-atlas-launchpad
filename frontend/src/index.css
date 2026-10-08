@@ -5,3 +5,14 @@
 body {
   @apply bg-slate-50 text-slate-800 antialiased;
 }
+
+/* Subtle page background: a faint grid wash, like modern dev dashboards. */
+#root {
+  min-height: 100vh;
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(15, 23, 42, 0.035) 1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
+}

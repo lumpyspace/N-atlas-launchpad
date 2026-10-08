@@ -26,7 +26,7 @@ async function main() {
   const config = loadConfig();
   const provider = createProvider(config);
 
-  console.log(`\n— N-ATLAS Forge evaluation: "${suite}" —`);
+  console.log(`\n— N-ATLAS Launchpad evaluation: "${suite}" —`);
   if (provider.isMock) {
     console.log("⚠️  MOCK provider active — these results are NOT real N-ATLAS output.\n");
   }
