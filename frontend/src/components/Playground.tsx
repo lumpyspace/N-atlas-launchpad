@@ -3,12 +3,6 @@ import { generate, type GenerateResult, type HealthStatus } from "../api";
 import { useProject } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 
-/**
- * Playground — the central interactive screen. Three panes:
- *   LEFT   : application config (system prompt, model).
- *   CENTER : chat with your N-ATLAS app.
- *   RIGHT  : app info + quick actions.
- */
 interface Msg {
   role: "user" | "assistant";
   text: string;
@@ -22,6 +16,35 @@ const LANGS = [
   { code: "ha", label: "Hausa" },
   { code: "ig", label: "Igbo" },
 ];
+
+/** Turn a primaryTask phrase into a natural first-person prompt. */
+function taskToPrompt(task: string): string {
+  const t = task.trim();
+  if (/^help with /i.test(t))    return `I need help with ${t.replace(/^help with /i, "")}`;
+  if (/^find and /i.test(t))     return t.charAt(0).toUpperCase() + t.slice(1);
+  if (/^get /i.test(t))          return t.charAt(0).toUpperCase() + t.slice(1);
+  if (/^track /i.test(t))        return `How do I ${t.toLowerCase()}?`;
+  if (/^understand /i.test(t))   return `Help me ${t.toLowerCase()}`;
+  if (/^navigate /i.test(t))     return `How do I ${t.toLowerCase()}?`;
+  if (/^access /i.test(t))       return `How do I ${t.toLowerCase()}?`;
+  if (/^answer /i.test(t))       return t.replace(/^answer /i, "Tell me about ");
+  if (/^book /i.test(t))         return t.charAt(0).toUpperCase() + t.slice(1);
+  if (/^discover /i.test(t))     return t.charAt(0).toUpperCase() + t.slice(1);
+  return `Tell me about ${t.toLowerCase()}`;
+}
+
+/** Short keywords from tasks for the input placeholder. */
+function taskKeywords(tasks: string[]): string {
+  return tasks
+    .slice(0, 2)
+    .map((t) =>
+      t
+        .toLowerCase()
+        .replace(/^(help with|find and|get |understand |navigate |access |track |answer |book |discover )/i, "")
+        .trim(),
+    )
+    .join(", ");
+}
 
 export default function Playground({ health }: { health: HealthStatus | null }) {
   const { state, dispatch } = useProject();
@@ -66,13 +89,15 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
     }
   }
 
-  const quick = bp
-    ? [
-        "What are the admission requirements?",
-        "Wetin be JAMB?",
-        "Explain this in simple terms.",
-      ]
-    : ["Say hello.", "What can you help me with?"];
+  const tasks = bp?.primaryTasks ?? [];
+  const placeholder = tasks.length
+    ? `Ask about ${taskKeywords(tasks)}…`
+    : "Ask your app something…";
+
+  // Quick prompts = all tasks converted to natural prompts
+  const quick = tasks.length
+    ? tasks.map(taskToPrompt)
+    : ["What can you help me with?", "Say hello."];
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -116,25 +141,28 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
         {/* CENTER — chat */}
         <Card className="flex h-[32rem] flex-col">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2">
-            <span className="text-sm font-semibold text-slate-700">Chat</span>
+            <span className="text-sm font-semibold text-slate-700">
+              {bp?.name ?? "Chat"}
+            </span>
             <Badge tone={live ? "green" : "amber"}>
               {live ? "● LIVE N-ATLAS" : "● DEMO MODE"}
             </Badge>
           </div>
 
-          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
-            {messages.length === 0 && (
-              <div className="mt-12 text-center text-sm text-slate-400">
-                Send a message to start. Powered by N-ATLAS.
-              </div>
-            )}
-            {messages.map((m, i) => (
-              <Bubble key={i} msg={m} />
-            ))}
-            {loading && (
-              <div className="flex items-center gap-2 text-sm text-slate-400">
-                <Spinner /> N-ATLAS is responding…
-                {live && " (live inference can be slow)"}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto">
+            {messages.length === 0 ? (
+              <AppWelcome bp={bp} onTap={(t) => send(taskToPrompt(t))} loading={loading} />
+            ) : (
+              <div className="space-y-3 p-4">
+                {messages.map((m, i) => (
+                  <Bubble key={i} msg={m} />
+                ))}
+                {loading && (
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <Spinner /> {bp?.name ?? "N-ATLAS"} is responding…
+                    {live && " (live inference can be slow)"}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -143,7 +171,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
             <div className="flex gap-2">
               <input
                 className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-forge-500 focus:outline-none"
-                placeholder="Ask your app something…"
+                placeholder={placeholder}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send(input)}
@@ -155,11 +183,11 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
           </div>
         </Card>
 
-        {/* RIGHT — info + quick actions */}
+        {/* RIGHT — quick prompts + language */}
         <div className="space-y-4">
           <Card className="p-4">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Quick prompts
+              Try these
             </h3>
             <div className="space-y-2">
               {quick.map((q) => (
@@ -203,6 +231,66 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
     </div>
   );
 }
+
+// ── App welcome splash ────────────────────────────────────────────────────────
+
+function AppWelcome({
+  bp,
+  onTap,
+  loading,
+}: {
+  bp: ReturnType<typeof useProject>["state"]["blueprint"];
+  onTap: (task: string) => void;
+  loading: boolean;
+}) {
+  if (!bp) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-slate-400">
+        No blueprint yet — describe your app first.
+      </div>
+    );
+  }
+
+  const initial = bp.name.charAt(0).toUpperCase();
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-6 py-8 text-center">
+      {/* App icon */}
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-forge-500 text-2xl font-bold text-white shadow-md">
+        {initial}
+      </div>
+
+      {/* App name + purpose */}
+      <h2 className="mt-4 text-lg font-bold text-slate-800">{bp.name}</h2>
+      <p className="mt-1 max-w-xs text-sm text-slate-500 leading-relaxed">
+        {bp.purpose.charAt(0).toUpperCase() + bp.purpose.slice(1)}
+      </p>
+
+      {/* Target users */}
+      <p className="mt-2 text-xs text-slate-400">For {bp.targetUsers}</p>
+
+      {/* Task chips — tap to start */}
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        {bp.primaryTasks.map((task) => (
+          <button
+            key={task}
+            onClick={() => onTap(task)}
+            disabled={loading}
+            className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:border-forge-400 hover:text-forge-700 hover:shadow disabled:opacity-50 transition-all"
+          >
+            {task}
+          </button>
+        ))}
+      </div>
+
+      <p className="mt-6 text-[11px] text-slate-300">
+        Tap a feature above or type your own message
+      </p>
+    </div>
+  );
+}
+
+// ── Chat bubble ───────────────────────────────────────────────────────────────
 
 function Bubble({ msg }: { msg: Msg }) {
   if (msg.role === "user") {
