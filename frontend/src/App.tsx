@@ -97,6 +97,7 @@ function TopBar({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isLive = health?.provider === "http" && health?.ok;
+  const [connected, setConnected] = useState<string | null>(null);
 
   async function connect() {
     setBusy(true);
@@ -105,6 +106,10 @@ function TopBar({
       const h = await switchMode("http", { endpoint, model });
       onHealthChange(h);
       setOpen(false);
+      // Show latency proof — the health check IS a real generate call
+      const ms = h.detail.match(/(\d+)ms/)?.[1];
+      setConnected(ms ? `Connected — first response in ${ms}ms` : "Connected to N-ATLAS");
+      setTimeout(() => setConnected(null), 6000);
     } catch (e: any) {
       setErr(e.message ?? "Connection failed");
     } finally {
@@ -204,6 +209,11 @@ function TopBar({
             </button>
             {err && <p className="w-full text-xs text-red-600">{err}</p>}
           </div>
+        </div>
+      )}
+      {connected && (
+        <div className="border-t border-green-100 bg-green-50 px-6 py-2 text-xs text-green-700 font-medium">
+          ✓ {connected} — responses may take 5–15s while the model runs on CPU
         </div>
       )}
     </header>

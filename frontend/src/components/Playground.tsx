@@ -8,6 +8,7 @@ interface Msg {
   text: string;
   isMock?: boolean;
   error?: boolean;
+  latencyMs?: number;
 }
 
 const LANGS = [
@@ -70,7 +71,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
       });
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: res.text, isMock: res.isMock },
+        { role: "assistant", text: res.text, isMock: res.isMock, latencyMs: res.latencyMs },
       ]);
     } catch (e) {
       setMessages((m) => [
@@ -318,7 +319,19 @@ function Bubble({ msg }: { msg: Msg }) {
             Demo response — not real N-ATLAS
           </div>
         )}
+        {!msg.isMock && !msg.error && (
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-green-600">
+            N-ATLAS
+          </div>
+        )}
         {msg.text}
+        {msg.latencyMs !== undefined && (
+          <div className="mt-1.5 text-right text-[10px] text-slate-400">
+            {msg.latencyMs >= 1000
+              ? `${(msg.latencyMs / 1000).toFixed(1)}s`
+              : `${msg.latencyMs}ms`}
+          </div>
+        )}
       </div>
     </div>
   );
