@@ -171,6 +171,23 @@ export function snapshot(answers: Answers, forcedUseCase?: string): DesignSnapsh
 
 // ── Prompt for N-ATLAS's conversational reply ────────────────────────────────
 
+/** Sentences a reply may have before the engine's question (enforced while streaming). */
+export const MAX_REPLY_SENTENCES = 2;
+
+/**
+ * Length of `text` up to the end of its `n`th sentence, or -1 if it has fewer.
+ * A sentence ends at . ! or ? followed by whitespace or the end of the text.
+ */
+export function endOfSentence(text: string, n: number): number {
+  const re = /[.!?](?=\s|$)/g;
+  let count = 0;
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    count += 1;
+    if (count === n) return m.index + 1;
+  }
+  return -1;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -191,15 +208,18 @@ export function replyPrompt(snap: DesignSnapshot, history: ChatMessage[]): { sys
     "Only state facts about N-ATLAS that appear in the notes you are given. " +
     `Reply in ${replyLang}.`;
 
+  // Only what the developer actually said: an 8B model tends to recite any
+  // engine suggestions it is shown, as if the developer had chosen them.
+  const said = (f: { fromYou: boolean }, line: string) => (f.fromYou ? line : "");
   const brief = [
     `App type: ${plan.useCase.label}`,
     b.idea.value && `Idea: ${b.idea.value}`,
-    `For: ${b.users.value}`,
+    said(b.users, `For: ${b.users.value}`),
     b.problem.value && `Problem: ${b.problem.value}`,
-    `Features: ${b.features.value.join("; ")}`,
-    `Channel: ${b.channel.value}`,
-    `Languages: ${b.languages.value.join(", ")}`,
-    `Data: ${b.data.value.join("; ")}`,
+    said(b.features, `Features: ${b.features.value.join("; ")}`),
+    said(b.channel, `Channel: ${b.channel.value}`),
+    said(b.languages, `Languages: ${b.languages.value.join(", ")}`),
+    said(b.data, `Data: ${b.data.value.join("; ")}`),
     b.limits.value && `Must never: ${b.limits.value}`,
   ]
     .filter(Boolean)

@@ -120,3 +120,43 @@ test("the reply prompt asks N-ATLAS not to repeat earlier replies", () => {
   const { prompt } = replyPrompt(snapshot({ idea: "A note app" }), [{ role: "user", content: "A note app" }]);
   assert.match(prompt, /do not repeat or re-summarise/);
 });
+
+test("long replies are cut after two sentences and the model is stopped", async () => {
+  const express = (await import("../backend/node_modules/express/index.js")).default;
+  const { designRouter } = await import("../backend/src/routes/design.ts");
+  const { endOfSentence } = await import("../backend/src/design/interview.ts");
+  assert.equal(endOfSentence("One. Two! Three?", 2), 9);
+  assert.equal(endOfSentence("Version 2.5 is out. Next", 2), -1, "decimal points are not sentence ends");
+
+  let sentAfterStop = 0;
+  const provider = {
+    name: "scripted", isMock: true,
+    async generate() { throw new Error("unused"); },
+    async generateStream(_p: string, _o: unknown, onChunk: (c: any) => void, signal?: AbortSignal) {
+      for (const d of ["Great idea. ", "Students will love it. ", "It can summarise. ", "It can also quiz. ", "And more."]) {
+        if (signal?.aborted) { sentAfterStop++; return; }
+        onChunk({ type: "delta", delta: d });
+      }
+    },
+    async health() { return { ok: true } as any; },
+  };
+  const app = express();
+  app.use(express.json());
+  app.use("/api", designRouter(provider as any));
+  const server = app.listen(0);
+  try {
+    const { port } = server.address() as import("node:net").AddressInfo;
+    const res = await fetch(`http://127.0.0.1:${port}/api/design/turn`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ answers: { idea: "A note app" }, history: [{ role: "user", content: "A note app" }] }),
+    });
+    const events = (await res.text()).split("\n\n").filter((f) => f.startsWith("data: ")).map((f) => JSON.parse(f.slice(6)));
+    const reply = events.filter((e) => e.type === "delta").map((e) => e.delta).join("");
+    const question = events[0].snapshot.question;
+    assert.equal(reply, "Great idea. Students will love it.\n\n" + question);
+    assert.equal(sentAfterStop, 1, "generation stops once the reply is long enough");
+  } finally {
+    server.close();
+  }
+});

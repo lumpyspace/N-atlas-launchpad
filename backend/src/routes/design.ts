@@ -12,7 +12,15 @@
  */
 
 import { Router } from "express";
-import { SLOTS, replyPrompt, snapshot, type Answers, type ChatMessage } from "../design/interview.js";
+import {
+  endOfSentence,
+  MAX_REPLY_SENTENCES,
+  SLOTS,
+  replyPrompt,
+  snapshot,
+  type Answers,
+  type ChatMessage,
+} from "../design/interview.js";
 import { logger } from "../logger.js";
 import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import { openSse } from "./sse.js";
@@ -70,17 +78,29 @@ export function designRouter(provider: NAtlasProvider): Router {
 
     const { system, prompt } = replyPrompt(snap, history);
     let reply = "";
+    // Our own signal too, so we can stop N-ATLAS once the reply is long
+    // enough — the 8B model ignores "one sentence", and on a CPU every extra
+    // token costs about a second.
+    const ctrl = new AbortController();
+    sse.signal.addEventListener("abort", () => ctrl.abort(), { once: true });
     try {
       await provider.generateStream(
         prompt,
         { system, maxTokens: REPLY_TOKENS, temperature: 0.4 },
         (chunk) => {
-          if (chunk.type === "delta") {
-            reply += chunk.delta;
+          if (chunk.type !== "delta" || ctrl.signal.aborted) return;
+          const before = reply.length;
+          reply += chunk.delta;
+          const end = endOfSentence(reply, MAX_REPLY_SENTENCES);
+          if (end >= 0) {
+            if (end > before) sse.send({ type: "delta", delta: reply.slice(before, end) });
+            reply = reply.slice(0, end);
+            ctrl.abort();
+          } else {
             sse.send({ type: "delta", delta: chunk.delta });
           }
         },
-        sse.signal,
+        ctrl.signal,
       );
       // The 8B model sometimes forgets to ask; the interview must keep moving.
       if (!sse.signal.aborted && !asksQuestion(reply, snap.question)) {
