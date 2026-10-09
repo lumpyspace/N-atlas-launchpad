@@ -6,7 +6,7 @@
  * check types are dropped rather than trusted.
  */
 
-import { CHECK_TYPES, type Check, type Lang, type TestCase } from "./types.js";
+import { CHECK_TYPES, type Check, type JsonType, type Lang, type TestCase } from "./types.js";
 
 const LANGS: Lang[] = ["en", "pid", "yo", "ha", "ig"];
 const MAX_CUSTOM_CASES = 200;
@@ -47,8 +47,18 @@ function parseCheck(raw: any): Check | null {
       };
     case "maxLatency":
       return Number.isFinite(raw.ms) && raw.ms > 0 ? { type: "maxLatency", ms: raw.ms, label } : null;
+    case "jsonShape": {
+      if (!raw.schema || typeof raw.schema !== "object") return null;
+      const schema: Record<string, JsonType> = {};
+      for (const [k, v] of Object.entries(raw.schema).slice(0, 30)) {
+        if (typeof v === "string" && JSON_TYPES.includes(v as JsonType)) schema[k.slice(0, 60)] = v as JsonType;
+      }
+      return Object.keys(schema).length ? { type: "jsonShape", schema, label } : null;
+    }
   }
 }
+
+const JSON_TYPES: JsonType[] = ["string", "number", "boolean", "array", "object"];
 
 /** Validate browser-supplied cases into runnable TestCases (category "custom"). */
 export function parseCustomCases(input: unknown): TestCase[] {
@@ -69,6 +79,7 @@ export function parseCustomCases(input: unknown): TestCase[] {
       description: str(raw.description, 300) ?? "Your test case",
       prompt,
       language: LANGS.includes(raw.language) ? raw.language : undefined,
+      context: str(raw.context, 8000),
       checks,
     });
   }

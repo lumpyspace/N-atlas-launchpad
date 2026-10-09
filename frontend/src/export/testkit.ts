@@ -208,6 +208,21 @@ export function runCheck(check, output, latencyMs) {
     }
     case "maxLatency":
       return { passed: latencyMs <= check.ms, detail: (latencyMs / 1000).toFixed(1) + "s" };
+    case "jsonShape": {
+      let value;
+      try {
+        value = JSON.parse(output.slice(output.indexOf("{"), output.lastIndexOf("}") + 1));
+      } catch {
+        return { passed: false, detail: "no valid JSON object" };
+      }
+      const errors = Object.entries(check.schema)
+        .filter(([k, type]) => {
+          const v = value?.[k];
+          return (Array.isArray(v) ? "array" : v === null ? "null" : typeof v) !== type;
+        })
+        .map(([k, type]) => k + " should be " + type);
+      return { passed: !errors.length, detail: errors.join("; ") || "JSON matches" };
+    }
     default:
       return { passed: true, detail: "unknown check type " + check.type + " (skipped)" };
   }
@@ -230,7 +245,10 @@ const tests = suite.tests.filter((t) => !filter || (t.id + " " + t.prompt).toLow
 
 let failed = 0;
 for (const t of tests) {
-  const system = SYSTEM_PROMPT + (LANGUAGE[t.language] ? " Respond in " + LANGUAGE[t.language] + "." : "");
+  // Same facts + language wording the app uses, so tests replay faithfully.
+  let system = SYSTEM_PROMPT;
+  if (t.context) system += "\n\nAnswer only from these facts. If they don't cover the question, say so:\n" + t.context;
+  if (LANGUAGE[t.language]) system += " Respond in " + LANGUAGE[t.language] + ".";
   const started = Date.now();
   let output = "";
   try {
@@ -255,6 +273,7 @@ process.exit(failed ? 1 : 0);
 // ── Python ───────────────────────────────────────────────────────────────────
 
 const PY_CHECKS = String.raw`"""Check logic for tests/my-tests.json — mirrors N-ATLAS Launchpad's scorer."""
+import json
 import re
 import unicodedata
 
@@ -343,6 +362,18 @@ def run_check(check, output, latency_ms):
         return count <= check.get("maxRepeats", 4), f"{phrase!r} x{count}"
     if t == "maxLatency":
         return latency_ms <= check["ms"], f"{latency_ms / 1000:.1f}s"
+    if t == "jsonShape":
+        try:
+            value = json.loads(output[output.index("{"):output.rindex("}") + 1])
+        except ValueError:
+            return False, "no valid JSON object"
+        names = {"string": str, "number": (int, float), "boolean": bool, "array": list, "object": dict}
+        errors = [
+            f"{k} should be {kind}" for k, kind in check["schema"].items()
+            if k not in value or not isinstance(value[k], names[kind])
+            or (kind == "number" and isinstance(value[k], bool))
+        ]
+        return not errors, "; ".join(errors) or "JSON matches"
     return True, f"unknown check type {t} (skipped)"
 `;
 
@@ -372,7 +403,12 @@ tests = [t for t in suite["tests"] if not needle or needle in (t["id"] + " " + t
 
 failed = 0
 for t in tests:
-    system = SYSTEM_PROMPT + (f" Respond in {LANGUAGE[t['language']]}." if t.get("language") in LANGUAGE else "")
+    # Same facts + language wording the app uses, so tests replay faithfully.
+    system = SYSTEM_PROMPT
+    if t.get("context"):
+        system += "\n\nAnswer only from these facts. If they don't cover the question, say so:\n" + t["context"]
+    if t.get("language") in LANGUAGE:
+        system += f" Respond in {LANGUAGE[t['language']]}."
     started = time.time()
     try:
         output = generate(t["prompt"], system=system, max_tokens=200)

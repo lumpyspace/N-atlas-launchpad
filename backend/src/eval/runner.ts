@@ -142,7 +142,7 @@ export async function runCase(
 ): Promise<(CaseResult & { model?: string }) | null> {
   try {
     const gen = await provider.generate(tc.prompt, {
-      system: opts.systemOverride ?? tc.system,
+      system: withContext(opts.systemOverride ?? tc.system, tc.context),
       language: tc.language,
       maxTokens: opts.maxTokens,
       temperature: opts.temperature,
@@ -185,4 +185,14 @@ export async function runCase(
       description: tc.description,
     };
   }
+}
+
+/**
+ * Add a case's facts to the system prompt — the same wording as the starter
+ * server's askNatlas(), so tests behave like the real app.
+ */
+export function withContext(system: string | undefined, context: string | undefined): string | undefined {
+  if (!context?.trim()) return system;
+  const facts = "Answer only from these facts. If they don't cover the question, say so:\n" + context.trim();
+  return system ? `${system}\n\n${facts}` : facts;
 }

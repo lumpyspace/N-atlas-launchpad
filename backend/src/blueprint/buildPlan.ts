@@ -9,6 +9,7 @@
  */
 
 import { planFeature, starterCode, type FeaturePlan, type StarterCode } from "./features.js";
+import { playgroundFor, type PlaygroundSpec } from "./playground.js";
 import type { Sector } from "./types.js";
 import { detectUseCases, type DataSource } from "./useCases.js";
 
@@ -78,6 +79,8 @@ export interface BuildPlan {
   conversation: { user: string; app: string };
   /** Realistic messages to test with. */
   testMessages: string[];
+  /** How to try this app in the Playground (chat or task forms, sample data). */
+  playground: PlaygroundSpec;
   /** Backend for the chosen channel, wired to the system prompt. */
   starter: StarterCode;
   channel: { id: ChannelId; label: string; why: string };
@@ -339,6 +342,7 @@ export function buildPlanFor(
     conversation: primary.conversation,
     testMessages: dedupeBy(useCases.flatMap((u) => u.testMessages), (m) => m).slice(0, 6),
     starter,
+    playground: playgroundFor(useCases.map((u) => u.id)),
     channel,
     voice: { needed: voiceNeeded, models: voiceModels },
     knowledge,

@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { generate, streamGenerate, type GenerateOptions, type HealthStatus } from "../api";
 import { useProject, type SavedTestCase } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 import { checkLangMismatch, detectLang, hasYorubaToneMarks } from "../utils/langDetect";
-import { suggestChecks } from "../utils/testCases";
+import { suggestChecks, withContext } from "../utils/testCases";
 import { GetCode } from "./GetCode";
+import { TaskRunner } from "./TaskRunner";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,13 @@ function formatMs(ms: number): string {
 export default function Playground({ health }: { health: HealthStatus | null }) {
   const { state, dispatch } = useProject();
   const bp = state.blueprint;
+  // How this kind of app is tried out: chat, or its own task forms.
+  const spec = bp?.buildPlan?.playground;
+  const templates = spec?.templates ?? [];
+  const defaultMode = spec?.mode === "task" && templates[0] ? templates[0].id : "chat";
+  const [mode, setMode] = useState<string>(defaultMode);
+  useEffect(() => setMode(defaultMode), [bp?.name, defaultMode]);
+  const activeTemplate = templates.find((t) => t.id === mode);
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -160,7 +168,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
 
   function buildOptions(lang = language): GenerateOptions {
     return {
-      system: state.systemPrompt || undefined,
+      system: withContext(state.systemPrompt, state.playgroundData) || undefined,
       language: lang,
       temperature: shortAnswers ? 0.1 : temperature,
       maxTokens: shortAnswers ? 150 : maxTokens,
@@ -474,6 +482,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
       expectedBehavior: "",
       savedAt: new Date().toISOString(),
       checks: suggestChecks({ language: card.lang, verdict }),
+      context: state.playgroundData.trim() || undefined,
     };
     dispatch({ type: "addTestCase", testCase: tc });
     setMlState((s) =>
@@ -580,7 +589,9 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
             {bp?.name ?? "N-ATLAS Playground"}
           </h1>
           <p className="text-sm text-slate-500">
-            Chat with your application — try real prompts, break it, save cases.
+            {templates.length
+              ? "Try your app the way it will really be used — chat, or run its tasks with your own data — and save results as test cases."
+              : "Chat with your application — try real prompts, break it, save cases."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -627,7 +638,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
               request={{
                 endpoint: (health?.endpoint ?? "http://localhost:11434/v1").replace(/\/chat\/completions\/?$/, ""),
                 model: health?.model ?? "n-atlas",
-                system: state.systemPrompt,
+                system: withContext(state.systemPrompt, state.playgroundData),
                 language,
                 temperature: shortAnswers ? 0.1 : temperature,
                 maxTokens: shortAnswers ? 150 : maxTokens,
@@ -639,6 +650,31 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
               }}
             />
           )}
+
+          <Card className="p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Your data{spec?.dataLabel ? ` — ${spec.dataLabel}` : ""}
+              </h3>
+              {spec?.sampleData && state.playgroundData !== spec.sampleData && (
+                <button
+                  onClick={() => dispatch({ type: "setPlaygroundData", data: spec.sampleData! })}
+                  className="text-[11px] text-forge-600 hover:underline"
+                >
+                  Use sample
+                </button>
+              )}
+            </div>
+            <textarea
+              className="h-28 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-2 font-mono text-[11px] leading-relaxed text-slate-700 focus:border-forge-500 focus:outline-none"
+              value={state.playgroundData}
+              onChange={(e) => dispatch({ type: "setPlaygroundData", data: e.target.value })}
+              placeholder="Paste facts your app would look up — a price table, an order record, game state, a document extract…"
+            />
+            <p className="mt-1 text-[11px] leading-snug text-slate-400">
+              Added to every request as facts, like <code>findFacts()</code> in your server. Saved with each test case.
+            </p>
+          </Card>
 
           <Card className="p-4">
             <button
@@ -693,16 +729,37 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
 
         {/* CENTER — chat */}
         <Card className="flex h-[36rem] flex-col">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2">
-            <span className="text-sm font-semibold text-slate-700">
-              {bp?.name ?? "Chat"}
-            </span>
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-2 py-1.5">
+            {/* Modes: chat, plus this kind of app's own tasks (forms, JSON output) */}
+            <div className="flex min-w-0 flex-wrap gap-1">
+              {[{ id: "chat", label: "💬 Chat" }, ...templates.map((t) => ({ id: t.id, label: (t.output === "json" ? "{ } " : "📝 ") + t.label }))].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setMode(m.id)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium ${
+                    mode === m.id ? "bg-forge-50 text-forge-700" : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
             {/* health is null until the first check returns (a real inference, ~5–10s) */}
             <Badge tone={connected ? "green" : health ? "red" : "slate"}>
               {connected ? "● N-ATLAS" : health ? "● Offline" : "● Checking…"}
             </Badge>
           </div>
 
+          {activeTemplate ? (
+            <TaskRunner
+              template={activeTemplate}
+              systemPrompt={state.systemPrompt}
+              data={state.playgroundData}
+              temperature={temperature}
+              onSave={(tc) => dispatch({ type: "addTestCase", testCase: tc })}
+            />
+          ) : (
+          <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto">
             {messages.length === 0 ? (
               <AppWelcome
@@ -733,6 +790,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
                           userMessage,
                           language,
                           checks: suggestChecks({ language, verdict: tc.verdict }),
+                          context: state.playgroundData.trim() || undefined,
                         };
                         dispatch({ type: "addTestCase", testCase: full });
                         setMessages((ms) => ms.map((x) => x.id === m.id ? { ...x, savedId: full.id } : x));
@@ -795,6 +853,8 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
               </button>
             </div>
           </div>
+          </>
+          )}
         </Card>
 
         {/* RIGHT — quick prompts */}
@@ -806,7 +866,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
             {quick.map((q) => (
               <button
                 key={q}
-                onClick={() => { setInput(q); }}
+                onClick={() => { setMode("chat"); setInput(q); }}
                 disabled={loading}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-xs text-slate-600 hover:border-forge-400 hover:text-forge-700 disabled:opacity-50"
               >

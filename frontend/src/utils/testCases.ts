@@ -47,6 +47,8 @@ export function checkLabel(c: Check): string {
       return `At least ${c.chars} characters`;
     case "regex":
       return `Matches /${c.pattern}/${c.flags ?? ""}`;
+    case "jsonShape":
+      return `Valid JSON with ${Object.keys(c.schema).join(", ")}`;
   }
 }
 
@@ -69,6 +71,8 @@ export function buildCheck(type: Check["type"], raw: string, lang: LangCode): Ch
       return num > 0 ? { type, ms: Math.round(num * 1000) } : null;
     case "minLength":
       return num > 0 ? { type, chars: Math.round(num) } : null;
+    case "jsonShape":
+      return null; // created from a JSON task template, not the add-check form
     case "regex":
       try {
         new RegExp(raw);
@@ -98,6 +102,7 @@ export function toCaseInput(tc: SavedTestCase): CustomCaseInput {
     prompt: tc.userMessage,
     language: tc.language,
     description: tc.note || tc.expectedBehavior || "Saved from the Playground",
+    context: tc.context,
     checks: checksFor(tc),
   };
 }
@@ -117,6 +122,8 @@ export interface SuiteFile {
     language?: string;
     description?: string;
     expected?: string;
+    /** Facts added to the system prompt for this test. */
+    context?: string;
     lastReply?: string;
     verdict?: "good" | "bad";
     checks: Check[];
@@ -135,6 +142,7 @@ export function toSuiteFile(name: string, cases: SavedTestCase[], systemPrompt?:
       language: tc.language,
       description: tc.note || undefined,
       expected: tc.expectedBehavior || undefined,
+      context: tc.context || undefined,
       lastReply: tc.assistantReply || undefined,
       verdict: tc.verdict,
       checks: checksFor(tc),
@@ -163,7 +171,20 @@ export function fromSuiteFile(text: string): SavedTestCase[] {
       verdict: t.verdict === "good" ? "good" : "bad",
       note: typeof t.description === "string" ? t.description : "",
       expectedBehavior: typeof t.expected === "string" ? t.expected : "",
+      context: typeof t.context === "string" ? t.context : undefined,
       savedAt: now,
       checks: Array.isArray(t.checks) ? t.checks : undefined,
     }));
+}
+
+/** Same wording the backend and starter server use to add facts to the prompt. */
+export function withContext(system: string, context: string): string {
+  if (!context.trim()) return system;
+  const facts = "Answer only from these facts. If they don't cover the question, say so:\n" + context.trim();
+  return system ? `${system}\n\n${facts}` : facts;
+}
+
+/** Fill {{field}} placeholders in a task template. */
+export function renderTemplate(prompt: string, values: Record<string, string>): string {
+  return prompt.replace(/\{\{(\w+)\}\}/g, (_, name: string) => values[name] ?? "");
 }

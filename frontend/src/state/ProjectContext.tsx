@@ -60,6 +60,8 @@ export interface SavedTestCase {
   savedAt: string;
   /** Assertions run against the reply. Missing on cases saved before checks existed. */
   checks?: Check[];
+  /** "Your data" that was in the prompt when this case was saved; replayed on every run. */
+  context?: string;
 }
 
 export interface ProjectState {
@@ -77,6 +79,8 @@ export interface ProjectState {
   testRun: SuiteRunResult | null;
   /** Variants and results of the Compare grid. */
   compare: CompareState | null;
+  /** The Playground's "Your data" panel (facts added to the system prompt). */
+  playgroundData: string;
 }
 
 export interface CompareState {
@@ -100,6 +104,7 @@ const initialState: ProjectState = {
   savedTestCases: [],
   testRun: null,
   compare: null,
+  playgroundData: "",
 };
 
 type Action =
@@ -118,6 +123,7 @@ type Action =
   | { type: "setTestRun"; result: SuiteRunResult | null }
   | { type: "setCompare"; compare: CompareState | null }
   | { type: "patchBlueprint"; patch: Partial<Blueprint> }
+  | { type: "setPlaygroundData"; data: string }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -137,6 +143,7 @@ function reducer(state: ProjectState, action: Action): ProjectState {
         improvement: null,
         testRun: null,
         compare: null,
+        playgroundData: action.blueprint.buildPlan?.playground?.sampleData ?? "",
       };
     case "setSystemPrompt":
       return { ...state, systemPrompt: action.systemPrompt };
@@ -179,6 +186,8 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, testRun: action.result };
     case "setCompare":
       return { ...state, compare: action.compare };
+    case "setPlaygroundData":
+      return { ...state, playgroundData: action.data };
     case "patchBlueprint":
       return state.blueprint ? { ...state, blueprint: { ...state.blueprint, ...action.patch } } : state;
     case "reset":

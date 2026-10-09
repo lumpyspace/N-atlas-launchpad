@@ -56,7 +56,14 @@ export type Check =
   /** Fails on degenerate loops: any 2–3 word phrase repeated more than `maxRepeats` times. */
   | { type: "noRepetition"; maxRepeats?: number; label?: string; weight?: number }
   /** Passes if the reply arrived within `ms` milliseconds. */
-  | { type: "maxLatency"; ms: number; label?: string; weight?: number };
+  | { type: "maxLatency"; ms: number; label?: string; weight?: number }
+  /**
+   * Passes if the reply contains a JSON object with every key in `schema`,
+   * each of the given type ("string" | "number" | "boolean" | "array" | "object").
+   */
+  | { type: "jsonShape"; schema: Record<string, JsonType>; label?: string; weight?: number };
+
+export type JsonType = "string" | "number" | "boolean" | "array" | "object";
 
 export const CHECK_TYPES: Check["type"][] = [
   "containsAny",
@@ -68,6 +75,7 @@ export const CHECK_TYPES: Check["type"][] = [
   "language",
   "noRepetition",
   "maxLatency",
+  "jsonShape",
 ];
 
 /** One Nigerian-context test case. */
@@ -81,6 +89,12 @@ export interface TestCase {
   /** Optional language hint / system prompt / generation overrides. */
   language?: Lang;
   system?: string;
+  /**
+   * Facts the app would normally fetch (price table, order record, game
+   * state…). Added to the system prompt the same way the starter server's
+   * findFacts() does, so a test replays with the same data it was written with.
+   */
+  context?: string;
   options?: GenerateOptions;
   /** Assertions over the answer. A case passes only if ALL checks pass. */
   checks: Check[];

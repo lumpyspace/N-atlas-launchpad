@@ -292,8 +292,8 @@ app.post("/npc/line", async (req, res) => {
   const sheet = CHARACTERS[character];
   if (!sheet) return res.status(400).json({ error: "unknown character" });
   const prompt =
-    "Game state: " + JSON.stringify(state ?? {}) + "\n" +
-    "Player action: " + String(action ?? "").slice(0, 300) + "\n" +
+    "Game state: " + JSON.stringify(state ?? {}) + "\\n" +
+    "Player action: " + String(action ?? "").slice(0, 300) + "\\n" +
     "Reply with one or two short lines of dialogue, in character. Nothing else.";
   try {
     res.json({ line: await chat(sheet, prompt, 80, 0.7) });

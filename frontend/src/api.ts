@@ -275,6 +275,7 @@ export interface BuildPlan {
   conversation: { user: string; app: string };
   testMessages: string[];
   starter: { filename: string; setup: string; code: string };
+  playground?: PlaygroundSpec;
   channel: { id: string; label: string; why: string };
   voice: { needed: boolean; models: { lang: string; model: string }[] };
   knowledge: { needed: boolean; why: string; kind: "documents" | "live-data" | "none" };
@@ -411,7 +412,29 @@ export type Check =
   | { type: "refusal"; expected: boolean; label?: string }
   | { type: "language"; lang: LangCode; label?: string }
   | { type: "noRepetition"; maxRepeats?: number; label?: string }
-  | { type: "maxLatency"; ms: number; label?: string };
+  | { type: "maxLatency"; ms: number; label?: string }
+  | { type: "jsonShape"; schema: Record<string, JsonType>; label?: string };
+
+export type JsonType = "string" | "number" | "boolean" | "array" | "object";
+
+/** Mirror of backend/src/blueprint/playground.ts */
+export interface TaskTemplate {
+  id: string;
+  label: string;
+  hint: string;
+  fields: { name: string; label: string; placeholder?: string; default?: string; multiline?: boolean }[];
+  prompt: string;
+  output: "text" | "json";
+  schema?: Record<string, JsonType>;
+  maxTokens?: number;
+}
+
+export interface PlaygroundSpec {
+  mode: "chat" | "task";
+  templates: TaskTemplate[];
+  dataLabel?: string;
+  sampleData?: string;
+}
 
 /** A developer test case sent to the runner. */
 export interface CustomCaseInput {
@@ -419,6 +442,8 @@ export interface CustomCaseInput {
   prompt: string;
   language?: string;
   description?: string;
+  /** Facts added to the system prompt for this case ("Your data"). */
+  context?: string;
   checks: Check[];
 }
 

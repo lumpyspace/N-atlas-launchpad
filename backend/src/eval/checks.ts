@@ -65,7 +65,41 @@ function labelFor(check: Check): string {
       return "no repetition loop";
     case "maxLatency":
       return `responds within ${(check.ms / 1000).toFixed(check.ms % 1000 ? 1 : 0)}s`;
+    case "jsonShape":
+      return `valid JSON with ${Object.keys(check.schema).join(", ")}`;
   }
+}
+
+/**
+ * Pull the first JSON object out of a reply. Models often wrap JSON in prose
+ * or ``` fences, so take the span from the first "{" to the last "}".
+ */
+export function extractJson(text: string): { value?: Record<string, unknown>; error?: string } {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return { error: "no JSON object found" };
+  try {
+    const value = JSON.parse(text.slice(start, end + 1));
+    if (!value || typeof value !== "object" || Array.isArray(value)) return { error: "JSON is not an object" };
+    return { value };
+  } catch (err) {
+    return { error: `invalid JSON: ${(err as Error).message}` };
+  }
+}
+
+/** Problems with `value` against a {key: type} shape; empty if it matches. */
+export function shapeErrors(value: Record<string, unknown>, schema: Record<string, string>): string[] {
+  const errors: string[] = [];
+  for (const [key, type] of Object.entries(schema)) {
+    if (!(key in value)) {
+      errors.push(`missing "${key}"`);
+      continue;
+    }
+    const v = value[key];
+    const actual = Array.isArray(v) ? "array" : v === null ? "null" : typeof v;
+    if (actual !== type) errors.push(`"${key}" should be ${type}, got ${actual}`);
+  }
+  return errors;
 }
 
 /** Extra facts about the generation that some checks need. */
@@ -170,6 +204,13 @@ export function evalCheck(check: Check, output: string, ctx: CheckContext = {}):
         passed = ctx.latencyMs <= check.ms;
         detail = `took ${(ctx.latencyMs / 1000).toFixed(1)}s`;
       }
+      break;
+    }
+    case "jsonShape": {
+      const { value, error } = extractJson(output);
+      const errors = value ? shapeErrors(value, check.schema) : [error!];
+      passed = errors.length === 0;
+      detail = passed ? "JSON matches the expected shape" : errors.join("; ");
       break;
     }
   }
