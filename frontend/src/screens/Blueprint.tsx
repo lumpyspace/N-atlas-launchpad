@@ -31,7 +31,9 @@ export default function Blueprint() {
             <h1 className="text-2xl font-bold text-ink">{bp.name}</h1>
             <Badge tone="green">{sectorLabel(bp.sector)}</Badge>
           </div>
-          <p className="mt-2 max-w-2xl text-slate-600">{bp.purpose}</p>
+          <p className="mt-2 max-w-2xl text-slate-600">
+            {bp.purpose.charAt(0).toUpperCase() + bp.purpose.slice(1).replace(/[.!?]*$/, ".")}
+          </p>
         </div>
       </div>
 
@@ -59,7 +61,7 @@ export default function Blueprint() {
           <dl className="space-y-1 text-sm text-slate-600">
             <Row k="Model" v="N-ATLAS (NCAIR1/N-ATLaS)" />
             <Row k="Temperature" v="0.2 (focused, consistent)" />
-            <Row k="Languages" v="Nigerian English, Yoruba, Hausa, Igbo" />
+            <Row k="Languages" v={bp.languages.join(", ")} />
           </dl>
         </InfoCard>
       </div>

@@ -38,8 +38,7 @@ export default function Landing() {
           </a>
         </div>
         <p className="mt-4 text-xs text-slate-400">
-          No sign-up. Works in demo mode out of the box; connect a live N-ATLAS
-          endpoint when you're ready.
+          No sign-up. Point it at your Ollama instance and start building.
         </p>
       </div>
 

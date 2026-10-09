@@ -3,12 +3,11 @@ import type {
   GenerateResult,
   HealthStatus,
   NAtlasProvider,
+  StreamChunk,
 } from "./NAtlasProvider.js";
 
 /**
  * Mutable wrapper around an NAtlasProvider that can be hot-swapped at runtime.
- * All routes hold a reference to the same ProviderRef, so swapping the inner
- * provider immediately affects all subsequent requests without a server restart.
  */
 export class ProviderRef implements NAtlasProvider {
   private _inner: NAtlasProvider;
@@ -22,6 +21,15 @@ export class ProviderRef implements NAtlasProvider {
 
   generate(prompt: string, options?: GenerateOptions): Promise<GenerateResult> {
     return this._inner.generate(prompt, options);
+  }
+
+  generateStream(
+    prompt: string,
+    options: GenerateOptions,
+    onChunk: (chunk: StreamChunk) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    return this._inner.generateStream(prompt, options, onChunk, signal);
   }
 
   health(): Promise<HealthStatus> {

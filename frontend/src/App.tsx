@@ -12,12 +12,6 @@ import Improve from "./screens/Improve";
 import Export from "./screens/Export";
 import Playground from "./components/Playground";
 
-/**
- * N-ATLAS Launchpad — Build. Test. Secure. Deploy with N-ATLAS.
- *
- * A guided wizard that turns an app idea into a tested, security-checked
- * N-ATLAS prototype and a real exportable starter project.
- */
 export default function App() {
   return (
     <ProjectProvider>
@@ -34,6 +28,7 @@ function Shell() {
     getHealth().then(setHealth).catch(() => setHealth(null));
 
   useEffect(() => { refreshHealth(); }, []);
+  useEffect(() => { window.scrollTo(0, 0); }, [state.step]);
 
   if (state.step === "landing") {
     return (
@@ -96,36 +91,21 @@ function TopBar({
   const [err, setErr] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isLive = health?.provider === "http" && health?.ok;
+  const isConnected = health?.provider === "http" && health?.ok;
   const [connected, setConnected] = useState<string | null>(null);
 
   async function connect() {
     setBusy(true);
     setErr(null);
     try {
-      const h = await switchMode("http", { endpoint, model });
+      const h = await switchMode({ endpoint, model });
       onHealthChange(h);
       setOpen(false);
-      // Show latency proof — the health check IS a real generate call
       const ms = h.detail.match(/(\d+)ms/)?.[1];
       setConnected(ms ? `Connected — first response in ${ms}ms` : "Connected to N-ATLAS");
       setTimeout(() => setConnected(null), 6000);
     } catch (e: any) {
       setErr(e.message ?? "Connection failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function revertToDemo() {
-    setBusy(true);
-    setErr(null);
-    try {
-      const h = await switchMode("demo");
-      onHealthChange(h);
-      setOpen(false);
-    } catch (e: any) {
-      setErr(e.message ?? "Failed to switch");
     } finally {
       setBusy(false);
     }
@@ -152,25 +132,19 @@ function TopBar({
             </span>
           )}
           <ModeBadge health={health} />
-          {!isLive ? (
-            <button
-              onClick={() => { setOpen(o => !o); setErr(null); setTimeout(() => inputRef.current?.focus(), 50); }}
-              className="rounded-md border border-forge-400 px-2.5 py-1 text-xs font-medium text-forge-600 hover:bg-forge-50 transition-colors"
-            >
-              Use Live N-ATLAS
-            </button>
-          ) : (
-            <button
-              onClick={revertToDemo}
-              disabled={busy}
-              className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              {busy ? "Switching…" : "Switch to Demo"}
-            </button>
-          )}
+          <button
+            onClick={() => { setOpen(o => !o); setErr(null); setTimeout(() => inputRef.current?.focus(), 50); }}
+            className={
+              isConnected
+                ? "rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50 transition-colors"
+                : "rounded-md border border-forge-400 px-2.5 py-1 text-xs font-medium text-forge-600 hover:bg-forge-50 transition-colors"
+            }
+          >
+            {isConnected ? "Settings" : "Connect to N-ATLAS"}
+          </button>
         </div>
       </div>
-      {open && !isLive && (
+      {open && (
         <div className="border-t border-slate-100 bg-slate-50 px-6 py-3">
           <div className="mx-auto max-w-5xl flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1">

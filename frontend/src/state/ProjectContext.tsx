@@ -15,7 +15,7 @@ import type {
 /**
  * Central state for the Launchpad wizard. One project lives here and flows
  * through every screen: Describe → Build → Try → Evaluate → Secure → Improve →
- * Export. Persisted to localStorage so a refresh mid-demo doesn't lose work.
+ * Export. Persisted to localStorage so a refresh doesn't lose work.
  */
 
 export type Step =
@@ -28,7 +28,6 @@ export type Step =
   | "improve"
   | "export";
 
-/** The seven numbered steps shown in the top stepper (landing is excluded). */
 export const STEPS: { key: Step; label: string }[] = [
   { key: "describe", label: "Describe" },
   { key: "blueprint", label: "Build" },
@@ -43,18 +42,29 @@ export function stepIndex(step: Step): number {
   return STEPS.findIndex((s) => s.key === step);
 }
 
+/** A single developer-saved test case from the Playground. */
+export interface SavedTestCase {
+  id: string;
+  userMessage: string;
+  assistantReply: string;
+  language: string;
+  verdict: "good" | "bad";
+  note: string;
+  expectedBehavior: string;
+  savedAt: string;
+}
+
 export interface ProjectState {
   step: Step;
   description: string;
   blueprint: Blueprint | null;
-  /** Editable working copy of the system prompt (starts from the blueprint). */
   systemPrompt: string;
   evalResult: SuiteRunResult | null;
-  /** Security run reflecting the current system prompt. */
   securityResult: SecurityRunResult | null;
-  /** First security run, kept so Improve can show a real before/after. */
   securityBaseline: SecurityRunResult | null;
   improvement: Improvement | null;
+  /** Test cases saved from the Playground for developer review in Evaluate. */
+  savedTestCases: SavedTestCase[];
 }
 
 const initialState: ProjectState = {
@@ -66,6 +76,7 @@ const initialState: ProjectState = {
   securityResult: null,
   securityBaseline: null,
   improvement: null,
+  savedTestCases: [],
 };
 
 type Action =
@@ -77,6 +88,8 @@ type Action =
   | { type: "setSecurityResult"; result: SecurityRunResult | null }
   | { type: "setSecurityBaseline"; result: SecurityRunResult | null }
   | { type: "setImprovement"; improvement: Improvement | null }
+  | { type: "addTestCase"; testCase: SavedTestCase }
+  | { type: "removeTestCase"; id: string }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -86,7 +99,6 @@ function reducer(state: ProjectState, action: Action): ProjectState {
     case "setDescription":
       return { ...state, description: action.description };
     case "setBlueprint":
-      // Adopting a new blueprint resets downstream results and seeds the prompt.
       return {
         ...state,
         blueprint: action.blueprint,
@@ -106,6 +118,16 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, securityBaseline: action.result };
     case "setImprovement":
       return { ...state, improvement: action.improvement };
+    case "addTestCase":
+      return {
+        ...state,
+        savedTestCases: [...state.savedTestCases, action.testCase],
+      };
+    case "removeTestCase":
+      return {
+        ...state,
+        savedTestCases: state.savedTestCases.filter((tc) => tc.id !== action.id),
+      };
     case "reset":
       return { ...initialState };
     default:
@@ -113,7 +135,7 @@ function reducer(state: ProjectState, action: Action): ProjectState {
   }
 }
 
-const STORAGE_KEY = "natlas-launchpad-project-v1";
+const STORAGE_KEY = "natlas-launchpad-project-v2";
 
 function load(): ProjectState {
   try {
@@ -139,7 +161,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      /* storage full / unavailable — non-fatal for the wizard */
+      /* storage full / unavailable — non-fatal */
     }
   }, [state]);
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { runAppEvaluation, type CaseResult, type SuiteRunResult } from "../api";
-import { useProject } from "../state/ProjectContext";
+import { useProject, type SavedTestCase } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -26,6 +26,7 @@ export default function Evaluate() {
   const { state, dispatch } = useProject();
   const bp = state.blueprint;
   const run = state.evalResult;
+  const savedCases = state.savedTestCases;
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,8 +79,7 @@ export default function Evaluate() {
 
       {running && (
         <Card className="mt-6 p-4 text-sm text-slate-500">
-          Running the evaluation suite… live N-ATLAS inference can take a while per
-          case; demo mode is near-instant.
+          Running the evaluation suite… N-ATLAS inference can take a moment per case.
         </Card>
       )}
 
@@ -88,6 +88,8 @@ export default function Evaluate() {
           {error}
         </div>
       )}
+
+      {savedCases.length > 0 && <DevTestCases cases={savedCases} dispatch={dispatch} />}
 
       {run && !running && <Report run={run} />}
 
@@ -112,13 +114,6 @@ function Report({ run }: { run: SuiteRunResult }) {
   const pct = Math.round(run.summary.passRate * 100);
   return (
     <div className="mt-6 space-y-4">
-      {run.isMock && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-          Demo mode — scored against scripted responses, not real N-ATLAS. The
-          scoring engine ran for real.
-        </div>
-      )}
-
       <Card className="p-5">
         <div className="flex items-center justify-between">
           <div>
@@ -224,6 +219,80 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <div className="whitespace-pre-wrap rounded-md border border-slate-200 bg-white p-2 text-slate-700">
         {children}
       </div>
+    </div>
+  );
+}
+
+const LANG_LABEL: Record<string, string> = {
+  en: "Nigerian English", pid: "Pidgin", yo: "Yoruba", ha: "Hausa", ig: "Igbo",
+};
+
+function DevTestCases({
+  cases,
+  dispatch,
+}: {
+  cases: SavedTestCase[];
+  dispatch: ReturnType<typeof useProject>["dispatch"];
+}) {
+  return (
+    <Card className="mt-6 p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-semibold text-slate-800">
+          Developer Test Cases
+          <span className="ml-2 text-sm font-normal text-slate-400">
+            {cases.length} saved from Playground
+          </span>
+        </h2>
+        <div className="text-xs text-slate-400">
+          {cases.filter((c) => c.verdict === "good").length} good ·{" "}
+          {cases.filter((c) => c.verdict === "bad").length} bad
+        </div>
+      </div>
+      <div className="space-y-2">
+        {cases.map((tc) => (
+          <DevCaseRow key={tc.id} tc={tc} onRemove={() => dispatch({ type: "removeTestCase", id: tc.id })} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function DevCaseRow({ tc, onRemove }: { tc: SavedTestCase; onRemove: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-slate-50"
+      >
+        <Badge tone={tc.verdict === "good" ? "green" : "red"}>
+          {tc.verdict === "good" ? "👍" : "👎"}
+        </Badge>
+        <span className="flex-1 truncate text-slate-700">
+          {tc.userMessage || tc.assistantReply.slice(0, 60)}
+        </span>
+        {tc.language && (
+          <Badge tone="blue">{LANG_LABEL[tc.language] ?? tc.language}</Badge>
+        )}
+        <span className="text-[10px] text-slate-400">
+          {new Date(tc.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </span>
+        <span className="text-slate-300">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div className="space-y-2 border-t border-slate-100 bg-slate-50/60 px-3 py-2 text-sm">
+          {tc.userMessage && <Field label="Prompt">{tc.userMessage}</Field>}
+          <Field label="Response">{tc.assistantReply}</Field>
+          {tc.note && <Field label="Note">{tc.note}</Field>}
+          {tc.expectedBehavior && <Field label="Expected">{tc.expectedBehavior}</Field>}
+          <button
+            onClick={onRemove}
+            className="text-xs text-red-400 hover:text-red-600"
+          >
+            Remove
+          </button>
+        </div>
+      )}
     </div>
   );
 }

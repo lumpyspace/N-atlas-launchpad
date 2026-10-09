@@ -164,11 +164,6 @@ export default function Improve() {
               tone={after.summary.score >= 80 ? "green" : "amber"}
             />
           </div>
-          {after.isMock && (
-            <p className="mt-3 text-center text-xs text-amber-600">
-              Demo mode — the fix was really re-tested against scripted responses.
-            </p>
-          )}
           {after.summary.failed > 0 && (
             <p className="mt-3 text-center text-xs text-slate-500">
               {after.summary.failed} finding

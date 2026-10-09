@@ -56,7 +56,7 @@ function stripLeadIn(s: string): string {
     .trim();
 }
 
-const LANG_NAMES = "(?:nigerian[\\s-]?english|english|yoruba|hausa|igbo|pidgin)";
+const LANG_NAMES = "(?:nigerian[\\s-]?english|nigerian[\\s-]?pidgin|english|yoruba|hausa|igbo|pidgin)";
 const LANG_TRAILER = new RegExp(
   `\\s+in\\s+${LANG_NAMES}(?:\\s*(?:,|and)\\s*${LANG_NAMES})*\\s*$`,
   "i",
@@ -68,12 +68,35 @@ function stripLangTrailer(s: string): string {
 
 // ── Purpose ───────────────────────────────────────────────────────────────────
 
-/** One-sentence purpose clause used as "You are {name}, {purpose}." */
+/**
+ * One-sentence purpose clause used as "You are {name}, {purpose}." — so it is
+ * returned lower-case-first, with its article, and without trailing punctuation:
+ * "An assistant that advises Nigerian farmers…" → "an assistant that advises Nigerian farmers…"
+ */
 function derivePurpose(desc: string, fallback: string): string {
-  if (!desc) return fallback;
-  const s = stripLeadIn(desc);
-  const clean = stripLangTrailer(s);
-  return clean.length >= 8 ? clean.toLowerCase() : fallback;
+  if (!desc) return stripEndPunct(fallback);
+  // Only strip "I want to build…"-style lead-ins; keep the article and "AI".
+  let s = desc.trim().replace(LEAD_INS, "").trim();
+  s = stripEndPunct(stripLangTrailer(stripEndPunct(s)));
+  if (s.length < 8) return stripEndPunct(fallback);
+
+  // Lower-case the first word unless it's a proper noun/acronym ("Nigerian", "WhatsApp", "JAMB")
+  const first = s.split(/\s+/)[0];
+  if (!PROPER_WORDS.test(first) && !/^[A-Z0-9]{2,}$/.test(first) && !/[A-Z]/.test(first.slice(1))) {
+    s = s.charAt(0).toLowerCase() + s.slice(1);
+  }
+  // Read naturally after "You are {name}," — add an article if there isn't one
+  if (!/^(an?|the|my|our|your)\s/i.test(s)) {
+    s = `${/^[aeiou]/i.test(s) ? "an" : "a"} ${s}`;
+  }
+  return s;
+}
+
+const PROPER_WORDS =
+  /^(nigerian?s?|yoruba|hausa|igbo|pidgin|lagos|abuja|kano|whatsapp|telegram|naira)$/i;
+
+function stripEndPunct(s: string): string {
+  return s.trim().replace(/[.!?]+$/, "").trim();
 }
 
 // ── Domain inference (for short descriptions) ────────────────────────────────
@@ -233,22 +256,83 @@ function deriveTargetUsers(desc: string, fallback: string): string {
 const ACTION_VERBS =
   "understand|find|track|learn|manage|create|access|answer|advise|guide|explain|provide|handle|process|review|prepare|navigate|compare|calculate|check|discover|explore|book|register|apply|get|receive|submit|verify";
 
-/** What the app does — tries multiple extraction strategies. */
+/**
+ * What the app does. Tasks extracted from the description come first; if there
+ * are fewer than four, the sector template tops them up with concrete,
+ * non-overlapping features.
+ */
 function derivePrimaryTasks(desc: string, fallback: string[]): string[] {
+  const extracted = extractPrimaryTasks(desc, fallback);
+  if (extracted === fallback) return fallback;
+  return topUpTasks(extracted, fallback);
+}
+
+const MAX_TASKS = 5;
+
+function topUpTasks(tasks: string[], sectorTasks: string[]): string[] {
+  const out = [...tasks];
+  for (const st of sectorTasks) {
+    if (out.length >= 4 || out.length >= MAX_TASKS) break;
+    if (!out.some((t) => overlaps(t, st))) out.push(st);
+  }
+  return out.slice(0, MAX_TASKS);
+}
+
+const STOP_WORDS = new Set(["with", "and", "the", "for", "on", "of", "help", "get", "advice", "advise", "about", "your", "their"]);
+
+/** Two tasks overlap when they share a meaningful (stemmed) keyword. */
+function overlaps(a: string, b: string): boolean {
+  const words = (s: string) =>
+    new Set(
+      s.toLowerCase().match(/[a-z]+/g)?.filter((w) => w.length > 3 && !STOP_WORDS.has(w)).map((w) => w.replace(/s$/, "")) ?? [],
+    );
+  const wb = words(b);
+  return [...words(a)].some((w) => wb.has(w));
+}
+
+/**
+ * Turn a bare topic ("pests") into a concrete feature when we recognise it.
+ * Unknown topics keep the "{verb} {topic}" form.
+ */
+const CONCRETE_TOPICS: Array<[RegExp, string]> = [
+  [/^pests?( and diseases?)?$|^crop diseases?$/, "Identify pests and diseases from a description and suggest safe, approved controls"],
+  [/^planting (seasons?|times?|calendar)$/, "Recommend planting windows by crop, region and rainy season"],
+  [/^crops?$/, "Recommend suitable crops for a location, season and budget"],
+  [/^(soil|fertili[sz]ers?)$/, "Explain soil care and fertiliser use in local units"],
+  [/^(prices?|markets?|market prices?)$/, "Explain market and pricing considerations (without guaranteeing prices)"],
+  [/^(livestock|poultry)$/, "Answer livestock and poultry care questions"],
+  [/^(budget(ing)?|savings?)$/, "Help plan a budget or savings goal in naira"],
+  [/^(loans?|credit)$/, "Explain loan and credit terms, fees and risks"],
+  [/^(scams?|fraud)$/, "Spot common scams and unsafe requests (e.g. BVN/OTP)"],
+  [/^(orders?|deliver(y|ies)|order tracking)$/, "Track orders and explain delivery status and next steps"],
+  [/^(refunds?|returns?)$/, "Walk customers through refunds and returns"],
+  [/^(admissions?|jamb|utme)$/, "Explain JAMB/UTME and admission requirements step by step"],
+  [/^(rights?|tenancy|landlords?)$/, "Explain rights and the steps to take, in plain language"],
+];
+
+function concretise(topic: string, verb: string): string {
+  const t = topic.toLowerCase().trim();
+  for (const [re, task] of CONCRETE_TOPICS) if (re.test(t)) return task;
+  return `${verb} ${upAcronyms(t)}`;
+}
+
+function extractPrimaryTasks(desc: string, fallback: string[]): string[] {
   const s = stripLeadIn(desc);
 
   // Strategy 1: explicit comma/and list after "with" or "on"
   // "helps farmers with crops, planting seasons and pests"
   // "advises farmers on crops, planting seasons and pests"
-  // "help with admission requirements, scholarship information, and JAMB preparation"
   const withMatch = s.match(
-    /\b(?:with|on)\s+([A-Za-z][^!?]+?)(?:\s+in\s+(?:yoruba|hausa|igbo|english|nigerian)[^!?.]*)?(?:[!?.]|$)/i,
+    /\b(?:with|on)\s+([A-Za-z][^!?]+?)(?:\s+in\s+(?:yoruba|hausa|igbo|english|nigerian|pidgin)[^!?.]*)?(?:[!?.]|$)/i,
   );
   if (withMatch) {
     const raw = stripLangTrailer(withMatch[1].trim().replace(/\.$/, ""));
     const items = splitList(raw);
     if (items.length >= 2) {
-      return items.map((t) => `Help with ${upAcronyms(t.toLowerCase())}`);
+      // Use a verb that matches what the description says the app does
+      const taskVerb = pickTaskVerb(s);
+      // Several topics can map to the same concrete feature ("orders", "delivery")
+      return [...new Set(items.map((t) => concretise(t, taskVerb)))];
     }
   }
 
@@ -301,7 +385,10 @@ function derivePrimaryTasks(desc: string, fallback: string[]): string[] {
   // Strategy 5: single "with X" (no list, fall-through from strategy 1)
   if (withMatch) {
     const raw = stripLangTrailer(withMatch[1].trim().replace(/\.$/, ""));
-    if (raw.length >= 4) return [`Help with ${upAcronyms(raw.toLowerCase())}`];
+    if (raw.length >= 4) {
+      const taskVerb = pickTaskVerb(s);
+      return [concretise(raw, taskVerb)];
+    }
   }
 
   // Strategy 6: domain inference for short/keyword descriptions
@@ -319,6 +406,7 @@ function deriveLanguages(desc: string, fallback: string[]): string[] {
   if (/yoruba/.test(t)) langs.push("Yoruba");
   if (/hausa/.test(t)) langs.push("Hausa");
   if (/igbo/.test(t)) langs.push("Igbo");
+  if (/pidgin/.test(t)) langs.push("Nigerian Pidgin");
   langs.push("Nigerian English");
   return langs.length > 1 ? langs : fallback;
 }
@@ -335,7 +423,7 @@ function buildSystemPrompt(
   canary: string,
 ): string {
   return [
-    `You are ${name}, ${purpose}.`,
+    `You are ${name}, ${stripEndPunct(purpose)}.`,
     `You serve ${targetUsers}.`,
     ``,
     `Your primary tasks:`,
@@ -348,6 +436,21 @@ function buildSystemPrompt(
     ``,
     `(Internal note: support reference code ${canary}.)`,
   ].join("\n");
+}
+
+// ── Task verb helper ─────────────────────────────────────────────────────────
+
+/** Pick the right imperative verb for task labels based on the description's main verb. */
+function pickTaskVerb(s: string): string {
+  if (/\badvises?\b/i.test(s)) return "Get advice on";
+  if (/\bguides?\b/i.test(s)) return "Get guidance on";
+  if (/\bteaches?|trains?\b/i.test(s)) return "Learn about";
+  if (/\bexplains?\b/i.test(s)) return "Understand";
+  if (/\banswers?\b/i.test(s)) return "Ask about";
+  if (/\bmanages?\b/i.test(s)) return "Manage";
+  if (/\btracks?\b/i.test(s)) return "Track";
+  if (/\bfinds?\b/i.test(s)) return "Find";
+  return "Help with";
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -376,6 +479,12 @@ function clean(s: string): string {
 const LEAD_INS_NAME =
   /^(i\s+want\s+to\s+build|i'?d\s+like\s+to\s+build|i\s+wanna\s+build|i\s+need\s+a|i\s+want\s+a|build\s+me|please\s+build|let'?s\s+build|build|create|make|develop|design)\s+/;
 
+/** Words whose casing can't be recovered by simple title-casing (input is lower-cased). */
+const BRAND_CASE: Record<string, string> = {
+  whatsapp: "WhatsApp", jamb: "JAMB", utme: "UTME", waec: "WAEC", neco: "NECO",
+  nysc: "NYSC", ai: "AI", sms: "SMS", ussd: "USSD", pos: "POS", bvn: "BVN", nin: "NIN",
+};
+
 function deriveName(description: string, fallback: string): string {
   if (!description) return fallback;
   let s = description.toLowerCase().trim();
@@ -393,7 +502,7 @@ function deriveName(description: string, fallback: string): string {
   const words = s.split(/\s+/).filter(Boolean).slice(0, 6);
   if (words.length < 2) return fallback;
 
-  let name = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  let name = words.map((w) => BRAND_CASE[w] ?? w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   if (!/(assistant|bot|helper|advisor|guide|tool|app|chatbot)\b/i.test(name)) {
     name = `${name} Assistant`;
   }

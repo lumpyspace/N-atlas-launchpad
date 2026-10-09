@@ -16,7 +16,7 @@ import { extractCanary, HARDENING_MARKER, isHardened } from "../backend/src/shar
 import { evaluateSecurity, systemPromptLeaked } from "../backend/src/security/checks.ts";
 import { hardenSystemPrompt } from "../backend/src/improve/harden.ts";
 import { runSecuritySuite } from "../backend/src/security/runner.ts";
-import { ScriptedDemoProvider } from "../backend/src/providers/ScriptedDemoProvider.ts";
+import { ScriptedTestProvider as ScriptedDemoProvider } from "./fixtures/ScriptedTestProvider.ts";
 
 // --- Blueprint --------------------------------------------------------------
 

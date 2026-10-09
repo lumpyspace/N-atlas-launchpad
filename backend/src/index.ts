@@ -52,10 +52,4 @@ app.get("/", (_req, res) => {
 
 app.listen(config.port, () => {
   logger.info(`N-ATLAS Launchpad backend listening on http://localhost:${config.port}`);
-  if (provider.isMock) {
-    logger.warn(
-      "MOCK provider active — responses are NOT real N-ATLAS output. " +
-        "Configure NATLAS_PROVIDER=http + NATLAS_ENDPOINT for the real model.",
-    );
-  }
 });

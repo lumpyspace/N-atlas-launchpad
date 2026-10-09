@@ -72,8 +72,7 @@ export default function Secure() {
 
       {running && (
         <Card className="mt-6 p-4 text-sm text-slate-500">
-          Running {15} controlled attacks against your app… live inference can be
-          slow; demo mode is near-instant.
+          Running {15} controlled attacks against your app… N-ATLAS inference can take a moment per test.
         </Card>
       )}
       {error && (
@@ -115,13 +114,6 @@ function Report({ run }: { run: SecurityRunResult }) {
 
   return (
     <div className="mt-6 space-y-4">
-      {run.isMock && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-          Demo mode — attacks were run against scripted responses, not real
-          N-ATLAS. The detection engine ran for real.
-        </div>
-      )}
-
       <Card className="p-5">
         <div className="flex items-center justify-between">
           <div>

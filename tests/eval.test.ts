@@ -17,7 +17,7 @@ import {
   scoreChecks,
 } from "../backend/src/eval/checks.ts";
 import { runSuite } from "../backend/src/eval/runner.ts";
-import { MockNAtlasProvider } from "../backend/src/providers/MockNAtlasProvider.ts";
+import { ScriptedTestProvider } from "./fixtures/ScriptedTestProvider.ts";
 import type {
   GenerateResult,
   NAtlasProvider,
@@ -134,7 +134,7 @@ test("runner scores a scripted provider correctly (deterministic)", async () => 
   assert.equal(run.cases[1].passed, false);
 });
 
-test("runner propagates isMock=true from the mock provider", async () => {
+test("runner propagates isMock=true from a test-double provider", async () => {
   const suite: Suite = {
     name: "unit-mock",
     description: "unit",
@@ -148,7 +148,7 @@ test("runner propagates isMock=true from the mock provider", async () => {
       },
     ],
   };
-  const run = await runSuite(suite, new MockNAtlasProvider());
+  const run = await runSuite(suite, new ScriptedTestProvider());
   assert.equal(run.isMock, true, "a mock run must be flagged isMock:true");
   assert.equal(run.cases[0].isMock, true);
 });

@@ -31,15 +31,16 @@ export async function getHealth(): Promise<HealthStatus> {
   return res.json();
 }
 
-/** Hot-swap the backend provider without a server restart. */
-export async function switchMode(
-  mode: "demo" | "http",
-  opts?: { endpoint?: string; model?: string; apiKey?: string },
-): Promise<HealthStatus> {
+/** Reconfigure the backend to point at a different Ollama/vLLM endpoint. */
+export async function switchMode(opts: {
+  endpoint: string;
+  model?: string;
+  apiKey?: string;
+}): Promise<HealthStatus> {
   const res = await fetch(`${BASE}/api/mode`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ mode, ...opts }),
+    body: JSON.stringify({ mode: "http", ...opts }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
@@ -48,14 +49,83 @@ export async function switchMode(
   return res.json();
 }
 
+export interface GenerateOptions {
+  system?: string;
+  language?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+export type StreamEvent =
+  | { type: "delta"; delta: string }
+  | { type: "stats"; ttftMs: number; totalMs: number; tokensGenerated: number; tokensPerSec: number }
+  | { type: "error"; message: string }
+  | { type: "done" };
+
+/**
+ * Streaming generate — yields deltas as they arrive, then a stats event, then done.
+ * Throws on HTTP errors; does not throw on graceful abort (AbortError).
+ */
+export async function* streamGenerate(
+  prompt: string,
+  options?: GenerateOptions,
+  signal?: AbortSignal,
+): AsyncGenerator<StreamEvent> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api/generate/stream`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt, options }),
+      signal,
+    });
+  } catch (e: any) {
+    if (e?.name === "AbortError") return;
+    throw e;
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(err.detail ?? err.error ?? `HTTP ${res.status}`);
+  }
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      let result: ReadableStreamReadResult<Uint8Array>;
+      try {
+        result = await reader.read();
+      } catch (e: any) {
+        if (e?.name === "AbortError") return;
+        throw e;
+      }
+      if (result.done) break;
+      buffer += decoder.decode(result.value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+        try {
+          const event = JSON.parse(trimmed.slice(6)) as StreamEvent;
+          yield event;
+          if (event.type === "done" || event.type === "error") return;
+        } catch {
+          // Ignore malformed JSON
+        }
+      }
+    }
+  } finally {
+    try { reader.releaseLock(); } catch {}
+  }
+}
+
 export async function generate(
   prompt: string,
-  options?: {
-    system?: string;
-    language?: string;
-    temperature?: number;
-    maxTokens?: number;
-  },
+  options?: GenerateOptions,
 ): Promise<GenerateResult> {
   const res = await fetch(`${BASE}/api/generate`, {
     method: "POST",
@@ -227,7 +297,7 @@ export interface SecurityRunResult {
     passed: number;
     failed: number;
     errored: number;
-    score: number; // 0..100, severity-weighted
+    score: number;
     byCategory: Record<string, { total: number; passed: number }>;
     bySeverity: Record<string, { total: number; passed: number }>;
   };

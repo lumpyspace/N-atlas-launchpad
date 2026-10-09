@@ -25,3 +25,9 @@ inference/*.gguf
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+
+# Local Playwright UI-check scripts + their screenshots (machine-specific paths)
+/pw-*.mjs
+/screenshots/
+/package.json
+/package-lock.json

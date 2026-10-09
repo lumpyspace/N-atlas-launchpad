@@ -23,7 +23,7 @@ export interface SectorTemplate {
   keywords: string[];
 }
 
-const LANGS = ["Nigerian English", "Yoruba", "Hausa", "Igbo"];
+const LANGS = ["Nigerian English", "Yoruba", "Hausa", "Igbo", "Nigerian Pidgin"];
 
 export const SECTORS: Record<Sector, SectorTemplate> = {
   education: {

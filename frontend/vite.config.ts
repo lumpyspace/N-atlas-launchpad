@@ -11,6 +11,15 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:8787",
         changeOrigin: true,
+        configure: (proxy) => {
+          // Tell the backend not to compress SSE responses — compression
+          // buffers chunks and breaks real-time streaming through the proxy.
+          proxy.on("proxyReq", (proxyReq, req) => {
+            if (req.url?.includes("/generate/stream")) {
+              proxyReq.setHeader("accept-encoding", "identity");
+            }
+          });
+        },
       },
     },
   },
