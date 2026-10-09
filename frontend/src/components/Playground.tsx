@@ -501,7 +501,8 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
   // Two app-specific prompts from the tasks, then realistic sector test messages
   // (Pidgin, mixed-language, typos, and an off-topic/borderline request).
   const quick = [
-    ...tasks.slice(0, 2).map(taskToPrompt),
+    // Task-mode apps (games, tools) aren't asked their feature list in chat.
+    ...(spec?.mode === "task" ? [] : tasks.slice(0, 2).map(taskToPrompt)),
     // Test messages written for this specific kind of app, when available.
     ...(bp?.buildPlan?.testMessages?.length
       ? bp.buildPlan.testMessages
