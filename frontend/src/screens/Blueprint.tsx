@@ -49,7 +49,7 @@ export default function Blueprint() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-ink">{bp.name}</h1>
-            <Badge tone="green">{sectorLabel(bp.sector)}</Badge>
+            <Badge tone="green">{bp.buildPlan?.useCase?.label ?? sectorLabel(bp.sector)}</Badge>
           </div>
           <p className="mt-2 max-w-2xl text-slate-600">
             {bp.purpose.charAt(0).toUpperCase() + bp.purpose.slice(1).replace(/[.!?]*$/, ".")}
@@ -79,7 +79,14 @@ export default function Blueprint() {
       {tab === "guide" ? (
         <div className="mt-6">
           {bp.buildPlan?.useCase ? (
-            <BuildGuide plan={bp.buildPlan} appName={bp.name} />
+            <BuildGuide
+              plan={bp.buildPlan}
+              appName={bp.name}
+              onChangeUseCase={async (id) => {
+                const fresh = await getBlueprint(state.description, id);
+                dispatch({ type: "setBlueprint", blueprint: fresh });
+              }}
+            />
           ) : (
             <Card className="p-6 text-center text-sm text-slate-500">
               This blueprint was created before the latest build guide. Generate it now — your edited

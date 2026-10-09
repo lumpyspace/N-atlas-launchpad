@@ -42,11 +42,11 @@ export function planFeature(
 /** Pick a technique from the wording of a task the developer wrote. */
 function classify(task: string, sources: DataSource[]): Approach {
   const t = task.toLowerCase();
-  if (/(photo|image|picture|scan|camera)/.test(t)) return "vision";
-  if (/(remind|reminders?|notify|notifications?|alerts?|schedule|daily tips?)/.test(t)) return "schedule";
-  if (/(track|status|check (?:my|an?|the)|look ?up|balance|book|booking|appointment|register|apply|order)/.test(t)) return "lookup";
-  if (/(calculat|budget|how much|total|convert|interest|savings? plan|split)/.test(t)) return "compute";
-  if (/(translat|greet|proverb|story|stories|poem|caption|summari[sz]e|rewrite|chat|conversation)/.test(t)) return "prompt";
+  if (/\b(photo|image|picture|scan|camera)\b/.test(t)) return "vision";
+  if (/\b(remind|reminders?|notify|notifications?|alerts?|schedule|daily tips?)\b/.test(t)) return "schedule";
+  if (/\b(track|status|check (?:my|an?|the)|look ?up|balance|book|booking|appointment|register|apply|order)\b/.test(t)) return "lookup";
+  if (/\b(calculat|budget|how much|total|convert|interest|savings? plan|split)/.test(t)) return "compute";
+  if (/\b(translat|greet|proverb|story|stories|poem|caption|summari[sz]e|rewrite|chat|conversation)/.test(t)) return "prompt";
   return sources.length ? "retrieval" : "prompt";
 }
 
@@ -143,6 +143,13 @@ app.use(express.json());
 `;
 
   switch (channelId) {
+    case "game":
+      return {
+        filename: "server.js",
+        setup:
+          "npm install express — your game POSTs to /npc/line and /npc/event in the background (never on the game loop) and uses its own hand-written line or event whenever fallback is true.",
+        code: GAME_SERVER,
+      };
     case "whatsapp":
       return {
         filename: "server.js",
@@ -233,3 +240,86 @@ app.listen(process.env.PORT ?? 3000);
       };
   }
 }
+
+/** Backend for a game: in-character dialogue and validated JSON events. */
+const GAME_SERVER = `import express from "express";
+
+const NATLAS = process.env.NATLAS_BASE_URL ?? "http://localhost:11434/v1";
+
+// Character bible: one short sheet per character. Keep each under ~150 words.
+const CHARACTERS = {
+  tunde:
+    "You are Tunde, a cheerful 30-year-old mechanic who lives in a Lagos compound. " +
+    "You speak Nigerian Pidgin, joke a lot and love agbalumo. Stay in character, " +
+    "never mention being an AI, and never insult anyone's tribe or religion.",
+  ngozi:
+    "You are Mama Ngozi, a warm, no-nonsense trader in her fifties. You speak English " +
+    "with Igbo greetings and give practical advice. Stay in character.",
+};
+
+async function chat(system, user, maxTokens, temperature) {
+  const res = await fetch(NATLAS + "/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + (process.env.NATLAS_API_KEY ?? ""),
+    },
+    body: JSON.stringify({
+      model: process.env.NATLAS_MODEL ?? "n-atlas",
+      temperature, // a little higher than the model card's 0.1, for livelier dialogue
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error("N-ATLAS returned HTTP " + res.status);
+  const data = await res.json();
+  return data.choices[0].message.content.trim();
+}
+
+const app = express();
+app.use(express.json());
+
+// One or two lines of dialogue for a character, given the game state.
+app.post("/npc/line", async (req, res) => {
+  const { character, state, action } = req.body ?? {};
+  const sheet = CHARACTERS[character];
+  if (!sheet) return res.status(400).json({ error: "unknown character" });
+  const prompt =
+    "Game state: " + JSON.stringify(state ?? {}) + "\n" +
+    "Player action: " + String(action ?? "").slice(0, 300) + "\n" +
+    "Reply with one or two short lines of dialogue, in character. Nothing else.";
+  try {
+    res.json({ line: await chat(sheet, prompt, 80, 0.7) });
+  } catch {
+    res.json({ line: null, fallback: true }); // the game shows a hand-written line
+  }
+});
+
+// A small event the engine can run — only if the JSON passes validation.
+app.post("/npc/event", async (req, res) => {
+  const { location, state } = req.body ?? {};
+  const names = Object.keys(CHARACTERS);
+  const prompt =
+    "Create one small, friendly event at " + String(location ?? "the compound").slice(0, 80) + ". " +
+    "Game state: " + JSON.stringify(state ?? {}) + ". " +
+    'Reply with ONLY JSON: {"title": string, "character": one of ' + JSON.stringify(names) +
+    ', "goal": string, "reward": a number from 10 to 100}';
+  try {
+    const text = await chat("You design short events for a life-simulation game set in Nigeria.", prompt, 150, 0.8);
+    const event = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+    const valid =
+      typeof event.title === "string" &&
+      names.includes(event.character) &&
+      typeof event.goal === "string" &&
+      Number.isFinite(event.reward) && event.reward >= 10 && event.reward <= 100;
+    res.json(valid ? { event } : { event: null, fallback: true });
+  } catch {
+    res.json({ event: null, fallback: true });
+  }
+});
+
+app.listen(process.env.PORT ?? 3000);
+`;

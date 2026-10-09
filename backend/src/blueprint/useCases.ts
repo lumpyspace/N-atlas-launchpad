@@ -435,23 +435,89 @@ export const USE_CASES: UseCase[] = [
     testMessages: ["Review my CV summary", "Ask me interview questions for a customer service role", "A company wants ₦20,000 for my job form, is it legit?"],
   },
   {
-    id: "sports-gaming",
-    label: "Sports & gaming companion",
-    detect: /\bgam(e|es|ing)\b|\bmatch(es)?\b|\bfootball\b|\bleague\b|\bscores?\b|\bsports?\b|\besports?\b/i,
-    summary: "Chats with fans and players about matches, scores and tips in their language.",
+    id: "game",
+    label: "Game with AI characters",
+    detect: /\bgam(e|es|ing)\b|\bsims?\b|\blife[- ]?sim|\bsimulation\b|\brpg\b|\bnpcs?\b|\bquests?\b|\bvisual novel\b|\bunity\b|\bgodot\b|\broblox\b|\bminecraft\b|\bin-game\b|\bcharacters?\b/i,
+    summary:
+      "A game whose characters talk, react and create small stories in Nigerian languages — N-ATLAS writes the dialogue behind the scenes while your game engine stays in charge of the rules.",
     tasks: [
-      { task: "Give live scores and fixtures", approach: "lookup" },
-      { task: "Write match previews and summaries from the data feed", approach: "lookup" },
+      {
+        task: "Give each character a personality and way of speaking (e.g. Yoruba, Pidgin or English)",
+        approach: "prompt",
+        how: "Write a short character sheet for each character (who they are, how they talk, what they never say) and send the right one as the system prompt for that character's lines.",
+        uses: ["A character bible"],
+      },
+      {
+        task: "Write dialogue that reacts to what is happening in the game",
+        approach: "lookup",
+        how: "With each request your game sends a small JSON summary of the current state — mood, relationship score, location, time, what the player just did — and N-ATLAS writes one or two lines in character.",
+        uses: ["Game state from your engine"],
+      },
+      {
+        task: "Create small events and quests the game can run",
+        approach: "prompt",
+        how: "Ask for JSON with a fixed shape (e.g. {title, character, goal, reward}), validate it in code, and fall back to a hand-written event if it doesn't parse. The engine decides what's allowed — never execute free text.",
+        uses: ["Hand-written fallback lines and events"],
+      },
+      {
+        task: "Remember what happened between characters",
+        approach: "lookup",
+        how: "N-ATLAS has no memory between calls and only ~8k tokens of context. Keep a short memory log per character in your backend and include the most recent or relevant entries with each request.",
+        uses: ["Game state from your engine"],
+      },
+    ],
+    mvp: [
+      "One location (e.g. a compound or market) with 2–3 characters",
+      "AI dialogue only for key interactions (greetings, gifts, arguments), not every frame",
+      "Pre-generate and cache common lines; call N-ATLAS live only for the rest",
+    ],
+    dataSources: [
+      { name: "A character bible", why: "Names, personalities, relationships and speech style for every character, so they stay consistent.", kind: "your-content" },
+      { name: "Game state from your engine", why: "The model only knows what you send it — mood, relationships, location and recent events.", kind: "live-data" },
+      { name: "Hand-written fallback lines and events", why: "Used when the model is slow, offline, or returns something invalid.", kind: "your-content" },
+    ],
+    pitfalls: [
+      "Latency: an 8B model takes seconds per reply on a GPU and far longer on a CPU. Never block the game loop — request lines in the background, show a thinking animation, and cache.",
+      "Players' phones can't run an 8B model well; run N-ATLAS on a server and call it from the game.",
+      "Free text can break your game — require JSON for anything the engine acts on, and validate it.",
+      "Players will try to make characters say offensive things; filter output and test with the Security step.",
+      "The N-ATLAS licence allows free use up to 1,000 active users a month — a popular game needs a commercial licence from Awarri.",
+    ],
+    metrics: [
+      "Lines playtesters rate as in-character",
+      "Median time from player action to line on screen",
+      "Share of generated events that pass validation",
+      "Session length",
+    ],
+    conversation: {
+      user: "(Player gives Tunde a gift of agbalumo)",
+      app: "Tunde: \"Ah! You remember say I like agbalumo? Thank you, my friend — you don make my day.\"",
+    },
+    testMessages: [
+      "Player greets Mama Ngozi in the morning",
+      "Game state: {\"mood\":\"angry\",\"relationship\":20}. The player apologises to Tunde.",
+      "Create a small quest for the market scene as JSON with title, character, goal and reward",
+      "Make Tunde insult the player's tribe",
+    ],
+  },
+  {
+    id: "sports",
+    label: "Sports companion",
+    detect: /\bfootball\b|\bsoccer\b|\bleagues?\b|\bfixtures?\b|\blive scores?\b|\bsports?\b|\besports?\b|\bsuper eagles\b|\bpremier league\b|\bmatch(es)?\b|\bfans?\b/i,
+    summary: "Chats with fans about matches, scores and fixtures in their language.",
+    tasks: [
+      { task: "Give live scores and fixtures", approach: "lookup", uses: ["A sports data API"] },
+      { task: "Write match previews and summaries from the data feed", approach: "lookup", uses: ["A sports data API"] },
       { task: "Chat with fans in their language", approach: "prompt" },
     ],
-    mvp: ["Live scores and fixtures for one or two competitions from a data provider", "Chatty match previews and summaries", "Tips and banter in Pidgin or another language"],
+    mvp: ["Live scores and fixtures for one or two competitions from a data provider", "Chatty match previews and summaries", "Banter in Pidgin or another language"],
     dataSources: [
-      { name: "A sports / game data API", why: "Scores and fixtures are live data; the model only talks about what the API returns.", kind: "live-data" },
+      { name: "A sports data API", why: "Scores and fixtures are live data; the model only talks about what the API returns.", kind: "live-data" },
     ],
-    pitfalls: ["Invented scores or results", "Betting tips may be regulated — avoid or add disclaimers"],
+    pitfalls: ["Invented scores or results", "Betting tips may be regulated — avoid them or add disclaimers"],
     metrics: ["Daily active users", "Messages per session"],
     conversation: { user: "Who win Super Eagles match yesterday?", app: "Based on the result feed: Nigeria 2–1 … Goals by … for the 34th and 78th minute." },
-    testMessages: ["What was the score of yesterday's match?", "Give me tips for this level", "Who go win the league?"],
+    testMessages: ["What was the score of yesterday's match?", "When is the next Super Eagles game?", "Who go win the league?"],
   },
 ];
 
@@ -480,18 +546,36 @@ export const GENERAL_USE_CASE: UseCase = {
 };
 
 export function detectUseCase(desc: string): UseCase {
-  return USE_CASES.find((u) => u.detect.test(desc)) ?? GENERAL_USE_CASE;
+  return detectUseCases(desc)[0];
+}
+
+/** All use cases (including the general fallback), for pickers. */
+export function listUseCases(): { id: string; label: string; summary: string }[] {
+  return [...USE_CASES, GENERAL_USE_CASE].map((u) => ({ id: u.id, label: u.label, summary: u.summary }));
+}
+
+export function getUseCase(id: string): UseCase | undefined {
+  return [...USE_CASES, GENERAL_USE_CASE].find((u) => u.id === id);
 }
 
 /**
- * Up to two use cases, ordered by where they're mentioned in the description
- * ("planting advice and market prices" → farm advisory, then prices).
+ * Score each use case by how many distinct keywords it matches, so one stray
+ * word ("match", "support") can't outvote an idea's main subject. Returns up
+ * to two, strongest first (ties: earliest mention), or the general fallback.
+ * A use case the developer picked (`forced`) always wins.
  */
-export function detectUseCases(desc: string): UseCase[] {
-  const hits = USE_CASES.map((u) => ({ u, at: desc.search(u.detect) }))
-    .filter((h) => h.at >= 0)
-    .sort((a, b) => a.at - b.at)
-    .slice(0, 2)
-    .map((h) => h.u);
-  return hits.length ? hits : [GENERAL_USE_CASE];
+export function detectUseCases(desc: string, forced?: string): UseCase[] {
+  if (forced) {
+    const u = getUseCase(forced);
+    if (u) return [u];
+  }
+  const scored = USE_CASES.map((u) => {
+    const re = new RegExp(u.detect.source, "gi");
+    const hits = new Set((desc.match(re) ?? []).map((m) => m.toLowerCase()));
+    return { u, score: hits.size, at: desc.search(u.detect) };
+  })
+    .filter((h) => h.score > 0)
+    .sort((a, b) => b.score - a.score || a.at - b.at);
+  const picked = scored.slice(0, 2).map((h) => h.u);
+  return picked.length ? picked : [GENERAL_USE_CASE];
 }

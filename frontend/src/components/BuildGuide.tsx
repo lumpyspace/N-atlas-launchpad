@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { BuildPlan } from "../api";
+import { useEffect, useState } from "react";
+import { getUseCases, type BuildPlan, type UseCaseOption } from "../api";
 import { useProject, type Step } from "../state/ProjectContext";
 import { Badge, Button, Card } from "../ui";
 
@@ -43,7 +43,16 @@ const STEP_LINK: Record<string, { step: Step; label: string }> = {
 };
 
 /** "How to build it": a plan specific to this app idea. */
-export function BuildGuide({ plan, appName }: { plan: Plan; appName: string }) {
+export function BuildGuide({
+  plan,
+  appName,
+  onChangeUseCase,
+}: {
+  plan: Plan;
+  appName: string;
+  /** Rebuild the blueprint for a different kind of app. */
+  onChangeUseCase: (id: string) => Promise<void>;
+}) {
   const { dispatch } = useProject();
   const go = (step: Step) => dispatch({ type: "setStep", step });
 
@@ -62,6 +71,7 @@ export function BuildGuide({ plan, appName }: { plan: Plan; appName: string }) {
           {plan.voice.needed && <Badge tone="blue">Voice input</Badge>}
         </div>
         <p className="mt-2 text-sm text-slate-600">{plan.useCase.summary}</p>
+        <UseCasePicker current={plan.useCase.ids[0]} onChange={onChangeUseCase} />
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div>
@@ -309,6 +319,62 @@ function CodeBlock({ code }: { code: string }) {
       >
         {copied ? "✓" : "Copy"}
       </button>
+    </div>
+  );
+}
+
+/** "Not the right kind of app?" — lets the developer correct the detection. */
+function UseCasePicker({ current, onChange }: { current: string; onChange: (id: string) => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<UseCaseOption[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open && !options.length) getUseCases().then(setOptions).catch(() => {});
+  }, [open, options.length]);
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="mt-2 text-xs font-medium text-forge-600 hover:underline">
+        Not the right kind of app? Change it
+      </button>
+    );
+  }
+  return (
+    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div className="text-xs font-semibold text-slate-600">What kind of app is this?</div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {options.map((o) => (
+          <button
+            key={o.id}
+            title={o.summary}
+            disabled={busy || o.id === current}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await onChange(o.id);
+                setOpen(false);
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className={`rounded-full border px-3 py-1 text-xs ${
+              o.id === current
+                ? "border-forge-500 bg-forge-50 font-semibold text-forge-700"
+                : "border-slate-300 bg-white text-slate-700 hover:border-forge-400"
+            } disabled:cursor-default`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] text-slate-400">
+        Picking one rebuilds the blueprint, features and system prompt for that kind of app. Your saved test cases are kept.
+        {" "}
+        <button onClick={() => setOpen(false)} className="underline">
+          Cancel
+        </button>
+      </p>
     </div>
   );
 }

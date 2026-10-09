@@ -71,7 +71,7 @@ export default function Describe() {
         <textarea
           className="w-full resize-none rounded-lg border border-slate-300 p-3 text-sm focus:border-forge-500 focus:outline-none focus:ring-2 focus:ring-forge-500/20"
           rows={4}
-          placeholder="e.g. A gaming app for Nigerian players to find matches, track scores and get tips in Yoruba and English"
+          placeholder="e.g. A WhatsApp assistant that tells farmers in Kaduna when to plant maize and how to deal with pests, in Hausa and English — say who it is for, what it does, the languages and the channel"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {

@@ -44,7 +44,7 @@ export const NATLAS_FACTS = {
   gguf: { repo: "QuantFactory/N-ATLaS-GGUF", file: "N-ATLaS.Q4_K_M.gguf", sizeGb: 4.9 },
 } as const;
 
-export type ChannelId = "web" | "whatsapp" | "telegram" | "sms" | "ussd" | "voice" | "mobile";
+export type ChannelId = "web" | "whatsapp" | "telegram" | "sms" | "ussd" | "voice" | "mobile" | "game";
 
 export interface BuildStep {
   title: string;
@@ -97,12 +97,13 @@ const CHANNELS: { id: ChannelId; label: string; re: RegExp }[] = [
   { id: "telegram", label: "Telegram", re: /\btelegram\b/i },
   { id: "ussd", label: "USSD", re: /\bussd\b|\*\d{3}#/i },
   { id: "sms", label: "SMS", re: /\bsms\b|\btext messages?\b/i },
-  { id: "voice", label: "Voice", re: /\bvoice\b|\bspeak|\bspoken\b|\baudio\b|\bphone calls?\b|\bcall (?:in|centre|center)\b|\billiterate\b|\bcan(?:not|'t) read\b/i },
+  { id: "voice", label: "Voice", re: /\bvoice[- ]?(?:notes?|messages?|assistant|bot|app|calls?|input|based)\b|\bby voice\b|\bphone calls?\b|\bcall (?:in|centre|center)\b|\billiterate\b|\bcan(?:not|'t) read\b|\blow[- ]literacy\b/i },
   { id: "mobile", label: "Mobile app", re: /\bmobile app\b|\bandroid\b|\bios app\b|\bflutter\b|\breact native\b/i },
   { id: "web", label: "Web chat", re: /\bwebsite\b|\bweb app\b|\bweb\b|\bportal\b|\bdashboard\b/i },
 ];
 
-const VOICE_RE = /\bvoice\b|\bspeak|\bspoken\b|\baudio\b|\bvoice notes?\b|\bphone calls?\b|\billiterate\b|\bcan(?:not|'t) read\b|\blow[- ]literacy\b/i;
+// Users talking TO the app — not "characters speak Yoruba" or "speaks to farmers".
+const VOICE_RE = /\bvoice[- ]?(?:notes?|messages?|assistant|bot|app|calls?|input|based)\b|\bby voice\b|\baudio messages?\b|\bphone calls?\b|\billiterate\b|\bcan(?:not|'t) read\b|\blow[- ]literacy\b|\bspeech[- ]to[- ]text\b/i;
 
 // Facts that change or are specific to one organisation: the model can't know them.
 const DOCUMENT_RE = /\bprices?\b|\bfees?\b|\btariffs?\b|\bregulations?\b|\bpolic(?:y|ies)\b|\blaws?\b|\bstatutes?\b|\bcut[- ]?off\b|\brequirements?\b|\bsyllabus\b|\bcurriculum\b|\bmenu\b|\bcatalog(?:ue)?\b|\bproducts?\b|\bfaqs?\b|\bhandbook\b|\bguidelines?\b|\bschedules?\b|\btimetables?\b|\bour\b|\bmy (?:business|company|shop|school|clinic)\b/i;
@@ -142,9 +143,12 @@ export function buildPlanFor(
   sector: Sector,
   languages: string[],
   tasks: string[] = [],
+  forcedUseCase?: string,
 ): BuildPlan {
-  const channel = detectChannel(desc);
-  const useCases = detectUseCases(desc);
+  const useCases = detectUseCases(desc, forcedUseCase);
+  const channel = useCases[0].id === "game" && !/\bwhats\s?app\b|\btelegram\b/i.test(desc)
+    ? { id: "game" as const, label: "Game client", why: "Players interact inside your game; the game client calls your backend for dialogue and events." }
+    : detectChannel(desc);
   const dataSources = dedupeBy(useCases.flatMap((u) => u.dataSources), (d) => d.name);
   const voiceNeeded = channel.id === "voice" || VOICE_RE.test(desc);
   const voiceModels = voiceNeeded
@@ -174,7 +178,9 @@ export function buildPlanFor(
   const starter = starterCode(channel.id, dataSources);
 
   const architecture: ArchitectureNode[] = [
-    { label: `User on ${channel.label}`, detail: voiceNeeded ? "Sends a voice note or speaks" : "Sends a message", kind: "user" },
+    channel.id === "game"
+      ? { label: "Player in your game", detail: "Talks to a character or triggers an event", kind: "user" }
+      : { label: `User on ${channel.label}`, detail: voiceNeeded ? "Sends a voice note or speaks" : "Sends a message", kind: "user" },
     ...(voiceNeeded
       ? [{ label: "Speech → text", detail: "N-ATLAS ASR model for the user's language", kind: "natlas" as const }]
       : []),
@@ -375,6 +381,12 @@ function channelStep(id: ChannelId): BuildStep {
       return {
         title: "Connect your mobile app",
         detail: "Have the app call your backend, never N-ATLAS directly, so your system prompt and any API key stay on the server. Stream the reply so users see it appear while it's generated.",
+      };
+    case "game":
+      return {
+        title: "Call it from your game",
+        detail:
+          "From Unity (UnityWebRequest), Godot (HTTPRequest) or a web game (fetch), POST the character, the game state and the player's action to /npc/line, without blocking the game loop. Show a thinking animation while waiting, fall back to a hand-written line on timeout, and cache lines you can reuse.",
       };
     default:
       return {

@@ -290,17 +290,30 @@ export interface BuildPlan {
   license: string[];
 }
 
-export async function getBlueprint(description: string): Promise<Blueprint> {
+/** `useCase` forces a kind of app when automatic detection got it wrong. */
+export async function getBlueprint(description: string, useCase?: string): Promise<Blueprint> {
   const res = await fetch(`${BASE}/api/blueprint`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ description }),
+    body: JSON.stringify({ description, useCase }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
     throw new Error(err.detail ?? err.error ?? `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+export interface UseCaseOption {
+  id: string;
+  label: string;
+  summary: string;
+}
+
+export async function getUseCases(): Promise<UseCaseOption[]> {
+  const res = await fetch(`${BASE}/api/use-cases`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).useCases;
 }
 
 // --- Security engine (Attack Your Application) -----------------------------

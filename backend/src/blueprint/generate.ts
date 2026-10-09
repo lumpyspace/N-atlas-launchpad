@@ -18,17 +18,25 @@ import { makeCanary } from "../shared/prompt.js";
 import { buildPlanFor } from "./buildPlan.js";
 import { detectUseCases } from "./useCases.js";
 
-export function generateBlueprint(description: string): Blueprint {
+export interface BlueprintOptions {
+  /** Use case chosen by the developer, overriding detection (see useCases.ts). */
+  useCase?: string;
+}
+
+export function generateBlueprint(description: string, opts: BlueprintOptions = {}): Blueprint {
   const desc = (description ?? "").trim();
   const sector = classifySector(desc);
   const t = SECTORS[sector];
   const name = deriveName(desc, t.defaultName);
   const canary = makeCanary(desc || sector);
+  const useCases = detectUseCases(desc, opts.useCase);
 
   const purpose = derivePurpose(desc, t.purpose);
   const targetUsers = deriveTargetUsers(desc, t.targetUsers);
-  const primaryTasks = derivePrimaryTasks(desc, t.primaryTasks);
+  const primaryTasks = derivePrimaryTasks(desc, t.primaryTasks, opts.useCase);
   const languages = deriveLanguages(desc, t.languages);
+  // The use case knows this kind of app's real risks better than the sector template.
+  const risks = useCases[0].id === "general" ? t.risks : useCases.flatMap((u) => u.pitfalls).slice(0, 4);
 
   return {
     name,
@@ -38,11 +46,11 @@ export function generateBlueprint(description: string): Blueprint {
     primaryTasks,
     languages,
     nigerianContext: t.nigerianContext,
-    risks: t.risks,
+    risks,
     systemPrompt: buildSystemPrompt(name, purpose, targetUsers, primaryTasks, languages, t, canary),
     suggestedEvalCategories: t.suggestedEvalCategories,
     suggestedSecurityTests: t.suggestedSecurityTests,
-    buildPlan: buildPlanFor(desc, sector, languages, primaryTasks),
+    buildPlan: buildPlanFor(desc, sector, languages, primaryTasks, opts.useCase),
   };
 }
 
@@ -264,14 +272,14 @@ const ACTION_VERBS =
  * are fewer than four, the sector template tops them up with concrete,
  * non-overlapping features.
  */
-function derivePrimaryTasks(desc: string, fallback: string[]): string[] {
+function derivePrimaryTasks(desc: string, fallback: string[], forcedUseCase?: string): string[] {
   const extracted = extractPrimaryTasks(desc, fallback);
   // Tasks the developer actually wrote come first. Otherwise prefer the
   // detected use case's feature list over keyword guesses and the sector
   // template, which are often wrong for the specific idea.
   const domain = inferFromDomain(desc);
   const guessed = extracted === fallback || (domain !== null && sameList(extracted, domain.tasks));
-  const useCases = detectUseCases(desc).filter((u) => u.tasks.length);
+  const useCases = detectUseCases(desc, forcedUseCase).filter((u) => u.tasks.length);
   if (guessed && useCases.length) {
     // One use case: all its tasks. Two: the first three of each.
     const per = useCases.length === 1 ? MAX_TASKS : 3;
@@ -509,8 +517,9 @@ function deriveName(description: string, fallback: string): string {
   s = s.replace(LEAD_INS_NAME, "");
   s = s.replace(/^(an?|the)\s+/, "");
   s = s.replace(/^ai\s+/, "");
-  // Cut at relative clause or "to get/give/provide help"
-  s = s.split(/\s+(?:that|which|to\s+(?:get|give|provide|find)?\s*help|for\s+helping|so\s+that)\s+/)[0];
+  // Cut at a relative clause, comparison or "to get/give/provide help":
+  // "gaming app like the sims where characters…" → "gaming app"
+  s = s.split(/\s+(?:that|which|who|whose|where|like|with|in\s+which|to\s+(?:get|give|provide|find)?\s*help|for\s+helping|so\s+that)\s+/)[0];
   // Remove "for [users]" suffix — keep only the type of tool
   s = s.replace(/\s+for\s+.+$/, "");
   // Remove language trailer
