@@ -25,20 +25,26 @@ export interface BlueprintOptions {
   tasks?: string[];
   /** Who it's for, in the developer's words. */
   targetUsers?: string;
+  /**
+   * Text to decide the kind of app from, when the description also carries
+   * details that shouldn't (e.g. "medical students" for a note-taking app).
+   */
+  detectFrom?: string;
 }
 
 export function generateBlueprint(description: string, opts: BlueprintOptions = {}): Blueprint {
   const desc = (description ?? "").trim();
   const sector = classifySector(desc);
   const t = SECTORS[sector];
-  const useCases = detectUseCases(desc, opts.useCase);
+  const kindText = opts.detectFrom?.trim() || desc;
+  const useCases = detectUseCases(kindText, opts.useCase);
   const name = deriveName(desc, t.defaultName, useCases[0]);
   const canary = makeCanary(desc || sector);
 
   const purpose = derivePurpose(desc, t.purpose);
   const givenTasks = (opts.tasks ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 8);
   const targetUsers = opts.targetUsers?.trim() || deriveTargetUsers(desc, t.targetUsers);
-  const primaryTasks = givenTasks.length ? givenTasks : derivePrimaryTasks(desc, t.primaryTasks, opts.useCase);
+  const primaryTasks = givenTasks.length ? givenTasks : derivePrimaryTasks(desc, t.primaryTasks, opts.useCase, kindText);
   const languages = deriveLanguages(desc, t.languages);
   // The use case knows this kind of app's real risks better than the sector template.
   const risks = useCases[0].id === "general" ? t.risks : useCases.flatMap((u) => u.pitfalls).slice(0, 4);
@@ -55,7 +61,7 @@ export function generateBlueprint(description: string, opts: BlueprintOptions = 
     systemPrompt: buildSystemPrompt(name, purpose, targetUsers, primaryTasks, languages, t, canary),
     suggestedEvalCategories: t.suggestedEvalCategories,
     suggestedSecurityTests: t.suggestedSecurityTests,
-    buildPlan: buildPlanFor(desc, sector, languages, primaryTasks, opts.useCase),
+    buildPlan: buildPlanFor(desc, sector, languages, primaryTasks, opts.useCase, kindText),
   };
 }
 
@@ -291,14 +297,14 @@ const ACTION_VERBS =
  * are fewer than four, the sector template tops them up with concrete,
  * non-overlapping features.
  */
-function derivePrimaryTasks(desc: string, fallback: string[], forcedUseCase?: string): string[] {
+function derivePrimaryTasks(desc: string, fallback: string[], forcedUseCase?: string, kindText = desc): string[] {
   const extracted = extractPrimaryTasks(desc, fallback);
   // Tasks the developer actually wrote come first. Otherwise prefer the
   // detected use case's feature list over keyword guesses and the sector
   // template, which are often wrong for the specific idea.
   const domain = inferFromDomain(desc);
   const guessed = extracted === fallback || (domain !== null && sameList(extracted, domain.tasks));
-  const useCases = detectUseCases(desc, forcedUseCase).filter((u) => u.tasks.length);
+  const useCases = detectUseCases(kindText, forcedUseCase).filter((u) => u.tasks.length);
   if (guessed && useCases.length) {
     // One use case: all its tasks. Two: the first three of each.
     const per = useCases.length === 1 ? MAX_TASKS : 3;

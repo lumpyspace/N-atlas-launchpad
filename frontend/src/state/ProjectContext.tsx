@@ -11,6 +11,9 @@ import type {
   Check,
   CompareSummary,
   CompareVariant,
+  DesignMessage,
+  DesignSlot,
+  DesignSnapshot,
   Improvement,
   SecurityRunResult,
   SuiteRunResult,
@@ -34,7 +37,7 @@ export type Step =
   | "export";
 
 export const STEPS: { key: Step; label: string }[] = [
-  { key: "describe", label: "Describe" },
+  { key: "describe", label: "Design" },
   { key: "blueprint", label: "Build" },
   { key: "playground", label: "Try" },
   { key: "evaluate", label: "Evaluate" },
@@ -81,7 +84,21 @@ export interface ProjectState {
   compare: CompareState | null;
   /** The Playground's "Your data" panel (facts added to the system prompt). */
   playgroundData: string;
+  /** The Design chat: conversation, the developer's answers, and the latest canvas. */
+  design: DesignState;
 }
+
+export interface DesignState {
+  messages: DesignMessage[];
+  answers: Partial<Record<DesignSlot, string>>;
+  /** Which slot the developer's next message answers. */
+  pendingSlot: DesignSlot | "done";
+  /** Kind of app chosen on the canvas, overriding detection. */
+  useCase?: string;
+  snapshot: DesignSnapshot | null;
+}
+
+export const EMPTY_DESIGN: DesignState = { messages: [], answers: {}, pendingSlot: "idea", snapshot: null };
 
 export interface CompareState {
   variants: CompareVariant[];
@@ -105,6 +122,7 @@ const initialState: ProjectState = {
   testRun: null,
   compare: null,
   playgroundData: "",
+  design: EMPTY_DESIGN,
 };
 
 type Action =
@@ -124,6 +142,7 @@ type Action =
   | { type: "setCompare"; compare: CompareState | null }
   | { type: "patchBlueprint"; patch: Partial<Blueprint> }
   | { type: "setPlaygroundData"; data: string }
+  | { type: "setDesign"; design: DesignState }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -186,6 +205,8 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, testRun: action.result };
     case "setCompare":
       return { ...state, compare: action.compare };
+    case "setDesign":
+      return { ...state, design: action.design };
     case "setPlaygroundData":
       return { ...state, playgroundData: action.data };
     case "patchBlueprint":

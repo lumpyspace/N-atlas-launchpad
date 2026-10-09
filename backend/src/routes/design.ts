@@ -55,6 +55,12 @@ export function designRouter(provider: NAtlasProvider): Router {
     const sse = openSse(res);
     sse.send({ type: "snapshot", snapshot: snap });
 
+    // Canvas edits only need the new snapshot — no model call.
+    if (req.body?.reply === false) {
+      sse.send({ type: "done" });
+      return sse.end();
+    }
+
     // Opening turn: nothing to respond to yet, just ask.
     if (!history.some((m) => m.role === "user")) {
       sse.send({ type: "delta", delta: snap.question });

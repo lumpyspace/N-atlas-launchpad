@@ -131,6 +131,14 @@ export function snapshot(answers: Answers, forcedUseCase?: string): DesignSnapsh
     useCase: forcedUseCase,
     tasks: features,
     targetUsers: answers.users,
+    // What the app IS decides its kind — not who uses it ("medical students")
+    // or what data it needs.
+    detectFrom: composeDescription({
+      idea: answers.idea,
+      problem: answers.problem,
+      features: answers.features,
+      notes: answers.notes,
+    }),
   });
 
   const brief: AppBrief = {
@@ -206,8 +214,8 @@ export function replyPrompt(snap: DesignSnapshot, history: ChatMessage[]): { sys
   const prompt =
     `App brief so far:\n${brief}\n\nN-ATLAS notes for this kind of app:\n${notes}\n\n` +
     `Recent conversation:\n${recent}\n\n` +
-    "Write your next reply. In one or two sentences, show you understood the developer's latest message. " +
-    "If one of the notes is relevant, add it as a short tip. " +
+    "Write your next reply. In ONE sentence, respond only to the developer's latest message — do not repeat or re-summarise earlier replies or the whole idea. " +
+    "If one of the notes is relevant to that message, add it as one short tip. " +
     `Then end with exactly this question: "${snap.question}"`;
 
   return { system, prompt };

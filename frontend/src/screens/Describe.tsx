@@ -2,6 +2,7 @@ import { useState } from "react";
 import { getBlueprint } from "../api";
 import { useProject } from "../state/ProjectContext";
 import { Button, Card, Spinner } from "../ui";
+import DesignChat from "./DesignChat";
 
 const EXAMPLES: { label: string; prompt: string }[] = [
   {
@@ -35,7 +36,13 @@ const EXAMPLES: { label: string; prompt: string }[] = [
   },
 ];
 
+/** Step 1: talk the idea through (Design chat), or describe it in one sentence. */
 export default function Describe() {
+  const [quick, setQuick] = useState(false);
+  return quick ? <QuickDescribe onTalk={() => setQuick(false)} /> : <DesignChat onQuick={() => setQuick(true)} />;
+}
+
+function QuickDescribe({ onTalk }: { onTalk: () => void }) {
   const { state, dispatch } = useProject();
   const [text, setText] = useState(state.description);
   const [loading, setLoading] = useState(false);
@@ -64,7 +71,10 @@ export default function Describe() {
       <h1 className="text-2xl font-bold text-ink">What do you want to build?</h1>
       <p className="mt-2 text-slate-500">
         Describe your idea in a sentence. We'll turn it into an N-ATLAS
-        application blueprint — name, system prompt, and the tests to run.
+        application blueprint — name, system prompt, and the tests to run.{" "}
+        <button onClick={onTalk} className="font-medium text-forge-600 hover:underline">
+          Prefer to talk it through? Use the Design chat →
+        </button>
       </p>
 
       <Card className="mt-6 p-5">
@@ -82,7 +92,7 @@ export default function Describe() {
           <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
             <span className="font-semibold">Add a bit more detail</span> — who is it for, what should it do, and any specific features or languages?
             <br />
-            <span className="text-amber-500">e.g. "A gaming app <span className="font-medium">for Nigerian players</span> to <span className="font-medium">find matches, track scores and get tips</span> in Yoruba"</span>
+            <span className="text-amber-500">e.g. "A note-taking app <span className="font-medium">for first-year university students</span> that <span className="font-medium">summarises lectures and makes flashcards</span>, in English and Pidgin"</span>
           </div>
         )}
 

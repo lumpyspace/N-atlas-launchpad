@@ -292,11 +292,15 @@ export interface BuildPlan {
 }
 
 /** `useCase` forces a kind of app when automatic detection got it wrong. */
-export async function getBlueprint(description: string, useCase?: string): Promise<Blueprint> {
+export async function getBlueprint(
+  description: string,
+  useCase?: string,
+  extra: { tasks?: string[]; targetUsers?: string } = {},
+): Promise<Blueprint> {
   const res = await fetch(`${BASE}/api/blueprint`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ description, useCase }),
+    body: JSON.stringify({ description, useCase, ...extra }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
@@ -583,4 +587,59 @@ export async function streamCompare(
     (e) => onEvent(e as unknown as CompareEvent),
     signal,
   );
+}
+
+// ── Design chat ──────────────────────────────────────────────────────────────
+
+export type DesignSlot = "idea" | "users" | "problem" | "features" | "channel" | "languages" | "data" | "limits" | "notes";
+
+export interface BriefField<T> {
+  value: T;
+  /** true = the developer said it; false = suggested by the engine. */
+  fromYou: boolean;
+}
+
+export interface AppBrief {
+  idea: BriefField<string>;
+  users: BriefField<string>;
+  problem: BriefField<string>;
+  features: BriefField<string[]>;
+  channel: BriefField<string>;
+  languages: BriefField<string[]>;
+  data: BriefField<string[]>;
+  limits: BriefField<string>;
+}
+
+export interface DesignSnapshot {
+  brief: AppBrief;
+  blueprint: Blueprint;
+  nextSlot: DesignSlot | "done";
+  question: string;
+  openQuestions: string[];
+}
+
+export interface DesignMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export type DesignEvent =
+  | { type: "snapshot"; snapshot: DesignSnapshot }
+  | { type: "delta"; delta: string }
+  | { type: "warning"; message: string }
+  | { type: "done" };
+
+/** One Design chat turn: snapshot first (instant), then the streamed reply. */
+export async function streamDesignTurn(
+  body: {
+    answers: Partial<Record<DesignSlot, string>>;
+    history: DesignMessage[];
+    useCase?: string;
+    /** false = just recompute the brief/canvas, no N-ATLAS reply. */
+    reply?: boolean;
+  },
+  onEvent: (e: DesignEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  await streamRun<never, never>("/api/design/turn", body, (e) => onEvent(e as unknown as DesignEvent), signal);
 }

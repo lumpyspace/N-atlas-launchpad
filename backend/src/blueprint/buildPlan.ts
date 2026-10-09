@@ -147,8 +147,10 @@ export function buildPlanFor(
   languages: string[],
   tasks: string[] = [],
   forcedUseCase?: string,
+  /** Text to decide the kind of app from (defaults to the description). */
+  kindText: string = desc,
 ): BuildPlan {
-  const useCases = detectUseCases(desc, forcedUseCase);
+  const useCases = detectUseCases(kindText, forcedUseCase);
   const channel = useCases[0].id === "game" && !/\bwhats\s?app\b|\btelegram\b/i.test(desc)
     ? { id: "game" as const, label: "Game client", why: "Players interact inside your game; the game client calls your backend for dialogue and events." }
     : detectChannel(desc);

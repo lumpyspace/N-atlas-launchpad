@@ -106,3 +106,17 @@ test("the design route streams a snapshot first, then the reply, and always asks
     server.close();
   }
 });
+
+test("who the users are doesn't change the kind of app ('medical students' ≠ health app)", () => {
+  const s = snapshot({
+    idea: "A note-taking app for university students",
+    users: "First-year medical students at UNILAG who struggle to keep up in fast lectures",
+  });
+  assert.deepEqual(s.blueprint.buildPlan.useCase.ids, ["study-notes"]);
+  assert.ok(!s.brief.features.value.some((f) => /112|health/i.test(f)));
+});
+
+test("the reply prompt asks N-ATLAS not to repeat earlier replies", () => {
+  const { prompt } = replyPrompt(snapshot({ idea: "A note app" }), [{ role: "user", content: "A note app" }]);
+  assert.match(prompt, /do not repeat or re-summarise/);
+});

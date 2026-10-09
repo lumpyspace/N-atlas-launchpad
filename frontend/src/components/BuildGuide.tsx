@@ -108,23 +108,7 @@ export function BuildGuide({
           {plan.channel.why}
           {plan.voice.needed && " It also takes voice input, so speech recognition comes first."}
         </p>
-        <div className="mt-4 flex flex-col items-stretch gap-2 md:flex-row md:items-center">
-          {plan.architecture.map((n, i) => (
-            <div key={n.label} className="flex flex-col items-center gap-2 md:flex-1 md:flex-row">
-              <div className={`w-full rounded-lg border p-3 ${NODE_STYLE[n.kind]}`}>
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{NODE_TAG[n.kind]}</div>
-                <div className="text-sm font-semibold text-slate-800">{n.label}</div>
-                <div className="mt-0.5 text-xs text-slate-500">{n.detail}</div>
-              </div>
-              {i < plan.architecture.length - 1 && (
-                <span className="text-slate-300 md:shrink-0" aria-hidden>
-                  <span className="md:hidden">↓</span>
-                  <span className="hidden md:inline">→</span>
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
+        <ArchitectureDiagram nodes={plan.architecture} />
         <p className="mt-3 text-xs text-slate-400">
           The reply travels back the same way. Only your backend talks to N-ATLAS, so your system prompt
           {plan.knowledge.needed ? ", data" : ""} and keys stay private.
@@ -325,7 +309,30 @@ function CodeBlock({ code }: { code: string }) {
 }
 
 /** "Not the right kind of app?" — lets the developer correct the detection. */
-function UseCasePicker({ current, onChange }: { current: string; onChange: (id: string) => Promise<void> }) {
+/** User → (speech) → backend → (data) → N-ATLAS. `vertical` for narrow panels. */
+export function ArchitectureDiagram({ nodes, vertical = false }: { nodes: Plan["architecture"]; vertical?: boolean }) {
+  return (
+    <div className={`mt-4 flex flex-col items-stretch gap-2 ${vertical ? "" : "md:flex-row md:items-center"}`}>
+      {nodes.map((n, i) => (
+        <div key={n.label} className={`flex flex-col items-center gap-2 ${vertical ? "" : "md:flex-1 md:flex-row"}`}>
+          <div className={`w-full rounded-lg border p-3 ${NODE_STYLE[n.kind]}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{NODE_TAG[n.kind]}</div>
+            <div className="text-sm font-semibold text-slate-800">{n.label}</div>
+            <div className="mt-0.5 text-xs text-slate-500">{n.detail}</div>
+          </div>
+          {i < nodes.length - 1 && (
+            <span className={`text-slate-300 ${vertical ? "" : "md:shrink-0"}`} aria-hidden>
+              <span className={vertical ? "" : "md:hidden"}>↓</span>
+              {!vertical && <span className="hidden md:inline">→</span>}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function UseCasePicker({ current, onChange }: { current: string; onChange: (id: string) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<UseCaseOption[]>([]);
   const [busy, setBusy] = useState(false);
