@@ -218,9 +218,14 @@ export default function Evaluate() {
           >
             ← Back
           </Button>
-          <Button onClick={() => dispatch({ type: "setStep", step: "secure" })}>
-            Continue to Security →
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => dispatch({ type: "setStep", step: "compare" })}>
+              Compare variants
+            </Button>
+            <Button onClick={() => dispatch({ type: "setStep", step: "secure" })}>
+              Continue to Security →
+            </Button>
+          </div>
         </div>
       )}
     </div>

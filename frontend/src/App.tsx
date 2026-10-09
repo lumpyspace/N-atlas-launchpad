@@ -7,6 +7,7 @@ import Landing from "./screens/Landing";
 import Describe from "./screens/Describe";
 import Blueprint from "./screens/Blueprint";
 import Evaluate from "./screens/Evaluate";
+import Compare from "./screens/Compare";
 import Secure from "./screens/Secure";
 import Improve from "./screens/Improve";
 import Export from "./screens/Export";
@@ -63,6 +64,8 @@ function renderStep(step: string, health: HealthStatus | null) {
       return <Playground health={health} />;
     case "evaluate":
       return <Evaluate />;
+    case "compare":
+      return <Compare />;
     case "secure":
       return <Secure />;
     case "improve":

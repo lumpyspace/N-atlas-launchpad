@@ -2,19 +2,21 @@ import { STEPS, stepIndex, useProject } from "../state/ProjectContext";
 
 /**
  * Top progress nav: 01 Describe … 07 Export. The developer always knows where
- * they are. Completed/current steps are clickable (go back); forward moves
- * happen via each screen's Continue button so prerequisites are respected.
+ * they are. Before a blueprint exists only completed/current steps are
+ * clickable; after that developers can jump anywhere (each screen handles its
+ * own missing prerequisites).
  */
 export default function Stepper() {
   const { state, dispatch } = useProject();
   const current = stepIndex(state.step);
+  const hasBlueprint = !!state.blueprint;
 
   return (
     <nav className="flex flex-wrap items-center gap-1.5">
       {STEPS.map((s, i) => {
         const status =
           i < current ? "done" : i === current ? "active" : "upcoming";
-        const clickable = i <= current;
+        const clickable = i <= current || hasBlueprint;
         return (
           <button
             key={s.key}

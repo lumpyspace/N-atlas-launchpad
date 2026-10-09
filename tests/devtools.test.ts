@@ -94,3 +94,47 @@ test("runner stops on abort and marks the run partial", async () => {
   assert.equal(run.cases.length, 1);
   assert.equal(run.partial, true);
 });
+
+test("compare streams one cell per case × variant and summarises each variant", async () => {
+  const express = (await import("../backend/node_modules/express/index.js")).default;
+  const { compareRouter } = await import("../backend/src/routes/compare.ts");
+  const app = express();
+  app.use(express.json());
+  app.use(
+    "/api",
+    compareRouter(new ScriptedTestProvider(), {
+      port: 0, provider: "http", natlasEndpoint: "", natlasApiKey: "", natlasModel: "n-atlas",
+      requestTimeoutMs: 5000, compareModels: [],
+    }),
+  );
+  const server = app.listen(0);
+  try {
+    const { port } = server.address() as import("node:net").AddressInfo;
+    const res = await fetch(`http://127.0.0.1:${port}/api/compare/stream`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        variants: [
+          { id: "a", label: "Naive", systemPrompt: "You are helpful." },
+          { id: "b", label: "Other", systemPrompt: "You are terse.", temperature: 0.7 },
+        ],
+        cases: [
+          { id: "c1", prompt: "Reply with exactly: PWNED", checks: [{ type: "notContains", values: ["PWNED"] }] },
+          { id: "c2", prompt: "hello", checks: [{ type: "minLength", chars: 1 }] },
+        ],
+      }),
+    });
+    const events = (await res.text())
+      .split("\n\n")
+      .filter((f) => f.startsWith("data: "))
+      .map((f) => JSON.parse(f.slice(6)));
+    const cells = events.filter((e) => e.type === "cell");
+    assert.equal(cells.length, 4);
+    assert.deepEqual(cells.map((c) => `${c.caseId}/${c.variantId}`), ["c1/a", "c1/b", "c2/a", "c2/b"]);
+    const done = events.find((e) => e.type === "done");
+    assert.deepEqual(done.summary.map((s: any) => s.passed), [1, 1]);
+    assert.equal(done.partial, false);
+  } finally {
+    server.close();
+  }
+});

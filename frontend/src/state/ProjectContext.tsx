@@ -7,7 +7,10 @@ import {
 } from "react";
 import type {
   Blueprint,
+  CaseResult,
   Check,
+  CompareSummary,
+  CompareVariant,
   Improvement,
   SecurityRunResult,
   SuiteRunResult,
@@ -25,6 +28,7 @@ export type Step =
   | "blueprint"
   | "playground"
   | "evaluate"
+  | "compare"
   | "secure"
   | "improve"
   | "export";
@@ -34,6 +38,7 @@ export const STEPS: { key: Step; label: string }[] = [
   { key: "blueprint", label: "Build" },
   { key: "playground", label: "Try" },
   { key: "evaluate", label: "Evaluate" },
+  { key: "compare", label: "Compare" },
   { key: "secure", label: "Secure" },
   { key: "improve", label: "Improve" },
   { key: "export", label: "Export" },
@@ -70,6 +75,17 @@ export interface ProjectState {
   savedTestCases: SavedTestCase[];
   /** Latest run of only the developer's own test cases. */
   testRun: SuiteRunResult | null;
+  /** Variants and results of the Compare grid. */
+  compare: CompareState | null;
+}
+
+export interface CompareState {
+  variants: CompareVariant[];
+  /** Keyed by `${caseId}::${variantId}`. */
+  cells: Record<string, CaseResult>;
+  summary: CompareSummary[] | null;
+  partial: boolean;
+  ranAt: string | null;
 }
 
 const initialState: ProjectState = {
@@ -83,6 +99,7 @@ const initialState: ProjectState = {
   improvement: null,
   savedTestCases: [],
   testRun: null,
+  compare: null,
 };
 
 type Action =
@@ -99,6 +116,7 @@ type Action =
   | { type: "updateTestCase"; id: string; patch: Partial<SavedTestCase> }
   | { type: "importTestCases"; cases: SavedTestCase[] }
   | { type: "setTestRun"; result: SuiteRunResult | null }
+  | { type: "setCompare"; compare: CompareState | null }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -116,6 +134,8 @@ function reducer(state: ProjectState, action: Action): ProjectState {
         securityResult: null,
         securityBaseline: null,
         improvement: null,
+        testRun: null,
+        compare: null,
       };
     case "setSystemPrompt":
       return { ...state, systemPrompt: action.systemPrompt };
@@ -156,6 +176,8 @@ function reducer(state: ProjectState, action: Action): ProjectState {
     }
     case "setTestRun":
       return { ...state, testRun: action.result };
+    case "setCompare":
+      return { ...state, compare: action.compare };
     case "reset":
       return { ...initialState };
     default:

@@ -15,7 +15,7 @@ import { logger } from "../logger.js";
 import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import { scoreChecks } from "./checks.js";
 import { getSuite } from "./suites.js";
-import type { CaseResult, Category, Suite, SuiteRunResult } from "./types.js";
+import type { CaseResult, Category, Suite, SuiteRunResult, TestCase } from "./types.js";
 
 export interface RunOptions {
   /** Run only the first N cases (handy for slow CPU demos). */
@@ -64,52 +64,9 @@ export async function runSuite(
   for (let i = 0; i < cases.length; i++) {
     if (opts.signal?.aborted) break;
     const tc = cases[i];
-    let result: CaseResult;
-
-    try {
-      const gen = await provider.generate(tc.prompt, {
-        system: opts.systemOverride ?? tc.system,
-        language: tc.language,
-        maxTokens: opts.maxTokens,
-        ...tc.options,
-        signal: opts.signal,
-      });
-      model = gen.model || model;
-      const { results: checkResults, passed, score } = scoreChecks(tc.checks, gen.text, {
-        latencyMs: gen.latencyMs,
-      });
-      result = {
-        caseId: tc.id,
-        category: tc.category,
-        language: tc.language,
-        prompt: tc.prompt,
-        output: gen.text,
-        isMock: gen.isMock,
-        passed,
-        score,
-        checks: checkResults,
-        latencyMs: gen.latencyMs,
-        description: tc.description,
-      };
-    } catch (err) {
-      if (opts.signal?.aborted) break; // stopped mid-case: drop it, the run is partial
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error("Eval case errored", { caseId: tc.id, reason: message });
-      result = {
-        caseId: tc.id,
-        category: tc.category,
-        language: tc.language,
-        prompt: tc.prompt,
-        output: "",
-        isMock: provider.isMock,
-        passed: false,
-        score: 0,
-        checks: [],
-        latencyMs: 0,
-        error: message,
-        description: tc.description,
-      };
-    }
+    const result = await runCase(tc, provider, opts);
+    if (!result) break; // stopped mid-case: drop it, the run is partial
+    model = result.model ?? model;
 
     results.push(result);
     logger.info(
@@ -165,4 +122,67 @@ export async function runSuite(
   });
 
   return run;
+}
+
+export interface CaseRunOptions {
+  systemOverride?: string;
+  maxTokens?: number;
+  temperature?: number;
+  signal?: AbortSignal;
+}
+
+/**
+ * Run one test case and score it. Returns null if the call was cancelled via
+ * `signal` (so callers can drop it); provider errors become an errored result.
+ */
+export async function runCase(
+  tc: TestCase,
+  provider: NAtlasProvider,
+  opts: CaseRunOptions = {},
+): Promise<(CaseResult & { model?: string }) | null> {
+  try {
+    const gen = await provider.generate(tc.prompt, {
+      system: opts.systemOverride ?? tc.system,
+      language: tc.language,
+      maxTokens: opts.maxTokens,
+      temperature: opts.temperature,
+      ...tc.options,
+      signal: opts.signal,
+    });
+    const { results: checkResults, passed, score } = scoreChecks(tc.checks, gen.text, {
+      latencyMs: gen.latencyMs,
+    });
+    return {
+      caseId: tc.id,
+      category: tc.category,
+      language: tc.language,
+      prompt: tc.prompt,
+      output: gen.text,
+      isMock: gen.isMock,
+      passed,
+      score,
+      checks: checkResults,
+      latencyMs: gen.latencyMs,
+      description: tc.description,
+      model: gen.model || undefined,
+    };
+  } catch (err) {
+    if (opts.signal?.aborted) return null;
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("Eval case errored", { caseId: tc.id, reason: message });
+    return {
+      caseId: tc.id,
+      category: tc.category,
+      language: tc.language,
+      prompt: tc.prompt,
+      output: "",
+      isMock: provider.isMock,
+      passed: false,
+      score: 0,
+      checks: [],
+      latencyMs: 0,
+      error: message,
+      description: tc.description,
+    };
+  }
 }

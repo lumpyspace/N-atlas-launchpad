@@ -464,3 +464,52 @@ export function streamSecurity(
 ): Promise<SecurityRunResult | null> {
   return streamRun("/api/security/stream", body, onEvent, signal);
 }
+
+// ── Compare ──────────────────────────────────────────────────────────────────
+
+export interface ModelOption {
+  id: string;
+  label: string;
+  model: string;
+}
+
+export async function getModels(): Promise<ModelOption[]> {
+  const res = await fetch(`${BASE}/api/models`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).models;
+}
+
+export interface CompareVariant {
+  id: string;
+  label: string;
+  modelId: string;
+  systemPrompt: string;
+  temperature: number;
+}
+
+export interface CompareSummary {
+  variantId: string;
+  total: number;
+  passed: number;
+  avgLatencyMs: number;
+}
+
+export type CompareEvent =
+  | { type: "start"; total: number }
+  | { type: "cell"; caseId: string; variantId: string; done: number; total: number; result: CaseResult }
+  | { type: "done"; summary: CompareSummary[]; partial: boolean }
+  | { type: "error"; message: string };
+
+/** Stream a compare run. Resolves when the stream ends (or is stopped). */
+export async function streamCompare(
+  body: { variants: CompareVariant[]; cases: CustomCaseInput[] },
+  onEvent: (e: CompareEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  await streamRun<never, never>(
+    "/api/compare/stream",
+    body,
+    (e) => onEvent(e as unknown as CompareEvent),
+    signal,
+  );
+}
