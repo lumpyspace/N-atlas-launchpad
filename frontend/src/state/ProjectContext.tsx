@@ -117,6 +117,7 @@ type Action =
   | { type: "importTestCases"; cases: SavedTestCase[] }
   | { type: "setTestRun"; result: SuiteRunResult | null }
   | { type: "setCompare"; compare: CompareState | null }
+  | { type: "patchBlueprint"; patch: Partial<Blueprint> }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -178,6 +179,8 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, testRun: action.result };
     case "setCompare":
       return { ...state, compare: action.compare };
+    case "patchBlueprint":
+      return state.blueprint ? { ...state, blueprint: { ...state.blueprint, ...action.patch } } : state;
     case "reset":
       return { ...initialState };
     default:

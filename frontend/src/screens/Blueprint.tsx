@@ -1,9 +1,29 @@
+import { useState } from "react";
+import { getBlueprint } from "../api";
+import { BuildGuide } from "../components/BuildGuide";
 import { useProject } from "../state/ProjectContext";
-import { Badge, Button, Card } from "../ui";
+import { Badge, Button, Card, Spinner } from "../ui";
+
+type Tab = "guide" | "blueprint";
 
 export default function Blueprint() {
   const { state, dispatch } = useProject();
   const bp = state.blueprint;
+  const [tab, setTab] = useState<Tab>("guide");
+  const [loadingPlan, setLoadingPlan] = useState(false);
+
+  // Blueprints saved before build guides existed: fetch just the plan, keeping
+  // the developer's edited prompt and results.
+  async function loadPlan() {
+    if (!state.description) return;
+    setLoadingPlan(true);
+    try {
+      const fresh = await getBlueprint(state.description);
+      dispatch({ type: "patchBlueprint", patch: { buildPlan: fresh.buildPlan } });
+    } finally {
+      setLoadingPlan(false);
+    }
+  }
 
   if (!bp) {
     return (
@@ -37,63 +57,101 @@ export default function Blueprint() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <InfoCard title="Target users">
-          <p className="text-sm text-slate-600">{bp.targetUsers}</p>
-        </InfoCard>
-        <InfoCard title="Expected languages">
-          <div className="flex flex-wrap gap-1.5">
-            {bp.languages.map((l) => (
-              <Badge key={l}>{l}</Badge>
-            ))}
-          </div>
-        </InfoCard>
-        <InfoCard title="Primary tasks">
-          <List items={bp.primaryTasks} />
-        </InfoCard>
-        <InfoCard title="Nigerian-context considerations">
-          <List items={bp.nigerianContext} />
-        </InfoCard>
-        <InfoCard title="Potential risks" tone="amber">
-          <List items={bp.risks} />
-        </InfoCard>
-        <InfoCard title="Recommended N-ATLAS configuration">
-          <dl className="space-y-1 text-sm text-slate-600">
-            <Row k="Model" v="N-ATLAS (NCAIR1/N-ATLaS)" />
-            <Row k="Temperature" v="0.2 (focused, consistent)" />
-            <Row k="Languages" v={bp.languages.join(", ")} />
-          </dl>
-        </InfoCard>
+      <div className="mt-6 flex gap-1 border-b border-slate-200">
+        {([
+          ["guide", "How to build it"],
+          ["blueprint", "Blueprint & system prompt"],
+        ] as [Tab, string][]).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+              tab === key
+                ? "border-forge-500 text-forge-700"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <Card className="mt-6 p-5">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-900">System instructions</h2>
-          <span className="text-xs text-slate-400">
-            Editable — this is your app's behaviour
-          </span>
+      {tab === "guide" ? (
+        <div className="mt-6">
+          {bp.buildPlan ? (
+            <BuildGuide plan={bp.buildPlan} />
+          ) : (
+            <Card className="p-6 text-center text-sm text-slate-500">
+              This blueprint was created before build guides were added.
+              <div className="mt-3">
+                <Button size="sm" onClick={loadPlan} disabled={loadingPlan || !state.description}>
+                  {loadingPlan ? <><Spinner /> Generating…</> : "Generate the build guide"}
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
-        <textarea
-          className="h-64 w-full resize-y rounded-lg border border-slate-300 bg-slate-50 p-3 font-mono text-xs leading-relaxed text-slate-800 focus:border-forge-500 focus:outline-none focus:ring-2 focus:ring-forge-500/20"
-          value={state.systemPrompt}
-          onChange={(e) =>
-            dispatch({ type: "setSystemPrompt", systemPrompt: e.target.value })
-          }
-        />
-        <div className="mt-2 flex items-center justify-between">
-          <button
-            onClick={() =>
-              dispatch({ type: "setSystemPrompt", systemPrompt: bp.systemPrompt })
+      ) : (
+        <>
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <InfoCard title="Target users">
+            <p className="text-sm text-slate-600">{bp.targetUsers}</p>
+          </InfoCard>
+          <InfoCard title="Expected languages">
+            <div className="flex flex-wrap gap-1.5">
+              {bp.languages.map((l) => (
+                <Badge key={l}>{l}</Badge>
+              ))}
+            </div>
+          </InfoCard>
+          <InfoCard title="Primary tasks">
+            <List items={bp.primaryTasks} />
+          </InfoCard>
+          <InfoCard title="Nigerian-context considerations">
+            <List items={bp.nigerianContext} />
+          </InfoCard>
+          <InfoCard title="Potential risks" tone="amber">
+            <List items={bp.risks} />
+          </InfoCard>
+          <InfoCard title="Recommended N-ATLAS configuration">
+            <dl className="space-y-1 text-sm text-slate-600">
+              <Row k="Model" v="N-ATLAS (NCAIR1/N-ATLaS)" />
+              <Row k="Temperature" v="0.2 (focused, consistent)" />
+              <Row k="Languages" v={bp.languages.join(", ")} />
+            </dl>
+          </InfoCard>
+        </div>
+  
+        <Card className="mt-6 p-5">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900">System instructions</h2>
+            <span className="text-xs text-slate-400">
+              Editable — this is your app's behaviour
+            </span>
+          </div>
+          <textarea
+            className="h-64 w-full resize-y rounded-lg border border-slate-300 bg-slate-50 p-3 font-mono text-xs leading-relaxed text-slate-800 focus:border-forge-500 focus:outline-none focus:ring-2 focus:ring-forge-500/20"
+            value={state.systemPrompt}
+            onChange={(e) =>
+              dispatch({ type: "setSystemPrompt", systemPrompt: e.target.value })
             }
-            className="text-xs font-medium text-slate-500 hover:text-slate-700"
-          >
-            Reset to generated prompt
-          </button>
-          <span className="text-xs text-slate-400">
-            Tip: we'll test whether this prompt resists attacks in the Secure step.
-          </span>
-        </div>
-      </Card>
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <button
+              onClick={() =>
+                dispatch({ type: "setSystemPrompt", systemPrompt: bp.systemPrompt })
+              }
+              className="text-xs font-medium text-slate-500 hover:text-slate-700"
+            >
+              Reset to generated prompt
+            </button>
+            <span className="text-xs text-slate-400">
+              Tip: we'll test whether this prompt resists attacks in the Secure step.
+            </span>
+          </div>
+        </Card>
+        </>
+      )}
 
       <div className="mt-6 flex items-center justify-between">
         <Button

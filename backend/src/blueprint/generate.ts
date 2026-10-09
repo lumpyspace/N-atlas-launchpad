@@ -15,6 +15,7 @@
 import type { Blueprint } from "./types.js";
 import { SECTORS, classifySector, type SectorTemplate } from "./sectors.js";
 import { makeCanary } from "../shared/prompt.js";
+import { buildPlanFor } from "./buildPlan.js";
 
 export function generateBlueprint(description: string): Blueprint {
   const desc = (description ?? "").trim();
@@ -40,6 +41,7 @@ export function generateBlueprint(description: string): Blueprint {
     systemPrompt: buildSystemPrompt(name, purpose, targetUsers, primaryTasks, languages, t, canary),
     suggestedEvalCategories: t.suggestedEvalCategories,
     suggestedSecurityTests: t.suggestedSecurityTests,
+    buildPlan: buildPlanFor(desc, sector, languages),
   };
 }
 

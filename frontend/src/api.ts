@@ -255,6 +255,25 @@ export interface Blueprint {
   systemPrompt: string;
   suggestedEvalCategories: string[];
   suggestedSecurityTests: string[];
+  /** Missing on blueprints saved before build plans existed. */
+  buildPlan?: BuildPlan;
+}
+
+/** Mirror of backend/src/blueprint/buildPlan.ts */
+export interface BuildPlan {
+  channel: { id: string; label: string; why: string };
+  voice: { needed: boolean; models: { lang: string; model: string }[] };
+  knowledge: { needed: boolean; why: string; kind: "documents" | "live-data" | "none" };
+  architecture: { label: string; detail: string; kind: "user" | "yours" | "natlas" | "optional" }[];
+  steps: {
+    title: string;
+    detail: string;
+    code?: string;
+    launchpadStep?: "playground" | "evaluate" | "compare" | "secure" | "export";
+  }[];
+  goodFit: string[];
+  watchOut: string[];
+  license: string[];
 }
 
 export async function getBlueprint(description: string): Promise<Blueprint> {

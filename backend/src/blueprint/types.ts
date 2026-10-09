@@ -3,6 +3,8 @@
  * free-text idea. Deterministic (template-driven); no LLM call required.
  */
 
+import type { BuildPlan } from "./buildPlan.js";
+
 export type Sector =
   | "education"
   | "finance"
@@ -26,4 +28,6 @@ export interface Blueprint {
   systemPrompt: string;
   suggestedEvalCategories: string[];
   suggestedSecurityTests: string[];
+  /** How to actually build this app with N-ATLAS: architecture, steps, fit, licence. */
+  buildPlan: BuildPlan;
 }
