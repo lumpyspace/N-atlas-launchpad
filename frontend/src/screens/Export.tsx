@@ -49,7 +49,8 @@ export default function Export() {
       <h1 className="text-2xl font-bold text-ink">Export your N-ATLAS application</h1>
       <p className="mt-1 text-slate-500">
         Download a real, runnable starter project — your system prompt, an N-ATLAS
-        client, and your evaluation + security tests. Not a screenshot: actual code.
+        client, your test cases with a scored runner, a GitHub Actions workflow,
+        security tests and fine-tuning data. Not a screenshot: actual code.
       </p>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr]">
