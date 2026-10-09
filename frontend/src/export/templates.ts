@@ -6,12 +6,16 @@
  */
 
 import type { Blueprint, SecurityRunResult, SuiteRunResult } from "../api";
+import type { SavedTestCase } from "../state/ProjectContext";
+import { testKitFiles } from "./testkit";
 
 export interface ProjectInput {
   blueprint: Blueprint;
   systemPrompt: string;
   evalResult: SuiteRunResult | null;
   securityResult: SecurityRunResult | null;
+  /** The developer's own test cases (with checks) and 👍/👎 verdicts. */
+  savedTestCases: SavedTestCase[];
 }
 
 export type ExportLang = "js" | "python";
@@ -55,10 +59,12 @@ export function buildProject(
   const evals = JSON.stringify(evalTests(input.evalResult), null, 2);
   const secs = JSON.stringify(securityTests(input.securityResult), null, 2);
 
-  const files =
-    lang === "js"
-      ? jsFiles(name, input.blueprint, sp, evals, secs)
-      : pyFiles(name, input.blueprint, sp, evals, secs);
+  const files = {
+    ...(lang === "js"
+      ? jsFiles(name, input.blueprint, sp, evals, secs, input.savedTestCases.length)
+      : pyFiles(name, input.blueprint, sp, evals, secs, input.savedTestCases.length)),
+    ...testKitFiles(name, input.systemPrompt, input.savedTestCases, lang),
+  };
 
   return { files, rootDir: root };
 }
@@ -71,6 +77,7 @@ function jsFiles(
   sp: string,
   evals: string,
   secs: string,
+  myTests: number,
 ): Record<string, string> {
   return {
     "package.json": `{
@@ -81,6 +88,7 @@ function jsFiles(
   "engines": { "node": ">=18" },
   "scripts": {
     "chat": "node src/chat.js",
+    "test": "node tests/run-tests.js",
     "test:eval": "node tests/run-eval.js",
     "test:security": "node tests/run-security.js"
   }
@@ -154,7 +162,7 @@ for (const t of tests) {
   console.log("Response: " + answer);
 }
 `,
-    "README.md": readme(name, bp, "js"),
+    "README.md": readme(name, bp, "js", myTests),
   };
 }
 
@@ -166,6 +174,7 @@ function pyFiles(
   sp: string,
   evals: string,
   secs: string,
+  myTests: number,
 ): Record<string, string> {
   return {
     "requirements.txt": "requests>=2.31\n",
@@ -236,17 +245,18 @@ for t in tests:
     print("Expected: " + t["expectedBehavior"])
     print("Response: " + answer)
 `,
-    "README.md": readme(name, bp, "python"),
+    "README.md": readme(name, bp, "python", myTests),
   };
 }
 
 // --- README (shared) --------------------------------------------------------
 
-function readme(name: string, bp: Blueprint, lang: ExportLang): string {
+function readme(name: string, bp: Blueprint, lang: ExportLang, myTests: number): string {
   const run =
     lang === "js"
-      ? ["npm install  # (no deps; Node 18+ required)", "node src/chat.js \"What are the admission requirements?\"", "npm run test:eval", "npm run test:security"]
-      : ["python -m venv .venv && . .venv/bin/activate", "pip install -r requirements.txt", "python chat.py \"What are the admission requirements?\"", "python tests/run_eval.py", "python tests/run_security.py"];
+      ? ["npm install  # (no deps; Node 18+ required)", "node src/chat.js \"What can you help me with?\"", "npm test               # your test cases, scored (exit 1 on failure)", "npm run test:eval", "npm run test:security"]
+      : ["python -m venv .venv && . .venv/bin/activate", "pip install -r requirements.txt", "python chat.py \"What can you help me with?\"", "python tests/run_tests.py   # your test cases, scored (exit 1 on failure)", "python tests/run_eval.py", "python tests/run_security.py"];
+  const runner = lang === "js" ? "node tests/run-tests.js" : "python tests/run_tests.py";
 
   return `# ${name}
 
@@ -285,6 +295,15 @@ Launchpad.
 
 ## Tests
 
+- \`tests/my-tests.json\` — your ${myTests} test case${myTests === 1 ? "" : "s"} from Launchpad, each with
+  checks (reply language, no repetition loops, must/must-not mention, refusal,
+  latency). \`${runner}\` scores every reply and exits non-zero on a failure;
+  pass a word to run a subset (\`${runner} armyworm\`). Re-import the file in
+  Launchpad's Evaluate step to edit tests visually.
+- \`.github/workflows/natlas-tests.yml\` — runs those tests on every push once you
+  add a \`NATLAS_BASE_URL\` repository secret.
+- \`finetune/\` — your 👍 replies as chat-format JSONL for fine-tuning, plus the 👎
+  ones to fix (see \`finetune/README.md\`).
 - \`tests/eval-tests.json\` — quality & Nigerian-context prompts. The runner replays
   them so you can review answers (extend with your own scoring).
 - \`tests/security-tests.json\` — controlled attacks (prompt injection, extraction,

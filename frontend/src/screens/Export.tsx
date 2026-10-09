@@ -27,6 +27,7 @@ export default function Export() {
     systemPrompt: state.systemPrompt,
     evalResult: state.evalResult,
     securityResult: state.securityResult,
+    savedTestCases: state.savedTestCases,
   };
   const files = listProjectFiles(input, lang);
 
