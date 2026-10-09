@@ -8,7 +8,7 @@
 
 import type { DataSource } from "./useCases.js";
 
-export type Approach = "prompt" | "retrieval" | "lookup" | "compute" | "schedule" | "vision";
+export type Approach = "prompt" | "retrieval" | "lookup" | "compute" | "schedule" | "vision" | "speech";
 
 export interface FeaturePlan {
   task: string;
@@ -24,6 +24,7 @@ const APPROACH_LABEL: Record<Approach, string> = {
   compute: "Code calculates, N-ATLAS explains",
   schedule: "Scheduler + channel message",
   vision: "Needs an image model",
+  speech: "N-ATLAS speech recognition",
 };
 
 export function planFeature(
@@ -43,6 +44,7 @@ export function planFeature(
 function classify(task: string, sources: DataSource[]): Approach {
   const t = task.toLowerCase();
   if (/\b(photo|image|picture|scan|camera)\b/.test(t)) return "vision";
+  if (/\b(transcrib|transcription|speech[- ]to[- ]text|voice notes?|audio|recordings?)/.test(t)) return "speech";
   if (/\b(remind|reminders?|notify|notifications?|alerts?|schedule|daily tips?)\b/.test(t)) return "schedule";
   if (/\b(track|status|check (?:my|an?|the)|look ?up|balance|book|booking|appointment|register|apply|order)\b/.test(t)) return "lookup";
   if (/\b(calculat|budget|how much|total|convert|interest|savings? plan|split)/.test(t)) return "compute";
@@ -71,6 +73,8 @@ function howFor(approach: Approach, sources: DataSource[], channelId: string): s
       return "Do the arithmetic in your code, then give N-ATLAS the numbers to explain. 8B models make calculation mistakes.";
     case "retrieval":
       return `Before each answer, find the relevant passages in ${docList} and include them in the prompt; tell N-ATLAS to answer only from them and to say when it doesn't know.`;
+    case "speech":
+      return "Transcribe audio with the N-ATLAS speech-recognition model for the speaker's language (Yoruba, Hausa, Igbo or Nigerian-accented English). Convert to 16 kHz mono and split into chunks of up to 30 seconds, then send the text to N-ATLAS.";
     case "prompt":
       return sources.length
         ? "N-ATLAS can do this from the system prompt alone. Add 2–3 example exchanges to the prompt to fix the tone, and save good replies as test cases."

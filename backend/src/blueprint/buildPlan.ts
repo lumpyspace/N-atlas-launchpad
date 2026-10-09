@@ -150,7 +150,8 @@ export function buildPlanFor(
     ? { id: "game" as const, label: "Game client", why: "Players interact inside your game; the game client calls your backend for dialogue and events." }
     : detectChannel(desc);
   const dataSources = dedupeBy(useCases.flatMap((u) => u.dataSources), (d) => d.name);
-  const voiceNeeded = channel.id === "voice" || VOICE_RE.test(desc);
+  const voiceNeeded =
+    channel.id === "voice" || VOICE_RE.test(desc) || useCases.some((u) => u.id === "transcription");
   const voiceModels = voiceNeeded
     ? languages
         .map((l) => ({ lang: l, model: LANG_TO_ASR[l] }))

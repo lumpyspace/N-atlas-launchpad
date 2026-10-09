@@ -26,6 +26,7 @@ const APPROACH_TONE: Record<Plan["features"][number]["approach"], "green" | "blu
   compute: "slate",
   schedule: "slate",
   vision: "red",
+  speech: "blue",
 };
 
 const SOURCE_KIND: Record<Plan["dataSources"][number]["kind"], string> = {

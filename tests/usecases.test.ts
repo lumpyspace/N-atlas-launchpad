@@ -30,6 +30,24 @@ const IDEAS: [string, string][] = [
   ["Tell Igbo folktales to children at bedtime", "content"],
   ["Help NYSC members improve their CV and prepare for interviews", "jobs"],
   ["A friendly chatbot for Nigerians", "general"],
+  // added kinds of app
+  ["Transcribe Yoruba meeting recordings and write the minutes", "transcription"],
+  ["Add Hausa subtitles to our YouTube videos", "transcription"],
+  ["Analyse customer feedback from our survey in Pidgin and English", "feedback-analysis"],
+  ["Help people write application letters and petitions", "writing-assistant"],
+  ["Fact-check viral WhatsApp messages before elections", "news-factcheck"],
+  ["Summarise the news in Igbo every morning", "news-factcheck"],
+  ["Help small business owners record sales and send invoices", "small-business"],
+  ["A phonics and numeracy app for primary school pupils", "kids-learning"],
+  ["Emotional support for students dealing with stress and anxiety", "mental-health"],
+  ["A daily Bible devotional app for our church in Yoruba", "faith"],
+  ["Suggest Nigerian recipes and meal plans on a budget", "recipes"],
+  ["Help people find apartments to rent in Lagos and avoid fake agents", "property"],
+  ["Tell commuters which BRT bus route to take and the fares", "transport"],
+  ["A tourism guide for visitors to Calabar with hotels and attractions", "travel"],
+  // overlaps that must resolve correctly
+  ["A WhatsApp bot that tells market women today's food prices", "market-prices"],
+  ["A cover letter and CV helper for job seekers", "jobs"],
 ];
 
 for (const [idea, expected] of IDEAS) {

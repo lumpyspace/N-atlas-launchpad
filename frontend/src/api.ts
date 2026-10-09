@@ -266,7 +266,7 @@ export interface BuildPlan {
   dataSources: { name: string; why: string; kind: "documents" | "live-data" | "your-content" }[];
   features: {
     task: string;
-    approach: "prompt" | "retrieval" | "lookup" | "compute" | "schedule" | "vision";
+    approach: "prompt" | "retrieval" | "lookup" | "compute" | "schedule" | "vision" | "speech";
     approachLabel: string;
     how: string;
   }[];
