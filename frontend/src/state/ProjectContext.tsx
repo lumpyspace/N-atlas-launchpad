@@ -7,6 +7,7 @@ import {
 } from "react";
 import type {
   Blueprint,
+  Check,
   Improvement,
   SecurityRunResult,
   SuiteRunResult,
@@ -52,6 +53,8 @@ export interface SavedTestCase {
   note: string;
   expectedBehavior: string;
   savedAt: string;
+  /** Assertions run against the reply. Missing on cases saved before checks existed. */
+  checks?: Check[];
 }
 
 export interface ProjectState {
@@ -65,6 +68,8 @@ export interface ProjectState {
   improvement: Improvement | null;
   /** Test cases saved from the Playground for developer review in Evaluate. */
   savedTestCases: SavedTestCase[];
+  /** Latest run of only the developer's own test cases. */
+  testRun: SuiteRunResult | null;
 }
 
 const initialState: ProjectState = {
@@ -77,6 +82,7 @@ const initialState: ProjectState = {
   securityBaseline: null,
   improvement: null,
   savedTestCases: [],
+  testRun: null,
 };
 
 type Action =
@@ -90,6 +96,9 @@ type Action =
   | { type: "setImprovement"; improvement: Improvement | null }
   | { type: "addTestCase"; testCase: SavedTestCase }
   | { type: "removeTestCase"; id: string }
+  | { type: "updateTestCase"; id: string; patch: Partial<SavedTestCase> }
+  | { type: "importTestCases"; cases: SavedTestCase[] }
+  | { type: "setTestRun"; result: SuiteRunResult | null }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -128,6 +137,25 @@ function reducer(state: ProjectState, action: Action): ProjectState {
         ...state,
         savedTestCases: state.savedTestCases.filter((tc) => tc.id !== action.id),
       };
+    case "updateTestCase":
+      return {
+        ...state,
+        savedTestCases: state.savedTestCases.map((tc) =>
+          tc.id === action.id ? { ...tc, ...action.patch } : tc,
+        ),
+      };
+    case "importTestCases": {
+      const existing = new Set(state.savedTestCases.map((tc) => tc.id));
+      return {
+        ...state,
+        savedTestCases: [
+          ...state.savedTestCases,
+          ...action.cases.filter((tc) => !existing.has(tc.id)),
+        ],
+      };
+    }
+    case "setTestRun":
+      return { ...state, testRun: action.result };
     case "reset":
       return { ...initialState };
     default:

@@ -167,6 +167,8 @@ export interface CaseResult {
   checks: CheckResult[];
   latencyMs: number;
   error?: string;
+  /** What the case probes, e.g. "Answers in Yoruba when asked in Yoruba". */
+  description?: string;
 }
 
 export interface SuiteRunResult {
@@ -174,6 +176,8 @@ export interface SuiteRunResult {
   provider: string;
   model: string;
   isMock: boolean;
+  /** True when the run was stopped before every case ran. */
+  partial?: boolean;
   startedAt: string;
   finishedAt: string;
   durationMs: number;
@@ -289,6 +293,8 @@ export interface SecurityRunResult {
   provider: string;
   model: string;
   isMock: boolean;
+  /** True when the run was stopped before every test ran. */
+  partial?: boolean;
   startedAt: string;
   finishedAt: string;
   durationMs: number;
@@ -344,4 +350,117 @@ export async function getImprovement(
     throw new Error(err.detail ?? err.error ?? `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+// ── Test checks (mirror of backend/src/eval/types.ts `Check`) ────────────────
+
+export type LangCode = "en" | "pid" | "yo" | "ha" | "ig";
+
+export type Check =
+  | { type: "containsAny"; values: string[]; label?: string }
+  | { type: "containsAll"; values: string[]; label?: string }
+  | { type: "notContains"; values: string[]; label?: string }
+  | { type: "regex"; pattern: string; flags?: string; label?: string }
+  | { type: "minLength"; chars: number; label?: string }
+  | { type: "refusal"; expected: boolean; label?: string }
+  | { type: "language"; lang: LangCode; label?: string }
+  | { type: "noRepetition"; maxRepeats?: number; label?: string }
+  | { type: "maxLatency"; ms: number; label?: string };
+
+/** A developer test case sent to the runner. */
+export interface CustomCaseInput {
+  id: string;
+  prompt: string;
+  language?: string;
+  description?: string;
+  checks: Check[];
+}
+
+// ── Streaming test runs ──────────────────────────────────────────────────────
+
+export type RunEvent<R, Run> =
+  | { type: "start"; total: number }
+  | { type: "case"; done: number; total: number; result: R }
+  | { type: "done"; run: Run }
+  | { type: "error"; message: string };
+
+/**
+ * POST to an SSE run endpoint and feed each event to `onEvent`. Resolves with
+ * the final run, or null if the run was stopped before it finished.
+ */
+async function streamRun<R, Run>(
+  path: string,
+  body: unknown,
+  onEvent: (e: RunEvent<R, Run>) => void,
+  signal?: AbortSignal,
+): Promise<Run | null> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (e: any) {
+    if (e?.name === "AbortError") return null;
+    throw e;
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(err.detail ?? err.error ?? `HTTP ${res.status}`);
+  }
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let final: Run | null = null;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split("\n\n");
+      buffer = frames.pop() ?? "";
+      for (const frame of frames) {
+        const line = frame.trim();
+        if (!line.startsWith("data: ")) continue; // heartbeats are ": keep-alive"
+        let event: RunEvent<R, Run>;
+        try {
+          event = JSON.parse(line.slice(6));
+        } catch {
+          continue;
+        }
+        if (event.type === "error") throw new Error(event.message);
+        if (event.type === "done") final = event.run;
+        onEvent(event);
+      }
+    }
+  } catch (e: any) {
+    if (e?.name === "AbortError") return null;
+    throw e;
+  }
+  return final;
+}
+
+export function streamAppEvaluation(
+  body: {
+    sector: string;
+    systemPrompt: string;
+    description?: string;
+    customCases?: CustomCaseInput[];
+    scope?: "all" | "custom";
+    quick?: boolean;
+  },
+  onEvent: (e: RunEvent<CaseResult, SuiteRunResult>) => void,
+  signal?: AbortSignal,
+): Promise<SuiteRunResult | null> {
+  return streamRun("/api/evaluate/stream", body, onEvent, signal);
+}
+
+export function streamSecurity(
+  body: { systemPrompt: string; only?: string[]; quick?: boolean },
+  onEvent: (e: RunEvent<SecurityResult, SecurityRunResult>) => void,
+  signal?: AbortSignal,
+): Promise<SecurityRunResult | null> {
+  return streamRun("/api/security/stream", body, onEvent, signal);
 }

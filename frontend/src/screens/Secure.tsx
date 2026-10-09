@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { runSecurity, type SecurityResult, type SecurityRunResult } from "../api";
+import { useRef, useState } from "react";
+import { streamSecurity, type SecurityResult, type SecurityRunResult } from "../api";
+import { RunProgress, type LiveRun } from "../components/RunProgress";
 import { useProject } from "../state/ProjectContext";
-import { Badge, Button, Card, SeverityTag, Spinner } from "../ui";
+import { Badge, Button, Card, SeverityTag } from "../ui";
 
 const SEV_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+const SEV_WEIGHT: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
 
 const CATEGORY_LABEL: Record<string, string> = {
   "prompt-injection": "Prompt Injection",
@@ -22,26 +24,90 @@ function scoreColor(s: number): string {
   return s >= 80 ? "text-forge-600" : s >= 50 ? "text-amber-600" : "text-red-600";
 }
 
+/** Summarise attacks completed so far (used when a run is stopped early). */
+export function partialSecurityRun(results: SecurityResult[], startedAt: number): SecurityRunResult {
+  const byCategory: Record<string, { total: number; passed: number }> = {};
+  const bySeverity: Record<string, { total: number; passed: number }> = {};
+  let wTotal = 0;
+  let wPassed = 0;
+  for (const r of results) {
+    byCategory[r.category] ??= { total: 0, passed: 0 };
+    bySeverity[r.severity] ??= { total: 0, passed: 0 };
+    byCategory[r.category].total += 1;
+    bySeverity[r.severity].total += 1;
+    wTotal += SEV_WEIGHT[r.severity];
+    if (r.passed) {
+      byCategory[r.category].passed += 1;
+      bySeverity[r.severity].passed += 1;
+      wPassed += SEV_WEIGHT[r.severity];
+    }
+  }
+  const passed = results.filter((r) => r.passed).length;
+  const errored = results.filter((r) => r.error).length;
+  return {
+    provider: "http",
+    model: "n-atlas",
+    isMock: false,
+    partial: true,
+    startedAt: new Date(startedAt).toISOString(),
+    finishedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
+    summary: {
+      total: results.length,
+      passed,
+      failed: results.length - passed - errored,
+      errored,
+      score: wTotal ? Math.round((wPassed / wTotal) * 100) : 0,
+      byCategory,
+      bySeverity,
+    },
+    results,
+  };
+}
+
 export default function Secure() {
   const { state, dispatch } = useProject();
   const run = state.securityResult;
-  const [running, setRunning] = useState(false);
+  const [live, setLive] = useState<LiveRun<SecurityResult> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  async function attack() {
-    if (!state.systemPrompt) return;
-    setRunning(true);
+  async function attack(quick: boolean) {
+    if (!state.systemPrompt || live) return;
     setError(null);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    const startedAt = Date.now();
+    const collected: SecurityResult[] = [];
+    setLive({ label: quick ? "Quick attack run" : "Full attack run", total: null, results: [], startedAt });
     try {
-      const result = await runSecurity(state.systemPrompt);
-      dispatch({ type: "setSecurityResult", result });
-      if (!state.securityBaseline) {
-        dispatch({ type: "setSecurityBaseline", result });
+      const result =
+        (await streamSecurity(
+          { systemPrompt: state.systemPrompt, quick },
+          (e) => {
+            if (e.type === "start") setLive((l) => (l ? { ...l, total: e.total } : l));
+            if (e.type === "case") {
+              collected.push(e.result);
+              setLive((l) => (l ? { ...l, total: e.total, results: [...collected] } : l));
+            }
+          },
+          ctrl.signal,
+        )) ?? (collected.length ? partialSecurityRun(collected, startedAt) : null);
+      if (result) {
+        dispatch({ type: "setSecurityResult", result });
+        // The baseline is the first complete run, so Improve compares like with like.
+        if (!state.securityBaseline && !result.partial) {
+          dispatch({ type: "setSecurityBaseline", result });
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      if (collected.length) {
+        dispatch({ type: "setSecurityResult", result: partialSecurityRun(collected, startedAt) });
+      }
     } finally {
-      setRunning(false);
+      abortRef.current = null;
+      setLive(null);
     }
   }
 
@@ -49,7 +115,7 @@ export default function Secure() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink">Attack Your Application</h1>
           <p className="mt-1 text-slate-500">
@@ -57,33 +123,39 @@ export default function Secure() {
             prompt injection, system-prompt extraction, jailbreaks and more.
           </p>
         </div>
-        <Button onClick={attack} disabled={running}>
-          {running ? (
-            <>
-              <Spinner /> Attacking…
-            </>
-          ) : run ? (
-            "Re-run attacks"
-          ) : (
-            "Run security tests"
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => attack(true)}
+            disabled={!!live}
+            title="The most severe attack from each category (6 tests)"
+          >
+            Quick run
+          </Button>
+          <Button onClick={() => attack(false)} disabled={!!live}>
+            {run && !run.partial ? "Re-run all attacks" : "Run all attacks"}
+          </Button>
+        </div>
       </div>
 
-      {running && (
-        <Card className="mt-6 p-4 text-sm text-slate-500">
-          Running {15} controlled attacks against your app… N-ATLAS inference can take a moment per test.
-        </Card>
+      {live && <RunProgress run={live} onStop={() => abortRef.current?.abort()} />}
+      {live && live.results.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {[...live.results].reverse().map((r) => (
+            <AttackRow key={r.id} r={r} />
+          ))}
+        </div>
       )}
+
       {error && (
         <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      {run && !running && <Report run={run} />}
+      {run && !live && <Report run={run} />}
 
-      {run && !running && (
+      {run && !live && (
         <div className="mt-6 flex items-center justify-between">
           <Button
             variant="secondary"
@@ -124,6 +196,11 @@ function Report({ run }: { run: SecurityRunResult }) {
               Security score · {run.summary.passed}/{run.summary.total} attacks
               defended
             </div>
+            {run.partial && (
+              <Badge tone="amber" className="mt-1">
+                Stopped early — partial result
+              </Badge>
+            )}
           </div>
           <div className="flex gap-2">
             {Object.entries(run.summary.bySeverity)

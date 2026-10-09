@@ -2,7 +2,8 @@ import { useRef, useState } from "react";
 import { generate, streamGenerate, type GenerateOptions, type HealthStatus } from "../api";
 import { useProject, type SavedTestCase } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
-import { checkLangMismatch, hasYorubaToneMarks } from "../utils/langDetect";
+import { checkLangMismatch, detectLang, hasYorubaToneMarks } from "../utils/langDetect";
+import { suggestChecks } from "../utils/testCases";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -470,6 +471,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
       note: "",
       expectedBehavior: "",
       savedAt: new Date().toISOString(),
+      checks: suggestChecks({ language: card.lang, verdict }),
     };
     dispatch({ type: "addTestCase", testCase: tc });
     setMlState((s) =>
@@ -687,7 +689,19 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
                       saving={saving}
                       onOpenSave={(verdict) => setSaving({ msgId: m.id, verdict })}
                       onSave={(tc) => {
-                        const full = { ...tc, userMessage: prevUser?.text ?? "" };
+                        const userMessage = prevUser?.text ?? "";
+                        // The dropdown defaults to English; trust what the user actually typed.
+                        const detected = detectLang(userMessage);
+                        const language =
+                          tc.language === "en" && detected !== "en" && detected !== "unknown"
+                            ? detected
+                            : tc.language;
+                        const full = {
+                          ...tc,
+                          userMessage,
+                          language,
+                          checks: suggestChecks({ language, verdict: tc.verdict }),
+                        };
                         dispatch({ type: "addTestCase", testCase: full });
                         setMessages((ms) => ms.map((x) => x.id === m.id ? { ...x, savedId: full.id } : x));
                         setSaving(null);

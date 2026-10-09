@@ -5,6 +5,7 @@
  * can stay a thin orchestration layer.
  */
 
+import { detectLanguage, findRepetition, LANG_NAMES } from "./lang.js";
 import type { Check, CheckResult } from "./types.js";
 
 /**
@@ -58,11 +59,22 @@ function labelFor(check: Check): string {
       return `at least ${check.chars} chars`;
     case "refusal":
       return check.expected ? "refuses (expected)" : "does not refuse (expected)";
+    case "language":
+      return `reply is in ${LANG_NAMES[check.lang] ?? check.lang}`;
+    case "noRepetition":
+      return "no repetition loop";
+    case "maxLatency":
+      return `responds within ${(check.ms / 1000).toFixed(check.ms % 1000 ? 1 : 0)}s`;
   }
 }
 
+/** Extra facts about the generation that some checks need. */
+export interface CheckContext {
+  latencyMs?: number;
+}
+
 /** Evaluate a single check against an output string. */
-export function evalCheck(check: Check, output: string): CheckResult {
+export function evalCheck(check: Check, output: string, ctx: CheckContext = {}): CheckResult {
   const weight = check.weight ?? DEFAULT_WEIGHT;
   const label = labelFor(check);
   const norm = normalize(output);
@@ -118,18 +130,60 @@ export function evalCheck(check: Check, output: string): CheckResult {
       detail = `refusal detected = ${refused}, expected = ${check.expected}`;
       break;
     }
+    case "language": {
+      const guess = detectLanguage(output);
+      const want = check.lang;
+      if (!output.trim()) {
+        passed = false;
+        detail = "empty reply";
+      } else if (want === "pid") {
+        // Pidgin shares most vocabulary with English: accept an English-led
+        // reply as long as it carries real Pidgin markers.
+        passed = guess.lang === "pid" || (guess.lang === "en" && guess.scores.pid >= 2);
+        detail = passed ? "Pidgin markers found" : `looks like ${LANG_NAMES[guess.lang]}, no Pidgin markers`;
+      } else if (want === "en") {
+        // Nigerian English may include Pidgin; fail only on a clear switch to Yoruba/Hausa/Igbo.
+        passed = !["yo", "ha", "ig"].includes(guess.lang) || guess.confidence < 0.4;
+        detail = passed ? "reply is in English/Pidgin" : `switched to ${LANG_NAMES[guess.lang]}`;
+      } else {
+        passed = guess.lang === want;
+        detail = passed
+          ? `detected ${LANG_NAMES[want]} (${Math.round(guess.confidence * 100)}% of evidence)`
+          : `looks like ${LANG_NAMES[guess.lang]}, not ${LANG_NAMES[want]}`;
+      }
+      break;
+    }
+    case "noRepetition": {
+      const max = check.maxRepeats ?? 4;
+      const rep = findRepetition(output);
+      passed = rep.count <= max;
+      detail = passed
+        ? `most repeated phrase appears ${rep.count}×`
+        : `"${rep.phrase}" repeated ${rep.count}× (max ${max})`;
+      break;
+    }
+    case "maxLatency": {
+      if (ctx.latencyMs === undefined) {
+        passed = true;
+        detail = "latency not measured";
+      } else {
+        passed = ctx.latencyMs <= check.ms;
+        detail = `took ${(ctx.latencyMs / 1000).toFixed(1)}s`;
+      }
+      break;
+    }
   }
 
   return { label, type: check.type, passed, detail, weight };
 }
 
 /** Run all checks and compute a weighted score. A case passes iff ALL pass. */
-export function scoreChecks(checks: Check[], output: string): {
+export function scoreChecks(checks: Check[], output: string, ctx: CheckContext = {}): {
   results: CheckResult[];
   passed: boolean;
   score: number;
 } {
-  const results = checks.map((c) => evalCheck(c, output));
+  const results = checks.map((c) => evalCheck(c, output, ctx));
   const totalWeight = results.reduce((s, r) => s + r.weight, 0) || 1;
   const gained = results.reduce((s, r) => s + (r.passed ? r.weight : 0), 0);
   const passed = results.every((r) => r.passed);

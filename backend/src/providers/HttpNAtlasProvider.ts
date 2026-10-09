@@ -83,7 +83,14 @@ export class HttpNAtlasProvider implements NAtlasProvider {
     };
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, this.cfg.timeoutMs);
+    const external = options.signal;
+    if (external?.aborted) controller.abort();
+    else external?.addEventListener("abort", () => controller.abort(), { once: true });
 
     try {
       const headers: Record<string, string> = {
@@ -130,6 +137,15 @@ export class HttpNAtlasProvider implements NAtlasProvider {
         raw: data,
       };
     } catch (err) {
+      if (timedOut) {
+        const secs = Math.round(this.cfg.timeoutMs / 1000);
+        const message =
+          `Timed out after ${secs}s waiting for N-ATLAS. The model is too slow on this machine ` +
+          `for a reply this long — use a GPU endpoint, or raise NATLAS_REQUEST_TIMEOUT_MS.`;
+        logger.error("N-ATLAS generate() timed out", { timeoutMs: this.cfg.timeoutMs });
+        throw new Error(message);
+      }
+      if (external?.aborted) throw new Error("Stopped by user.");
       const message = err instanceof Error ? err.message : String(err);
       logger.error("N-ATLAS generate() failed", { reason: message });
       throw err instanceof Error ? err : new Error(message);

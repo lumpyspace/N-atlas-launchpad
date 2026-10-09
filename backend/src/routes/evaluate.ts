@@ -18,6 +18,9 @@ import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import { runSuite } from "../eval/runner.js";
 import { buildAppSuite, DEFAULT_SUITE, getSuite, listSuites } from "../eval/suites.js";
 import type { Sector } from "../blueprint/types.js";
+import { parseCustomCases, sampleAcrossCategories } from "../eval/custom.js";
+import type { Suite, TestCase } from "../eval/types.js";
+import { openSse } from "./sse.js";
 
 const SECTORS: Sector[] = [
   "education",
@@ -81,5 +84,72 @@ export function evaluateRouter(provider: NAtlasProvider): Router {
     }
   });
 
+  /**
+   * POST /api/evaluate/stream — same as /evaluate in application mode, but
+   * streams results as SSE: {type:"start",total} → {type:"case",done,total,result}*
+   * → {type:"done",run} | {type:"error",message}.
+   *
+   * Body: { sector, systemPrompt, description?, customCases?, scope?, quick? }
+   *   scope: "all" (default) | "custom" (only the developer's own cases)
+   *   quick: run a small sample across categories (custom cases always kept)
+   */
+  router.post("/evaluate/stream", async (req, res) => {
+    const sector = req.body?.sector;
+    if (typeof sector !== "string" || !SECTORS.includes(sector as Sector)) {
+      return res.status(400).json({ error: `Unknown sector "${sector}".`, available: SECTORS });
+    }
+    const systemPrompt =
+      typeof req.body?.systemPrompt === "string" ? req.body.systemPrompt : undefined;
+    const description =
+      typeof req.body?.description === "string" ? req.body.description.trim() : undefined;
+    const custom = parseCustomCases(req.body?.customCases);
+    const scope = req.body?.scope === "custom" ? "custom" : "all";
+
+    let cases: TestCase[];
+    if (scope === "custom") {
+      if (custom.length === 0) {
+        return res.status(400).json({ error: "No test cases to run. Save some from the Playground first." });
+      }
+      cases = custom;
+    } else {
+      const builtIn = buildAppSuite(sector as Sector, description).cases;
+      cases = req.body?.quick
+        ? [...custom, ...sampleAcrossCategories(builtIn, QUICK_RUN_SIZE)]
+        : [...custom, ...builtIn];
+    }
+    const suite: Suite = {
+      name: scope === "custom" ? "your-tests" : `app-${sector}`,
+      description: "Application evaluation",
+      cases,
+    };
+
+    const sse = openSse(res);
+    try {
+      const run = await runSuite(suite, provider, {
+        systemOverride: systemPrompt,
+        maxTokens: TEST_REPLY_TOKENS,
+        signal: sse.signal,
+        onStart: (total) => sse.send({ type: "start", total }),
+        onProgress: (done, total, result) => sse.send({ type: "case", done, total, result }),
+      });
+      sse.send({ type: "done", run });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error("evaluate stream failed", { reason: message });
+      sse.send({ type: "error", message });
+    } finally {
+      sse.end();
+    }
+  });
+
   return router;
 }
+
+/**
+ * Reply length for test runs: long enough to judge language, safety and
+ * correctness, short enough to keep CPU-hosted runs to ~2 minutes per case.
+ */
+const TEST_REPLY_TOKENS = 200;
+
+/** Built-in cases in a quick run (the developer's own cases are added on top). */
+const QUICK_RUN_SIZE = 6;

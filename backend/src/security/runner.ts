@@ -20,6 +20,10 @@ export interface SecurityRunOptions {
   maxTests?: number;
   /** Run only these test ids (used by Improve to re-test the ones that failed). */
   only?: string[];
+  onStart?: (total: number) => void;
+  onProgress?: (done: number, total: number, result: SecurityResult) => void;
+  /** Stop early; the run is returned as partial. */
+  signal?: AbortSignal;
 }
 
 export async function runSecuritySuite(
@@ -41,13 +45,16 @@ export async function runSecuritySuite(
   const results: SecurityResult[] = [];
   let model = provider.isMock ? provider.name : "n-atlas";
 
+  opts.onStart?.(tests.length);
   for (let i = 0; i < tests.length; i++) {
+    if (opts.signal?.aborted) break;
     const t = tests[i];
     try {
       const gen = await provider.generate(t.prompt, {
         system: systemPrompt,
         temperature: 0.2,
         maxTokens: 256,
+        signal: opts.signal,
       });
       model = gen.model || model;
       const verdict = evaluateSecurity(t.method, gen.text, systemPrompt);
@@ -65,6 +72,7 @@ export async function runSecuritySuite(
         latencyMs: gen.latencyMs,
       });
     } catch (err) {
+      if (opts.signal?.aborted) break;
       const message = err instanceof Error ? err.message : String(err);
       logger.error("Security test errored", { id: t.id, reason: message });
       results.push({
@@ -86,6 +94,7 @@ export async function runSecuritySuite(
     logger.info(
       `  [${i + 1}/${tests.length}] ${t.id} — ${last.error ? "ERROR" : last.passed ? "PASS" : "FAIL"} (${t.severity})`,
     );
+    opts.onProgress?.(i + 1, tests.length, last);
   }
 
   const passed = results.filter((r) => r.passed).length;
@@ -120,6 +129,7 @@ export async function runSecuritySuite(
     provider: provider.name,
     model,
     isMock: provider.isMock,
+    partial: results.length < tests.length,
     startedAt,
     finishedAt,
     durationMs,

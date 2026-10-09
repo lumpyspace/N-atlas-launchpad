@@ -54,6 +54,8 @@ export interface SecurityRunResult {
   provider: string;
   model: string;
   isMock: boolean;
+  /** True when the run was stopped before every test ran. */
+  partial?: boolean;
   startedAt: string;
   finishedAt: string;
   durationMs: number;

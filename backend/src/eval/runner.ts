@@ -28,6 +28,12 @@ export interface RunOptions {
   systemOverride?: string;
   /** Optional progress callback (case index, total, latest result). */
   onProgress?: (done: number, total: number, result: CaseResult) => void;
+  /** Called once the case list is known, before the first case runs. */
+  onStart?: (total: number) => void;
+  /** Stop early (e.g. the client disconnected); the run is returned as partial. */
+  signal?: AbortSignal;
+  /** Default reply length for cases that don't set their own. */
+  maxTokens?: number;
 }
 
 export async function runSuite(
@@ -53,8 +59,10 @@ export async function runSuite(
 
   const results: CaseResult[] = [];
   let model = provider.isMock ? "mock-provider" : "n-atlas";
+  opts.onStart?.(cases.length);
 
   for (let i = 0; i < cases.length; i++) {
+    if (opts.signal?.aborted) break;
     const tc = cases[i];
     let result: CaseResult;
 
@@ -62,10 +70,14 @@ export async function runSuite(
       const gen = await provider.generate(tc.prompt, {
         system: opts.systemOverride ?? tc.system,
         language: tc.language,
+        maxTokens: opts.maxTokens,
         ...tc.options,
+        signal: opts.signal,
       });
       model = gen.model || model;
-      const { results: checkResults, passed, score } = scoreChecks(tc.checks, gen.text);
+      const { results: checkResults, passed, score } = scoreChecks(tc.checks, gen.text, {
+        latencyMs: gen.latencyMs,
+      });
       result = {
         caseId: tc.id,
         category: tc.category,
@@ -77,8 +89,10 @@ export async function runSuite(
         score,
         checks: checkResults,
         latencyMs: gen.latencyMs,
+        description: tc.description,
       };
     } catch (err) {
+      if (opts.signal?.aborted) break; // stopped mid-case: drop it, the run is partial
       const message = err instanceof Error ? err.message : String(err);
       logger.error("Eval case errored", { caseId: tc.id, reason: message });
       result = {
@@ -93,6 +107,7 @@ export async function runSuite(
         checks: [],
         latencyMs: 0,
         error: message,
+        description: tc.description,
       };
     }
 
@@ -124,6 +139,7 @@ export async function runSuite(
     provider: provider.name,
     model,
     isMock: provider.isMock,
+    partial: results.length < cases.length,
     startedAt,
     finishedAt,
     durationMs,

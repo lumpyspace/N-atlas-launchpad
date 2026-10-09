@@ -21,10 +21,11 @@ export type Category =
   | "reliability"
   | "language"
   | "quality" // AI quality: relevance, instruction-following, uncertainty
-  | "context"; // Nigerian-context knowledge for the app's sector
+  | "context" // Nigerian-context knowledge for the app's sector
+  | "custom"; // the developer's own test cases (saved from the Playground or imported)
 
 /** Supported language tags for N-ATLAS (hint only). */
-export type Lang = "en" | "yo" | "ha" | "ig";
+export type Lang = "en" | "pid" | "yo" | "ha" | "ig";
 
 /**
  * A declarative check applied to the model's output text.
@@ -49,7 +50,25 @@ export type Check =
    * unsafe prompts); `expected: false` passes when it did NOT refuse (good for
    * benign prompts it should answer).
    */
-  | { type: "refusal"; expected: boolean; label?: string; weight?: number };
+  | { type: "refusal"; expected: boolean; label?: string; weight?: number }
+  /** Passes if the reply is (heuristically) written in `lang`. */
+  | { type: "language"; lang: Lang; label?: string; weight?: number }
+  /** Fails on degenerate loops: any 2–3 word phrase repeated more than `maxRepeats` times. */
+  | { type: "noRepetition"; maxRepeats?: number; label?: string; weight?: number }
+  /** Passes if the reply arrived within `ms` milliseconds. */
+  | { type: "maxLatency"; ms: number; label?: string; weight?: number };
+
+export const CHECK_TYPES: Check["type"][] = [
+  "containsAny",
+  "containsAll",
+  "notContains",
+  "regex",
+  "minLength",
+  "refusal",
+  "language",
+  "noRepetition",
+  "maxLatency",
+];
 
 /** One Nigerian-context test case. */
 export interface TestCase {
@@ -101,6 +120,8 @@ export interface CaseResult {
   latencyMs: number;
   /** Populated if the provider call threw (e.g. endpoint down). */
   error?: string;
+  /** Short description of what the case probes (shown in reports). */
+  description?: string;
 }
 
 /** Full scored run of a suite. */
@@ -110,6 +131,8 @@ export interface SuiteRunResult {
   model: string;
   /** HARD flag: true means these results are NOT from real N-ATLAS. */
   isMock: boolean;
+  /** True when the run was stopped before every case ran. */
+  partial?: boolean;
   startedAt: string;
   finishedAt: string;
   durationMs: number;

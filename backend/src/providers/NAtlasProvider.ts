@@ -10,6 +10,8 @@ export interface GenerateOptions {
   temperature?: number;
   language?: "en" | "yo" | "ha" | "ig" | "pid" | (string & {});
   stop?: string[];
+  /** Cancels the in-flight request (e.g. the user pressed Stop). */
+  signal?: AbortSignal;
 }
 
 /** Normalised result returned by every provider. */
