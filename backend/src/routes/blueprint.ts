@@ -24,8 +24,12 @@ export function blueprintRouter(): Router {
         .json({ error: "A non-empty 'description' is required." });
     }
     const useCase = typeof req.body?.useCase === "string" ? req.body.useCase : undefined;
+    const tasks = Array.isArray(req.body?.tasks)
+      ? req.body.tasks.filter((t: unknown): t is string => typeof t === "string").map((t: string) => t.slice(0, 200))
+      : undefined;
+    const targetUsers = typeof req.body?.targetUsers === "string" ? req.body.targetUsers.slice(0, 300) : undefined;
     try {
-      return res.json(generateBlueprint(description, { useCase }));
+      return res.json(generateBlueprint(description, { useCase, tasks, targetUsers }));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error("blueprint endpoint failed", { reason: message });

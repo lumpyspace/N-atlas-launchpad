@@ -21,6 +21,10 @@ import { detectUseCases } from "./useCases.js";
 export interface BlueprintOptions {
   /** Use case chosen by the developer, overriding detection (see useCases.ts). */
   useCase?: string;
+  /** Features the developer listed themselves (e.g. in the Design chat). */
+  tasks?: string[];
+  /** Who it's for, in the developer's words. */
+  targetUsers?: string;
 }
 
 export function generateBlueprint(description: string, opts: BlueprintOptions = {}): Blueprint {
@@ -32,8 +36,9 @@ export function generateBlueprint(description: string, opts: BlueprintOptions = 
   const canary = makeCanary(desc || sector);
 
   const purpose = derivePurpose(desc, t.purpose);
-  const targetUsers = deriveTargetUsers(desc, t.targetUsers);
-  const primaryTasks = derivePrimaryTasks(desc, t.primaryTasks, opts.useCase);
+  const givenTasks = (opts.tasks ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 8);
+  const targetUsers = opts.targetUsers?.trim() || deriveTargetUsers(desc, t.targetUsers);
+  const primaryTasks = givenTasks.length ? givenTasks : derivePrimaryTasks(desc, t.primaryTasks, opts.useCase);
   const languages = deriveLanguages(desc, t.languages);
   // The use case knows this kind of app's real risks better than the sector template.
   const risks = useCases[0].id === "general" ? t.risks : useCases.flatMap((u) => u.pitfalls).slice(0, 4);

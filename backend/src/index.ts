@@ -25,6 +25,7 @@ import { securityRouter } from "./routes/security.js";
 import { improveRouter } from "./routes/improve.js";
 import { modeRouter } from "./routes/mode.js";
 import { compareRouter } from "./routes/compare.js";
+import { designRouter } from "./routes/design.js";
 
 const config = loadConfig();
 const provider = new ProviderRef(createProvider(config));
@@ -41,6 +42,7 @@ app.use("/api", securityRouter(provider));
 app.use("/api", improveRouter());
 app.use("/api", modeRouter(provider));
 app.use("/api", compareRouter(provider, config));
+app.use("/api", designRouter(provider));
 
 // Root gives a quick sanity response and points at the health check.
 app.get("/", (_req, res) => {
