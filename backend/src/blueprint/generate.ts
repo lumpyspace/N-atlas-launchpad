@@ -27,9 +27,9 @@ export function generateBlueprint(description: string, opts: BlueprintOptions = 
   const desc = (description ?? "").trim();
   const sector = classifySector(desc);
   const t = SECTORS[sector];
-  const name = deriveName(desc, t.defaultName);
-  const canary = makeCanary(desc || sector);
   const useCases = detectUseCases(desc, opts.useCase);
+  const name = deriveName(desc, t.defaultName, useCases[0]);
+  const canary = makeCanary(desc || sector);
 
   const purpose = derivePurpose(desc, t.purpose);
   const targetUsers = deriveTargetUsers(desc, t.targetUsers);
@@ -96,11 +96,25 @@ function derivePurpose(desc: string, fallback: string): string {
   if (!PROPER_WORDS.test(first) && !/^[A-Z0-9]{2,}$/.test(first) && !/[A-Z]/.test(first.slice(1))) {
     s = s.charAt(0).toLowerCase() + s.slice(1);
   }
+  // "Transcribe Yoruba recordings…" is an instruction, not a noun phrase:
+  // → "an assistant that helps transcribe Yoruba recordings…"
+  if (startsWithVerb(s)) {
+    const rest = s.replace(/^(help|assist|support)s?\s+/i, "");
+    return `an assistant that helps ${rest}`;
+  }
   // Read naturally after "You are {name}," — add an article if there isn't one
   if (!/^(an?|the|my|our|your)\s/i.test(s)) {
     s = `${/^[aeiou]/i.test(s) ? "an" : "a"} ${s}`;
   }
   return s;
+}
+
+/** Descriptions written as an instruction ("Help farmers…", "Transcribe…"). */
+const IMPERATIVE_VERBS =
+  /^(add|analy[sz]e|answer|assist|book|check|compare|connect|convert|create|detect|explain|fact-check|find|generate|give|guide|help|identify|keep|let|make|manage|match|monitor|plan|predict|recommend|remind|record|review|send|share|show|suggest|summari[sz]e|support|teach|tell|track|transcribe|translate|turn|write)\b/i;
+
+function startsWithVerb(s: string): boolean {
+  return IMPERATIVE_VERBS.test(s.trim());
 }
 
 const PROPER_WORDS =
@@ -511,10 +525,17 @@ const BRAND_CASE: Record<string, string> = {
   nysc: "NYSC", ai: "AI", sms: "SMS", ussd: "USSD", pos: "POS", bvn: "BVN", nin: "NIN",
 };
 
-function deriveName(description: string, fallback: string): string {
+function deriveName(description: string, fallback: string, useCase?: { id: string; label: string }): string {
   if (!description) return fallback;
   let s = description.toLowerCase().trim();
   s = s.replace(LEAD_INS_NAME, "");
+  // An instruction ("transcribe yoruba meetings…") has no product noun to name
+  // the app after, so use the kind of app instead.
+  if (startsWithVerb(s)) {
+    if (!useCase || useCase.id === "general") return fallback;
+    const label = useCase.label.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+    return /(assistant|guide|companion|tutor|explainer|support)$/i.test(label) ? label : `${label} Assistant`;
+  }
   s = s.replace(/^(an?|the)\s+/, "");
   s = s.replace(/^ai\s+/, "");
   // Cut at a relative clause, comparison or "to get/give/provide help":

@@ -90,3 +90,12 @@ test("tasks the developer writes are classified by their wording", async () => {
   assert.equal(kind("Calculate loan interest"), "compute");
   assert.equal(kind("Translate menus into Hausa"), "prompt");
 });
+
+test("descriptions written as instructions get a proper name and purpose", () => {
+  const bp = generateBlueprint("Help small business owners record sales and send invoices");
+  assert.equal(bp.name, "Small Business Assistant");
+  assert.equal(bp.purpose, "an assistant that helps small business owners record sales and send invoices");
+  const t = generateBlueprint("Transcribe Yoruba meeting recordings and write the minutes");
+  assert.equal(t.name, "Transcription & Subtitles Assistant");
+  assert.match(t.systemPrompt, /^You are Transcription & Subtitles Assistant, an assistant that helps transcribe/);
+});
