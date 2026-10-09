@@ -4,6 +4,7 @@ import { useProject, type SavedTestCase } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 import { checkLangMismatch, detectLang, hasYorubaToneMarks } from "../utils/langDetect";
 import { suggestChecks } from "../utils/testCases";
+import { GetCode } from "./GetCode";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -137,6 +138,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
   const [language, setLanguage] = useState("en");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<{ msgId: string; verdict: "good" | "bad" } | null>(null);
+  const [codeOpen, setCodeOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [temperature, setTemperature] = useState(0.2);
   const [maxTokens, setMaxTokens] = useState(512);
@@ -603,10 +605,37 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
               }
               placeholder="Your app's system instructions…"
             />
-            <div className="mt-2 text-xs text-slate-400">
-              Model: <span className="font-medium text-slate-600">{health?.model ?? "N-ATLAS"}</span>
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+              <span>
+                Model: <span className="font-medium text-slate-600">{health?.model ?? "N-ATLAS"}</span>
+              </span>
+              <button
+                onClick={() => setCodeOpen(true)}
+                className="rounded-md border border-slate-200 px-2 py-0.5 font-mono font-medium text-slate-600 hover:border-forge-400 hover:text-forge-700"
+                title="Copy this exact request as JavaScript, Python or curl"
+              >
+                {"</>"} Get code
+              </button>
             </div>
           </Card>
+          {codeOpen && (
+            <GetCode
+              onClose={() => setCodeOpen(false)}
+              request={{
+                endpoint: (health?.endpoint ?? "http://localhost:11434/v1").replace(/\/chat\/completions\/?$/, ""),
+                model: health?.model ?? "n-atlas",
+                system: state.systemPrompt,
+                language,
+                temperature: shortAnswers ? 0.1 : temperature,
+                maxTokens: shortAnswers ? 150 : maxTokens,
+                message:
+                  input.trim() ||
+                  [...messages].reverse().find((m) => m.role === "user")?.text ||
+                  quick[0] ||
+                  "Hello!",
+              }}
+            />
+          )}
 
           <Card className="p-4">
             <button
