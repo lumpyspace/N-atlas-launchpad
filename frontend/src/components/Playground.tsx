@@ -493,7 +493,10 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
   // (Pidgin, mixed-language, typos, and an off-topic/borderline request).
   const quick = [
     ...tasks.slice(0, 2).map(taskToPrompt),
-    ...(SECTOR_TEST_PROMPTS[bp?.sector ?? "general"] ?? SECTOR_TEST_PROMPTS.general),
+    // Test messages written for this specific kind of app, when available.
+    ...(bp?.buildPlan?.testMessages?.length
+      ? bp.buildPlan.testMessages
+      : (SECTOR_TEST_PROMPTS[bp?.sector ?? "general"] ?? SECTOR_TEST_PROMPTS.general)),
   ];
 
   // ── Render ────────────────────────────────────────────────────────────────

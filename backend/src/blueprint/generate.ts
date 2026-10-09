@@ -16,6 +16,7 @@ import type { Blueprint } from "./types.js";
 import { SECTORS, classifySector, type SectorTemplate } from "./sectors.js";
 import { makeCanary } from "../shared/prompt.js";
 import { buildPlanFor } from "./buildPlan.js";
+import { detectUseCases } from "./useCases.js";
 
 export function generateBlueprint(description: string): Blueprint {
   const desc = (description ?? "").trim();
@@ -41,7 +42,7 @@ export function generateBlueprint(description: string): Blueprint {
     systemPrompt: buildSystemPrompt(name, purpose, targetUsers, primaryTasks, languages, t, canary),
     suggestedEvalCategories: t.suggestedEvalCategories,
     suggestedSecurityTests: t.suggestedSecurityTests,
-    buildPlan: buildPlanFor(desc, sector, languages),
+    buildPlan: buildPlanFor(desc, sector, languages, primaryTasks),
   };
 }
 
@@ -265,8 +266,23 @@ const ACTION_VERBS =
  */
 function derivePrimaryTasks(desc: string, fallback: string[]): string[] {
   const extracted = extractPrimaryTasks(desc, fallback);
+  // Tasks the developer actually wrote come first. Otherwise prefer the
+  // detected use case's feature list over keyword guesses and the sector
+  // template, which are often wrong for the specific idea.
+  const domain = inferFromDomain(desc);
+  const guessed = extracted === fallback || (domain !== null && sameList(extracted, domain.tasks));
+  const useCases = detectUseCases(desc).filter((u) => u.tasks.length);
+  if (guessed && useCases.length) {
+    // One use case: all its tasks. Two: the first three of each.
+    const per = useCases.length === 1 ? MAX_TASKS : 3;
+    return useCases.flatMap((u) => u.tasks.slice(0, per).map((t) => t.task)).slice(0, MAX_TASKS + 1);
+  }
   if (extracted === fallback) return fallback;
   return topUpTasks(extracted, fallback);
+}
+
+function sameList(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((x, i) => x === b[i]);
 }
 
 const MAX_TASKS = 5;

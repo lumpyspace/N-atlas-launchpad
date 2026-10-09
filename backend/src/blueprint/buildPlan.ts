@@ -8,7 +8,9 @@
  * which is sourced from the official model cards — update it there, not inline.
  */
 
+import { planFeature, starterCode, type FeaturePlan, type StarterCode } from "./features.js";
 import type { Sector } from "./types.js";
+import { detectUseCases, type DataSource } from "./useCases.js";
 
 /**
  * Verified from the Hugging Face model cards (checked 2026-10-09):
@@ -60,6 +62,24 @@ export interface ArchitectureNode {
 }
 
 export interface BuildPlan {
+  /** The kind(s) of app detected, e.g. "Farm advisory + Market price information". */
+  useCase: { ids: string[]; label: string; summary: string };
+  /** What a first version should include. */
+  mvp: string[];
+  /** Where this app's facts must come from. */
+  dataSources: DataSource[];
+  /** How to build each primary task. */
+  features: FeaturePlan[];
+  /** Mistakes specific to this kind of app. */
+  pitfalls: string[];
+  /** How to tell whether it's working. */
+  metrics: string[];
+  /** A short example of the finished app. */
+  conversation: { user: string; app: string };
+  /** Realistic messages to test with. */
+  testMessages: string[];
+  /** Backend for the chosen channel, wired to the system prompt. */
+  starter: StarterCode;
   channel: { id: ChannelId; label: string; why: string };
   voice: { needed: boolean; models: { lang: string; model: string }[] };
   knowledge: { needed: boolean; why: string; kind: "documents" | "live-data" | "none" };
@@ -117,8 +137,15 @@ function detectChannel(desc: string): BuildPlan["channel"] {
 
 // ── Plan ─────────────────────────────────────────────────────────────────────
 
-export function buildPlanFor(desc: string, sector: Sector, languages: string[]): BuildPlan {
+export function buildPlanFor(
+  desc: string,
+  sector: Sector,
+  languages: string[],
+  tasks: string[] = [],
+): BuildPlan {
   const channel = detectChannel(desc);
+  const useCases = detectUseCases(desc);
+  const dataSources = dedupeBy(useCases.flatMap((u) => u.dataSources), (d) => d.name);
   const voiceNeeded = channel.id === "voice" || VOICE_RE.test(desc);
   const voiceModels = voiceNeeded
     ? languages
@@ -127,7 +154,15 @@ export function buildPlanFor(desc: string, sector: Sector, languages: string[]):
     : [];
 
   let knowledge: BuildPlan["knowledge"] = { needed: false, why: "", kind: "none" };
-  if (LIVE_DATA_RE.test(desc)) {
+  const specific = useCases[0].id !== "general";
+  if (specific && dataSources.length) {
+    const live = dataSources.some((d) => d.kind === "live-data");
+    knowledge = {
+      needed: true,
+      kind: live ? "live-data" : "documents",
+      why: `A ${useCases.map((u) => u.label.toLowerCase()).join(" and ")} app depends on facts N-ATLAS can't know: ${dataSources.map((d) => d.name).join("; ")}.`,
+    };
+  } else if (LIVE_DATA_RE.test(desc)) {
     knowledge = { needed: true, kind: "live-data", why: "Your app needs facts from your own systems (e.g. orders, accounts, bookings). Your backend must look them up and pass them to N-ATLAS; the model must never guess them." };
   } else if (DOCUMENT_RE.test(desc) || SECTOR_KNOWLEDGE[sector].kind !== "none") {
     const s = SECTOR_KNOWLEDGE[sector];
@@ -135,6 +170,8 @@ export function buildPlanFor(desc: string, sector: Sector, languages: string[]):
       ? { needed: true, kind: s.kind, why: s.why }
       : { needed: true, kind: "documents", why: "Your app answers from specific facts (prices, rules or your own content). N-ATLAS doesn't know these, so retrieve them from your documents and include them in the prompt." };
   }
+
+  const starter = starterCode(channel.id, dataSources);
 
   const architecture: ArchitectureNode[] = [
     { label: `User on ${channel.label}`, detail: voiceNeeded ? "Sends a voice note or speaks" : "Sends a message", kind: "user" },
@@ -145,7 +182,9 @@ export function buildPlanFor(desc: string, sector: Sector, languages: string[]):
     ...(knowledge.needed
       ? [{
           label: knowledge.kind === "live-data" ? "Your data / APIs" : "Knowledge base",
-          detail: knowledge.kind === "live-data" ? "Looks up orders, accounts, bookings…" : "Finds the relevant passages to quote",
+          detail: dataSources.length
+            ? dataSources.slice(0, 2).map((d) => d.name).join("; ")
+            : knowledge.kind === "live-data" ? "Looks up orders, accounts, bookings…" : "Finds the relevant passages to quote",
           kind: "optional" as const,
         }]
       : []),
@@ -177,9 +216,10 @@ export function buildPlanFor(desc: string, sector: Sector, languages: string[]):
       ].join("\n"),
     },
     {
-      title: "Build your backend",
+      title: `Build your backend (${starter.filename})`,
       detail:
-        "One small service that receives the user's message, adds the system prompt from this blueprint, calls N-ATLAS at /chat/completions and returns the reply. Keep the system prompt plus conversation history well under the ~8k-token context limit — trim old turns. The Export step generates this service for you in JavaScript or Python.",
+        `One small service that receives the user's message${channel.id === "web" ? "" : ` from ${channel.label}`}, adds the system prompt from this blueprint${dataSources.length ? " and the relevant facts" : ""}, calls N-ATLAS and returns the reply. Keep the system prompt plus conversation history well under the ~8k-token context — trim old turns. ${starter.setup} The Export step gives you the systemPrompt.js file and a Python version.`,
+      code: starter.code,
       launchpadStep: "export",
     },
   ];
@@ -190,12 +230,12 @@ export function buildPlanFor(desc: string, sector: Sector, languages: string[]):
         ? {
             title: "Connect your data",
             detail:
-              "Before calling N-ATLAS, have your backend look up what the user is asking about (e.g. the order by its ID) and put the result in the prompt: \"Order #123: shipped 3 May, arriving Thursday.\" Tell the model to answer only from that data and to say it doesn't know otherwise. Never let it invent order or account details.",
+              `Fill in findFacts() in ${starter.filename}: before calling N-ATLAS, look up what the user is asking about and put the result in the prompt as plain facts. Sources for this app: ${sourceList(dataSources)}. Tell the model to answer only from those facts and to say when it doesn't know — never let it invent them.`,
           }
         : {
             title: "Add your knowledge (retrieval)",
             detail:
-              `${knowledge.why} Split your documents into short passages, find the 2–4 most relevant ones for each question (keyword search is fine to start; embeddings later), and paste them into the prompt with an instruction to answer only from them and cite the source. Keep the total under the ~8k-token context.`,
+              `Collect: ${sourceList(dataSources)}. Split them into short passages, find the 2–4 most relevant for each question (keyword search is fine to start; embeddings later) in findFacts(), and let N-ATLAS answer only from them, citing the source. Keep the total under the ~8k-token context.`,
           },
     );
   }
@@ -274,7 +314,24 @@ export function buildPlanFor(desc: string, sector: Sector, languages: string[]):
     `Not allowed: ${NATLAS_FACTS.license.prohibited}.`,
   ];
 
+  const primary = useCases[0];
   return {
+    useCase: {
+      ids: useCases.map((u) => u.id),
+      label: useCases.map((u) => u.label).join(" + "),
+      summary: useCases.map((u) => u.summary).join(" "),
+    },
+    mvp: useCases.flatMap((u) => u.mvp).slice(0, 5),
+    dataSources,
+    features: tasks.map((t) => {
+      const preset = useCases.flatMap((u) => u.tasks).find((ut) => ut.task === t);
+      return planFeature(t, dataSources, channel.id, preset);
+    }),
+    pitfalls: dedupeBy(useCases.flatMap((u) => u.pitfalls), (p) => p),
+    metrics: dedupeBy(useCases.flatMap((u) => u.metrics), (m) => m),
+    conversation: primary.conversation,
+    testMessages: dedupeBy(useCases.flatMap((u) => u.testMessages), (m) => m).slice(0, 6),
+    starter,
     channel,
     voice: { needed: voiceNeeded, models: voiceModels },
     knowledge,
@@ -325,4 +382,18 @@ function channelStep(id: ChannelId): BuildStep {
         detail: "A simple chat page that posts to your backend and streams the reply. When it works, the same backend can serve WhatsApp or Telegram with a small adapter.",
       };
   }
+}
+
+function sourceList(sources: DataSource[]): string {
+  return sources.map((d) => `${d.name} (${d.why.replace(/\.$/, "")})`).join("; ");
+}
+
+function dedupeBy<T>(items: T[], key: (t: T) => string): T[] {
+  const seen = new Set<string>();
+  return items.filter((it) => {
+    const k = key(it);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }

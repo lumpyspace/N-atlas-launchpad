@@ -261,6 +261,20 @@ export interface Blueprint {
 
 /** Mirror of backend/src/blueprint/buildPlan.ts */
 export interface BuildPlan {
+  useCase: { ids: string[]; label: string; summary: string };
+  mvp: string[];
+  dataSources: { name: string; why: string; kind: "documents" | "live-data" | "your-content" }[];
+  features: {
+    task: string;
+    approach: "prompt" | "retrieval" | "lookup" | "compute" | "schedule" | "vision";
+    approachLabel: string;
+    how: string;
+  }[];
+  pitfalls: string[];
+  metrics: string[];
+  conversation: { user: string; app: string };
+  testMessages: string[];
+  starter: { filename: string; setup: string; code: string };
   channel: { id: string; label: string; why: string };
   voice: { needed: boolean; models: { lang: string; model: string }[] };
   knowledge: { needed: boolean; why: string; kind: "documents" | "live-data" | "none" };

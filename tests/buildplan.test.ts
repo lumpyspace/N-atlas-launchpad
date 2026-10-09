@@ -48,3 +48,42 @@ test("legal and USSD ideas get the relevant cautions", () => {
   assert.equal(ussd.channel.id, "ussd");
   assert.ok(ussd.watchOut.some((w) => /182 characters/.test(w)));
 });
+
+test("use case drives specific tasks, data sources and techniques", () => {
+  const bp = generateBlueprint("A JAMB past questions tutor for students in Pidgin and English");
+  assert.equal(bp.buildPlan.useCase.ids[0], "exam-prep");
+  assert.ok(bp.primaryTasks.includes("Grade the student's answer against the answer key"));
+  const grade = bp.buildPlan.features.find((f) => f.task.startsWith("Grade"))!;
+  assert.equal(grade.approach, "compute");
+  assert.match(grade.how, /never ask the model/);
+  assert.ok(bp.buildPlan.dataSources.some((d) => /answer keys/.test(d.name)));
+  // the generated system prompt lists the same tasks
+  assert.match(bp.systemPrompt, /Grade the student's answer/);
+});
+
+test("two use cases in one idea are combined in mention order", () => {
+  const p = generateBlueprint(
+    "A WhatsApp assistant giving farmers planting advice and market prices",
+  ).buildPlan;
+  assert.deepEqual(p.useCase.ids, ["farm-advisory", "market-prices"]);
+  assert.ok(p.features.some((f) => f.approach === "lookup" && /price/.test(f.task)));
+  assert.match(p.starter.code, /\/webhook/);
+  assert.match(p.starter.code, /Your own daily price collection/);
+});
+
+test("tasks written in the description are kept", () => {
+  const bp = generateBlueprint("An assistant that advises Nigerian farmers on crops, planting seasons and pests.");
+  assert.ok(bp.primaryTasks[0].startsWith("Recommend suitable crops"));
+});
+
+test("every feature's named sources exist in the plan, and each feature cites its own", async () => {
+  const { USE_CASES } = await import("../backend/src/blueprint/useCases.ts");
+  for (const u of USE_CASES) {
+    const names = new Set(u.dataSources.map((d) => d.name));
+    for (const t of u.tasks) for (const n of t.uses ?? []) assert.ok(names.has(n), `${u.id}: unknown source "${n}"`);
+  }
+  const p = generateBlueprint("A farm advisory app for maize farmers in Kaduna").buildPlan;
+  const pests = p.features.find((f) => /pests/.test(f.task))!;
+  assert.match(pests.how, /pest and disease guide/);
+  assert.doesNotMatch(pests.how, /NiMet/);
+});

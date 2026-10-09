@@ -71,6 +71,27 @@ export function buildProject(
 
 // --- JavaScript -------------------------------------------------------------
 
+/** Used for blueprints saved before build plans carried a channel server. */
+const FALLBACK_SERVER = `import express from "express";
+import { generate } from "./natlas.js";
+import { SYSTEM_PROMPT } from "./systemPrompt.js";
+
+const app = express();
+app.use(express.json());
+
+app.post("/api/chat", async (req, res) => {
+  const message = String(req.body?.message ?? "").slice(0, 2000);
+  if (!message.trim()) return res.status(400).json({ error: "message is required" });
+  try {
+    res.json({ reply: await generate(message, { system: SYSTEM_PROMPT }) });
+  } catch {
+    res.status(502).json({ error: "N-ATLAS is unavailable, please try again." });
+  }
+});
+
+app.listen(process.env.PORT ?? 3000);
+`;
+
 function jsFiles(
   name: string,
   bp: Blueprint,
@@ -87,13 +108,18 @@ function jsFiles(
   "type": "module",
   "engines": { "node": ">=18" },
   "scripts": {
+    "start": "node src/server.js",
     "chat": "node src/chat.js",
     "test": "node tests/run-tests.js",
     "test:eval": "node tests/run-eval.js",
     "test:security": "node tests/run-security.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
   }
 }
 `,
+    "src/server.js": bp.buildPlan?.starter?.code ?? FALLBACK_SERVER,
     ".env.example": `# N-ATLAS is open-weights with no public API — point this at wherever you serve it.
 # Local Ollama:   NATLAS_BASE_URL=http://localhost:11434/v1  NATLAS_MODEL=n-atlas
 # Hosted GPU/HF:  NATLAS_BASE_URL=https://your-endpoint/v1   NATLAS_API_KEY=...
@@ -254,7 +280,7 @@ for t in tests:
 function readme(name: string, bp: Blueprint, lang: ExportLang, myTests: number): string {
   const run =
     lang === "js"
-      ? ["npm install  # (no deps; Node 18+ required)", "node src/chat.js \"What can you help me with?\"", "npm test               # your test cases, scored (exit 1 on failure)", "npm run test:eval", "npm run test:security"]
+      ? ["npm install  # Node 18+ required", "npm start             # your app's server (src/server.js)", "node src/chat.js \"What can you help me with?\"", "npm test               # your test cases, scored (exit 1 on failure)", "npm run test:eval", "npm run test:security"]
       : ["python -m venv .venv && . .venv/bin/activate", "pip install -r requirements.txt", "python chat.py \"What can you help me with?\"", "python tests/run_tests.py   # your test cases, scored (exit 1 on failure)", "python tests/run_eval.py", "python tests/run_security.py"];
   const runner = lang === "js" ? "node tests/run-tests.js" : "python tests/run_tests.py";
 

@@ -78,11 +78,12 @@ export default function Blueprint() {
 
       {tab === "guide" ? (
         <div className="mt-6">
-          {bp.buildPlan ? (
-            <BuildGuide plan={bp.buildPlan} />
+          {bp.buildPlan?.useCase ? (
+            <BuildGuide plan={bp.buildPlan} appName={bp.name} />
           ) : (
             <Card className="p-6 text-center text-sm text-slate-500">
-              This blueprint was created before build guides were added.
+              This blueprint was created before the latest build guide. Generate it now — your edited
+              system prompt and test results are kept.
               <div className="mt-3">
                 <Button size="sm" onClick={loadPlan} disabled={loadingPlan || !state.description}>
                   {loadingPlan ? <><Spinner /> Generating…</> : "Generate the build guide"}
