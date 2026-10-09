@@ -45,7 +45,7 @@ export function generateBlueprint(description: string, opts: BlueprintOptions = 
     targetUsers,
     primaryTasks,
     languages,
-    nigerianContext: t.nigerianContext,
+    nigerianContext: useCases[0].nigerianContext ?? t.nigerianContext,
     risks,
     systemPrompt: buildSystemPrompt(name, purpose, targetUsers, primaryTasks, languages, t, canary),
     suggestedEvalCategories: t.suggestedEvalCategories,
@@ -525,17 +525,20 @@ const BRAND_CASE: Record<string, string> = {
   nysc: "NYSC", ai: "AI", sms: "SMS", ussd: "USSD", pos: "POS", bvn: "BVN", nin: "NIN",
 };
 
+/** "Notes & study assistant" → "Notes & Study Assistant"; undefined for the general fallback. */
+function useCaseName(useCase?: { id: string; label: string }): string | undefined {
+  if (!useCase || useCase.id === "general") return undefined;
+  const label = useCase.label.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+  return /(assistant|guide|companion|tutor|explainer|support)$/i.test(label) ? label : `${label} Assistant`;
+}
+
 function deriveName(description: string, fallback: string, useCase?: { id: string; label: string }): string {
   if (!description) return fallback;
   let s = description.toLowerCase().trim();
   s = s.replace(LEAD_INS_NAME, "");
   // An instruction ("transcribe yoruba meetings…") has no product noun to name
   // the app after, so use the kind of app instead.
-  if (startsWithVerb(s)) {
-    if (!useCase || useCase.id === "general") return fallback;
-    const label = useCase.label.replace(/\b[a-z]/g, (c) => c.toUpperCase());
-    return /(assistant|guide|companion|tutor|explainer|support)$/i.test(label) ? label : `${label} Assistant`;
-  }
+  if (startsWithVerb(s)) return useCaseName(useCase) ?? fallback;
   s = s.replace(/^(an?|the)\s+/, "");
   s = s.replace(/^ai\s+/, "");
   // Cut at a relative clause, comparison or "to get/give/provide help":
@@ -548,7 +551,9 @@ function deriveName(description: string, fallback: string, useCase?: { id: strin
   s = s.replace(/[.?!].*$/, "").trim();
 
   const words = s.split(/\s+/).filter(Boolean).slice(0, 6);
-  if (words.length < 2) return fallback;
+  // Nothing to name it after ("an app that helps…" → "app"): name it after
+  // the kind of app rather than the sector default, which may be unrelated.
+  if (words.length < 2) return useCaseName(useCase) ?? fallback;
 
   let name = words.map((w) => BRAND_CASE[w] ?? w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   if (!/(assistant|bot|helper|advisor|guide|tool|app|chatbot)\b/i.test(name)) {

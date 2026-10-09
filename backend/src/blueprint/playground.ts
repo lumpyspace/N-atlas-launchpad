@@ -345,6 +345,39 @@ Calabar: Obudu Mountain Resort (day trip, book ahead), Marina Resort (open daily
     ],
   },
 
+  "study-notes": {
+    mode: "task",
+    dataLabel: "Your notes",
+    sampleData: `${SAMPLE}
+BCH 201 — Week 3: Enzymes
+- Enzymes are biological catalysts, mostly proteins. They speed up reactions and are not used up.
+- The substrate binds at the active site.
+- Activity depends on temperature and pH; too much heat denatures the enzyme.
+- Competitive inhibitors bind the active site; non-competitive inhibitors bind elsewhere.`,
+    templates: [
+      {
+        id: "summarise-notes",
+        label: "Summarise notes",
+        hint: "Key points from the notes only — nothing the notes don't say.",
+        fields: [{ name: "focus", label: "Focus on", default: "the main ideas, for exam revision" }],
+        prompt: "Summarise my notes into 5 short key points, focusing on {{focus}}. Use only what is in the notes.",
+        output: "text",
+        maxTokens: 250,
+      },
+      {
+        id: "flashcards",
+        label: "Make flashcards (JSON)",
+        hint: "Question/answer cards your app can show — must be valid JSON.",
+        fields: [{ name: "count", label: "How many cards", default: "5" }],
+        prompt:
+          'Make {{count}} flashcards from my notes. Use only facts in the notes. Reply with ONLY JSON: {"cards": [{"question": string, "answer": string}]}',
+        output: "json",
+        schema: { cards: "array" },
+        maxTokens: 350,
+      },
+    ],
+  },
+
   "exam-prep": {
     mode: "chat",
     dataLabel: "Question bank item",

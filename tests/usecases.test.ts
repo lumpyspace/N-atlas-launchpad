@@ -45,6 +45,10 @@ const IDEAS: [string, string][] = [
   ["Help people find apartments to rent in Lagos and avoid fake agents", "property"],
   ["Tell commuters which BRT bus route to take and the fares", "transport"],
   ["A tourism guide for visitors to Calabar with hotels and attractions", "travel"],
+  // reported: a note-taking app for students was classified as admissions
+  ["A note-taking app for university students", "study-notes"],
+  ["an app that helps university students take notes in lectures and revise", "study-notes"],
+  ["Turn my lecture slides into flashcards", "study-notes"],
   // overlaps that must resolve correctly
   ["A WhatsApp bot that tells market women today's food prices", "market-prices"],
   ["A cover letter and CV helper for job seekers", "jobs"],
@@ -98,4 +102,26 @@ test("descriptions written as instructions get a proper name and purpose", () =>
   const t = generateBlueprint("Transcribe Yoruba meeting recordings and write the minutes");
   assert.equal(t.name, "Transcription & Subtitles Assistant");
   assert.match(t.systemPrompt, /^You are Transcription & Subtitles Assistant, an assistant that helps transcribe/);
+});
+
+test("note-taking app gets a study plan, a proper name and no admissions content", () => {
+  const bp = generateBlueprint("an app that helps university students take notes in lectures and revise");
+  assert.equal(bp.buildPlan.useCase.ids[0], "study-notes");
+  assert.equal(bp.name, "Notes & Study Assistant");
+  assert.ok(!bp.primaryTasks.some((t) => /cut-off|admission|brochure/i.test(t)));
+  assert.ok(bp.primaryTasks.some((t) => /flashcards/i.test(t)));
+  assert.equal(bp.buildPlan.playground.mode, "task");
+});
+
+test("'voice notes' and 'meeting notes' are not study notes", () => {
+  const ids = (d: string) => detectUseCases(d).map((u) => u.id);
+  assert.ok(!ids("A WhatsApp voice-note assistant for farmers giving planting advice and market prices").includes("study-notes"));
+  assert.deepEqual(ids("A WhatsApp voice-note assistant for farmers giving planting advice and market prices"), ["farm-advisory", "market-prices"]);
+  assert.ok(!ids("Transcribe Yoruba meeting notes from recordings").includes("study-notes"));
+});
+
+test("a kind of app can replace the sector's local context", () => {
+  const ctx = generateBlueprint("A note-taking app for university students").nigerianContext.join(" ");
+  assert.doesNotMatch(ctx, /cut-off|post-UTME/);
+  assert.match(ctx, /GST|semester/i);
 });

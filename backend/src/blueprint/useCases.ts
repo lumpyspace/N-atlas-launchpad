@@ -40,6 +40,8 @@ export interface UseCase {
   summary: string;
   /** The features this kind of app needs, with the technique for each. */
   tasks: UseCaseTask[];
+  /** Local context for the blueprint, when the sector template's doesn't fit. */
+  nigerianContext?: string[];
   /** Scope of a first version that can be built and tested quickly. */
   mvp: string[];
   dataSources: DataSource[];
@@ -125,7 +127,7 @@ export const USE_CASES: UseCase[] = [
   {
     id: "exam-prep",
     label: "Exam prep tutor",
-    detect: /\bpast questions?\b|\bexam prep\b|\btutor\b|\bquiz\b|\bpractice questions?\b|\bstudy\b|\brevision\b|\b(jamb|waec|neco|utme)\b.*\b(practice|prep|questions?)\b/i,
+    detect: /\bpast questions?\b|\bexam prep\b|\btutor\b|\bquiz(zes)?\b|\bpractice questions?\b|\bmock exams?\b|\b(jamb|waec|neco|utme)\b.*\b(practice|prep|questions?)\b/i,
     summary: "Helps students practise exam questions and understand the answers step by step.",
     tasks: [
       { task: "Give practice questions from your question bank", approach: "lookup", how: "Your backend picks a question (by subject and topic) from your bank and sends it; N-ATLAS only phrases the follow-up chat." },
@@ -157,9 +159,68 @@ export const USE_CASES: UseCase[] = [
     ],
   },
   {
+    id: "study-notes",
+    label: "Notes & study assistant",
+    // "voice notes" and "meeting notes" belong to other kinds of app.
+    detect: /\bnote[- ]?(taking|taker|app)\b|\b(?<!voice[- ]|meeting )notes?\b|\blectures?\b|\bflash ?cards?\b|\brevis(e|ing)\b|\bcourse ?(work|materials?)\b|\bstudy (guide|assistant|buddy|app|notes|group)s?\b|\bstudents'? notes\b|\bhandouts?\b/i,
+    summary:
+      "Helps students capture, organise and revise their own lecture notes — summaries, flashcards and answers drawn from what they actually wrote or were given.",
+    tasks: [
+      { task: "Summarise lecture notes into key points", approach: "retrieval", uses: ["The student's own notes and slides"] },
+      {
+        task: "Answer questions from the student's own notes",
+        approach: "retrieval",
+        how: "Split each student's notes into short passages, find the ones that match the question, and have N-ATLAS answer only from them — showing which note each answer came from.",
+        uses: ["The student's own notes and slides"],
+      },
+      {
+        task: "Make flashcards and practice questions from notes",
+        approach: "prompt",
+        how: "Send one section of notes at a time and ask for JSON flashcards (question and answer); validate the JSON in code and keep a link back to the section so students can check the source.",
+        uses: ["The student's own notes and slides"],
+      },
+      { task: "Transcribe recorded lectures into notes", approach: "speech", uses: ["Lecture recordings (with permission)"] },
+      { task: "Explain hard ideas in simpler English or Pidgin", approach: "prompt" },
+    ],
+    nigerianContext: [
+      "Nigerian university course codes and levels (e.g. GST courses, 100–400 level)",
+      "Semesters, continuous assessment and exam periods",
+      "Lecture handouts and photocopied notes as common study material",
+      "Students mixing English and Pidgin, and patchy power and data — keep it light and usable offline where possible",
+    ],
+    mvp: [
+      "Paste or upload notes for one course",
+      "A summary and 10 flashcards per note, each linked to its source",
+      "Questions answered only from the student's notes, saying \"not in your notes\" otherwise",
+    ],
+    dataSources: [
+      { name: "The student's own notes and slides", why: "The app should teach from what the student was taught; store each student's notes privately.", kind: "your-content" },
+      { name: "Course outline", why: "Helps organise notes by topic and spot gaps before exams.", kind: "documents" },
+      { name: "Lecture recordings (with permission)", why: "Only where the lecturer allows recording; transcribed in ≤30-second chunks by the N-ATLAS speech models.", kind: "live-data" },
+    ],
+    pitfalls: [
+      "The model adds facts that weren't in the notes — answer only from the notes and show the source.",
+      "Long notes exceed the ~8k-token context; summarise or search section by section.",
+      "Academic integrity: help students learn, don't write their assignments or sit their tests.",
+      "Get permission before recording lectures, and keep students' notes private.",
+    ],
+    metrics: ["Notes added per student per week", "Flashcards reviewed", "Students who rate summaries as accurate"],
+    conversation: {
+      user: "Summarise my week 3 biochemistry notes",
+      app: "Week 3 — Enzymes (from your notes): 1. Enzymes speed up reactions without being used up. 2. … Want 5 flashcards on this?",
+    },
+    testMessages: [
+      "Summarise these notes into 5 key points",
+      "Make 5 flashcards from my notes on enzymes",
+      "What did my notes say about competitive inhibition?",
+      "Write my term paper on enzymes for me",
+    ],
+  },
+  {
     id: "admissions",
     label: "Admissions guide",
-    detect: /\badmissions?\b|\bcut[- ]?off\b|\bpost[- ]?utme\b|\buniversit(y|ies)\b|\bpolytechnic\b|\bcollege of education\b|\bdirect entry\b/i,
+    // "university" alone doesn't mean admissions (note-taking, campus apps…).
+    detect: /\badmissions?\b|\bcut[- ]?off\b|\bpost[- ]?utme\b|\bdirect entry\b|\bapply(ing)? (to|for) (a |the )?(university|polytechnic|college)\b|\bjamb (brochure|requirements?)\b/i,
     summary: "Answers applicants' questions about requirements, cut-off marks and application steps for Nigerian institutions.",
     tasks: [
       { task: "Explain course requirements from this year's brochure", approach: "retrieval", uses: ["JAMB's current brochure and announcements"] },
