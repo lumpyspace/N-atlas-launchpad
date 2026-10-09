@@ -36,8 +36,8 @@ const SOURCE_KIND: Record<Plan["dataSources"][number]["kind"], string> = {
 };
 
 const STEP_LINK: Record<string, { step: Step; label: string }> = {
-  playground: { step: "playground", label: "Open the Playground" },
-  evaluate: { step: "evaluate", label: "Open Evaluate" },
+  playground: { step: "playground", label: "Open Test → Try it" },
+  evaluate: { step: "evaluate", label: "Open Test → Test cases" },
   compare: { step: "compare", label: "Open Compare" },
   secure: { step: "secure", label: "Open Security tests" },
   export: { step: "export", label: "Open Export" },
@@ -226,7 +226,7 @@ export function BuildGuide({
               ))}
             </ul>
             <Button size="sm" variant="secondary" className="mt-3" onClick={() => go("playground")}>
-              Try them in the Playground →
+              Try them in Test →
             </Button>
           </div>
         </div>

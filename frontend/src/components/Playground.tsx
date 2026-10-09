@@ -130,7 +130,7 @@ function formatMs(ms: number): string {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function Playground({ health }: { health: HealthStatus | null }) {
+export default function Playground({ health, embedded = false }: { health: HealthStatus | null; embedded?: boolean }) {
   const { state, dispatch } = useProject();
   const bp = state.blueprint;
   // How this kind of app is tried out: chat, or its own task forms.
@@ -583,7 +583,9 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
+    <div className={`mx-auto max-w-6xl px-6 ${embedded ? "py-5" : "py-8"}`}>
+      {/* Inside the Test step, the page header and tabs replace this one. */}
+      {!embedded && (
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-ink">
@@ -604,6 +606,7 @@ export default function Playground({ health }: { health: HealthStatus | null }) 
           </Button>
         </div>
       </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[18rem_1fr_14rem]">
         {/* LEFT — system prompt + model settings */}

@@ -79,7 +79,7 @@ function partialRun(results: CaseResult[], startedAt: number, suite: string): Su
   };
 }
 
-export default function Evaluate() {
+export default function Evaluate({ embedded = false }: { embedded?: boolean }) {
   const { state, dispatch } = useProject();
   const bp = state.blueprint;
   const run = state.evalResult;
@@ -152,14 +152,21 @@ export default function Evaluate() {
   for (const r of runs) for (const c of r.cases) if (c.category === "custom") latest.set(c.caseId, c);
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
-      <div>
-        <h1 className="text-2xl font-bold text-ink">Evaluate</h1>
-        <p className="mt-1 text-slate-500">
-          Run your own test cases after every prompt change, then score the app on AI quality,
-          Nigerian context, language and reliability. Not an official N-ATLAS score.
+    <div className={`mx-auto max-w-4xl px-6 ${embedded ? "py-4" : "py-10"}`}>
+      {embedded ? (
+        <p className="text-sm text-slate-500">
+          Re-run your test cases after every prompt change, then score the app on AI quality, Nigerian context,
+          language and reliability. Not an official N-ATLAS score.
         </p>
-      </div>
+      ) : (
+        <div>
+          <h1 className="text-2xl font-bold text-ink">Evaluate</h1>
+          <p className="mt-1 text-slate-500">
+            Run your own test cases after every prompt change, then score the app on AI quality,
+            Nigerian context, language and reliability. Not an official N-ATLAS score.
+          </p>
+        </div>
+      )}
 
       <TestSuitePanel
         cases={savedCases}
@@ -216,16 +223,11 @@ export default function Evaluate() {
             variant="secondary"
             onClick={() => dispatch({ type: "setStep", step: "playground" })}
           >
-            ← Back
+            ← Try it
           </Button>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => dispatch({ type: "setStep", step: "compare" })}>
-              Compare variants
-            </Button>
-            <Button onClick={() => dispatch({ type: "setStep", step: "secure" })}>
-              Continue to Security →
-            </Button>
-          </div>
+          <Button onClick={() => dispatch({ type: "setStep", step: "secure" })}>
+            Continue to Security →
+          </Button>
         </div>
       )}
     </div>
@@ -435,11 +437,11 @@ function TestSuitePanel({
 
       {cases.length === 0 ? (
         <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-          No test cases yet. In the <b>Try</b> step, press 👍 or 👎 on a reply and choose{" "}
+          No test cases yet. In the <b>Try it</b> tab, press 👍 or 👎 on a reply and choose{" "}
           <b>Save as test case</b>, or import a <code>.tests.json</code> file.
           <div className="mt-3">
             <Button variant="secondary" size="sm" onClick={() => dispatch({ type: "setStep", step: "playground" })}>
-              ← Go to the Playground
+              ← Go to Try it
             </Button>
           </div>
         </div>

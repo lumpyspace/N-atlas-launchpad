@@ -118,21 +118,21 @@ export default function Compare() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => dispatch({ type: "setStep", step: "secure" })}>
-            Skip to Security →
+          <Button variant="secondary" onClick={() => dispatch({ type: "setStep", step: "evaluate" })}>
+            ← Back to Test
           </Button>
         </div>
       </div>
 
       {cases.length === 0 ? (
         <Card className="mt-6 p-8 text-center text-sm text-slate-500">
-          Compare needs test cases. Save replies from the <b>Try</b> step or import a suite in <b>Evaluate</b>.
+          Compare needs test cases. Save replies in <b>Test → Try it</b>, or import a suite in <b>Test cases &amp; scores</b>.
           <div className="mt-3 flex justify-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => dispatch({ type: "setStep", step: "playground" })}>
-              Go to the Playground
+              Go to Try it
             </Button>
             <Button variant="secondary" size="sm" onClick={() => dispatch({ type: "setStep", step: "evaluate" })}>
-              Go to Evaluate
+              Go to Test cases
             </Button>
           </div>
         </Card>

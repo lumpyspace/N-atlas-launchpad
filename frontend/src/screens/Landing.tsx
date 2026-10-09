@@ -2,24 +2,22 @@ import { useProject } from "../state/ProjectContext";
 import { Button, Card } from "../ui";
 
 const FLOW = [
-  { n: "01", label: "Describe", blurb: "Tell us your idea in a sentence." },
-  { n: "02", label: "Build", blurb: "Get an N-ATLAS blueprint + system prompt." },
-  { n: "03", label: "Try", blurb: "Chat with your app in the playground." },
-  { n: "04", label: "Evaluate", blurb: "Turn replies into tests and catch regressions." },
-  { n: "05", label: "Compare", blurb: "Prompts, settings and models side by side." },
-  { n: "06", label: "Secure", blurb: "Attack it before anyone else does." },
-  { n: "07", label: "Improve", blurb: "Apply fixes and re-test." },
-  { n: "08", label: "Export", blurb: "Leave with code, tests, CI and training data." },
+  { n: "01", label: "Design", blurb: "Talk your idea through with N-ATLAS and watch it take shape." },
+  { n: "02", label: "Build", blurb: "A step-by-step build guide, blueprint and system prompt." },
+  { n: "03", label: "Test", blurb: "Try your app, save replies as test cases, score it." },
+  { n: "04", label: "Secure", blurb: "Attack it before anyone else does." },
+  { n: "05", label: "Improve", blurb: "Apply fixes and re-test." },
+  { n: "06", label: "Export", blurb: "Leave with code, tests, CI and training data." },
 ];
 
 const DEV_FEATURES = [
   {
     title: "Test cases with checks",
-    body: "Save any Playground reply as a test. Add checks — reply language, no repetition loops, must / must-not mention, refusal, response time — and re-run them after every prompt change.",
+    body: "Save any reply as a test. Add checks — reply language, no repetition loops, valid JSON, must / must-not mention, refusal, response time — re-run them after every change, and compare prompt versions side by side.",
   },
   {
-    title: "Compare grid",
-    body: "Run the same tests against two or three variants — system prompt, temperature or model — and see pass rates and replies side by side.",
+    title: "Design chat",
+    body: "Describe your idea in your own words — English, Pidgin, Yoruba, Hausa or Igbo. N-ATLAS asks the right questions while a live canvas shows who it's for, its features, data and architecture.",
   },
   {
     title: "Built for Nigerian languages",
@@ -54,9 +52,9 @@ export default function Landing() {
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-600">
           Turn your AI idea into a tested, security-checked N-ATLAS application —
-          without starting from scratch. Prototype in the playground, turn
-          replies into regression tests, compare prompts and models, attack it,
-          and export real code with CI.
+          without starting from scratch. Talk your idea through, get a build
+          guide made for it, test it with your own data, attack it, and export
+          real code with CI.
         </p>
         <div className="mt-8 flex items-center justify-center gap-3">
           <Button size="md" onClick={start} className="px-6 py-3 text-base">
@@ -92,7 +90,7 @@ export default function Landing() {
         <h2 className="text-center text-sm font-semibold uppercase tracking-wide text-slate-500">
           The workflow
         </h2>
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {FLOW.map((f) => (
             <Card key={f.n} className="p-4">
               <div className="text-xs font-bold text-forge-500">{f.n}</div>

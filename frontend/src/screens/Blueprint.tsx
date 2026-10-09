@@ -169,7 +169,7 @@ export default function Blueprint() {
           ← Back
         </Button>
         <Button onClick={() => dispatch({ type: "setStep", step: "playground" })}>
-          Continue to Playground →
+          Continue to Test →
         </Button>
       </div>
     </div>

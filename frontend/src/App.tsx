@@ -6,12 +6,11 @@ import ModeBadge, { modeHint } from "./components/ModeBadge";
 import Landing from "./screens/Landing";
 import Describe from "./screens/Describe";
 import Blueprint from "./screens/Blueprint";
-import Evaluate from "./screens/Evaluate";
 import Compare from "./screens/Compare";
 import Secure from "./screens/Secure";
 import Improve from "./screens/Improve";
 import Export from "./screens/Export";
-import Playground from "./components/Playground";
+import Test from "./screens/Test";
 
 export default function App() {
   return (
@@ -61,9 +60,8 @@ function renderStep(step: string, health: HealthStatus | null) {
     case "blueprint":
       return <Blueprint />;
     case "playground":
-      return <Playground health={health} />;
     case "evaluate":
-      return <Evaluate />;
+      return <Test health={health} />;
     case "compare":
       return <Compare />;
     case "secure":

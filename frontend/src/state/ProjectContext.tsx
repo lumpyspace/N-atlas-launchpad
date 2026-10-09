@@ -39,16 +39,17 @@ export type Step =
 export const STEPS: { key: Step; label: string }[] = [
   { key: "describe", label: "Design" },
   { key: "blueprint", label: "Build" },
-  { key: "playground", label: "Try" },
-  { key: "evaluate", label: "Evaluate" },
-  { key: "compare", label: "Compare" },
+  // One "Test" step: "playground" (try it) and "evaluate" (test cases & scores) are its two tabs.
+  { key: "playground", label: "Test" },
   { key: "secure", label: "Secure" },
   { key: "improve", label: "Improve" },
   { key: "export", label: "Export" },
 ];
 
 export function stepIndex(step: Step): number {
-  return STEPS.findIndex((s) => s.key === step);
+  // "evaluate" is the second tab of the Test step, and Compare is a tool opened from it.
+  const key = step === "evaluate" || step === "compare" ? "playground" : step;
+  return STEPS.findIndex((s) => s.key === key);
 }
 
 /** A single developer-saved test case from the Playground. */
