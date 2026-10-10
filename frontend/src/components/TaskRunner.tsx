@@ -3,7 +3,8 @@ import { streamGenerate, type Check, type JsonType, type TaskTemplate } from "..
 import type { SavedTestCase } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 import { detectLang } from "../utils/langDetect";
-import { renderTemplate, suggestChecks, withContext } from "../utils/testCases";
+import { BAD_REASONS, checksForRating, renderTemplate, withContext } from "../utils/testCases";
+import { RateAnswer, type Rating } from "./RateAnswer";
 
 /** Mirror of backend extractJson/shapeErrors (eval/checks.ts). */
 function checkJson(text: string, schema: Record<string, JsonType>): { value?: unknown; errors: string[] } {
@@ -57,17 +58,14 @@ export function TaskRunner({
   const initial = () => Object.fromEntries(template.fields.map((f) => [f.name, f.default ?? ""]));
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [result, setResult] = useState<Result | null>(null);
-  const [saving, setSaving] = useState<"good" | "bad" | null>(null);
-  const [note, setNote] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<Rating | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // A different template resets the form.
   useEffect(() => {
     setValues(initial());
     setResult(null);
-    setSaved(false);
-    setSaving(null);
+    setSaved(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.id]);
 
@@ -78,8 +76,7 @@ export function TaskRunner({
     if (running) return;
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    setSaved(false);
-    setSaving(null);
+    setSaved(null);
     let text = "";
     setResult({ text: "", done: false });
     try {
@@ -111,29 +108,34 @@ export function TaskRunner({
 
   const json = result?.done && template.output === "json" && template.schema ? checkJson(result.text, template.schema) : null;
 
-  function save(verdict: "good" | "bad") {
+  function rate(rating: Rating) {
     if (!result) return;
     const detected = detectLang(prompt);
     const language = detected !== "unknown" ? detected : "en";
+    const fromRating = checksForRating(language, rating.verdict, rating.reason, result.text.length);
+    // JSON tasks are judged on their shape (a language check means little for
+    // JSON), plus whatever the reason adds (e.g. a length limit).
     const checks: Check[] =
       template.output === "json" && template.schema
-        ? [{ type: "jsonShape", schema: template.schema }, { type: "noRepetition" }]
-        : suggestChecks({ language, verdict });
+        ? [
+            { type: "jsonShape", schema: template.schema },
+            ...fromRating.checks.filter((c) => c.type !== "language"),
+          ]
+        : fromRating.checks;
+    const reasonLabel = BAD_REASONS.find((r) => r.id === rating.reason)?.label ?? "";
     onSave({
       id: crypto.randomUUID(),
       userMessage: prompt,
       assistantReply: result.text,
       language,
-      verdict,
-      note: note || `${template.label}`,
-      expectedBehavior: "",
+      verdict: rating.verdict,
+      note: [template.label, reasonLabel, rating.note].filter(Boolean).join(": "),
+      expectedBehavior: fromRating.expected,
       savedAt: new Date().toISOString(),
       checks,
       context: data.trim() || undefined,
     });
-    setSaved(true);
-    setSaving(null);
-    setNote("");
+    setSaved(rating);
   }
 
   return (
@@ -217,34 +219,7 @@ export function TaskRunner({
 
           {result.done && !result.error && (
             <div className="mt-3 border-t border-slate-100 pt-2">
-              {saved ? (
-                <span className="text-xs text-forge-600">✓ Saved as test case — re-run it in Evaluate</span>
-              ) : saving ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder={saving === "bad" ? "What's wrong? (e.g. invented a character)" : "Note (optional)"}
-                    className="min-w-48 flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs"
-                  />
-                  <Button size="sm" onClick={() => save(saving)}>
-                    Save
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setSaving(null)}>
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  Save as test case:
-                  <button onClick={() => setSaving("good")} className="rounded border border-slate-200 px-2 py-0.5 hover:bg-slate-50">
-                    👍 Good
-                  </button>
-                  <button onClick={() => setSaving("bad")} className="rounded border border-slate-200 px-2 py-0.5 hover:bg-slate-50">
-                    👎 Bad
-                  </button>
-                </div>
-              )}
+              <RateAnswer saved={saved ?? undefined} onRate={rate} />
             </div>
           )}
         </Card>

@@ -3,8 +3,9 @@ import { generate, streamGenerate, type GenerateOptions, type HealthStatus } fro
 import { useProject, type SavedTestCase } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 import { checkLangMismatch, detectLang, hasYorubaToneMarks } from "../utils/langDetect";
-import { suggestChecks, withContext } from "../utils/testCases";
+import { BAD_REASONS, checksForRating, suggestChecks, withContext } from "../utils/testCases";
 import { GetCode } from "./GetCode";
+import { RateAnswer, type Rating } from "./RateAnswer";
 import { TaskRunner } from "./TaskRunner";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -26,6 +27,8 @@ interface Msg {
   stats?: StreamStats;
   warnings?: string[];
   savedId?: string;
+  /** How the developer rated this reply (once saved as a test case). */
+  rating?: Rating;
   translation?: string;
   translationLoading?: boolean;
 }
@@ -145,7 +148,6 @@ export default function Playground({ health, embedded = false }: { health: Healt
   const [input, setInput] = useState("");
   const [language, setLanguage] = useState("en");
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState<{ msgId: string; verdict: "good" | "bad" } | null>(null);
   const [codeOpen, setCodeOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [temperature, setTemperature] = useState(0.2);
@@ -181,7 +183,6 @@ export default function Playground({ health, embedded = false }: { health: Healt
     const prompt = text.trim();
     if (!prompt || loading) return;
     setInput("");
-    setSaving(null);
 
     const userMsg: Msg = { id: nextId(), role: "user", text: prompt, language };
     const asstId = nextId();
@@ -608,131 +609,9 @@ export default function Playground({ health, embedded = false }: { health: Healt
       </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[18rem_1fr_14rem]">
-        {/* LEFT — system prompt + model settings */}
-        <div className="space-y-3">
-          <Card className="p-4">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              System prompt
-            </h3>
-            <textarea
-              className="h-44 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-2 font-mono text-[11px] leading-relaxed text-slate-700 focus:border-forge-500 focus:outline-none"
-              value={state.systemPrompt}
-              onChange={(e) =>
-                dispatch({ type: "setSystemPrompt", systemPrompt: e.target.value })
-              }
-              placeholder="Your app's system instructions…"
-            />
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-              <span>
-                Model: <span className="font-medium text-slate-600">{health?.model ?? "N-ATLAS"}</span>
-              </span>
-              <button
-                onClick={() => setCodeOpen(true)}
-                className="rounded-md border border-slate-200 px-2 py-0.5 font-mono font-medium text-slate-600 hover:border-forge-400 hover:text-forge-700"
-                title="Copy this exact request as JavaScript, Python or curl"
-              >
-                {"</>"} Get code
-              </button>
-            </div>
-          </Card>
-          {codeOpen && (
-            <GetCode
-              onClose={() => setCodeOpen(false)}
-              request={{
-                endpoint: (health?.endpoint ?? "http://localhost:11434/v1").replace(/\/chat\/completions\/?$/, ""),
-                model: health?.model ?? "n-atlas",
-                system: withContext(state.systemPrompt, state.playgroundData),
-                language,
-                temperature: shortAnswers ? 0.1 : temperature,
-                maxTokens: shortAnswers ? 150 : maxTokens,
-                message:
-                  input.trim() ||
-                  [...messages].reverse().find((m) => m.role === "user")?.text ||
-                  quick[0] ||
-                  "Hello!",
-              }}
-            />
-          )}
-
-          <Card className="p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Your data{spec?.dataLabel ? ` — ${spec.dataLabel}` : ""}
-              </h3>
-              {spec?.sampleData && state.playgroundData !== spec.sampleData && (
-                <button
-                  onClick={() => dispatch({ type: "setPlaygroundData", data: spec.sampleData! })}
-                  className="text-[11px] text-forge-600 hover:underline"
-                >
-                  Use sample
-                </button>
-              )}
-            </div>
-            <textarea
-              className="h-28 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-2 font-mono text-[11px] leading-relaxed text-slate-700 focus:border-forge-500 focus:outline-none"
-              value={state.playgroundData}
-              onChange={(e) => dispatch({ type: "setPlaygroundData", data: e.target.value })}
-              placeholder="Paste facts your app would look up — a price table, an order record, game state, a document extract…"
-            />
-            <p className="mt-1 text-[11px] leading-snug text-slate-400">
-              Added to every request as facts, like <code>findFacts()</code> in your server. Saved with each test case.
-            </p>
-          </Card>
-
-          <Card className="p-4">
-            <button
-              onClick={() => setSettingsOpen((o) => !o)}
-              className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-600"
-            >
-              <span>Model settings</span>
-              <span>{settingsOpen ? "▾" : "▸"}</span>
-            </button>
-            {settingsOpen && (
-              <div className="mt-3 space-y-3">
-                <div>
-                  <div className="mb-1 flex justify-between text-xs text-slate-600">
-                    <span>Temperature</span>
-                    <span className="font-mono">{temperature.toFixed(1)}</span>
-                  </div>
-                  <input
-                    type="range" min="0" max="1" step="0.05"
-                    value={temperature}
-                    onChange={(e) => setTemperature(Number(e.target.value))}
-                    className="w-full accent-forge-500"
-                  />
-                </div>
-                <div>
-                  <div className="mb-1 flex justify-between text-xs text-slate-600">
-                    <span>Max tokens</span>
-                    <span className="font-mono">{shortAnswers ? 150 : maxTokens}</span>
-                  </div>
-                  <input
-                    type="range" min="64" max="2048" step="64"
-                    value={maxTokens}
-                    disabled={shortAnswers}
-                    onChange={(e) => setMaxTokens(Number(e.target.value))}
-                    className="w-full accent-forge-500 disabled:opacity-40"
-                  />
-                </div>
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={shortAnswers}
-                    onChange={(e) => setShortAnswers(e.target.checked)}
-                    className="accent-forge-500"
-                  />
-                  <span className="text-xs text-slate-700">
-                    <strong>Short answers</strong> — 150 tokens, faster testing
-                  </span>
-                </label>
-              </div>
-            )}
-          </Card>
-        </div>
-
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         {/* CENTER — chat */}
-        <Card className="flex h-[36rem] flex-col">
+        <Card className="flex h-[40rem] flex-col">
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-2 py-1.5">
             {/* Modes: chat, plus this kind of app's own tasks (forms, JSON output) */}
             <div className="flex min-w-0 flex-wrap gap-1">
@@ -779,28 +658,30 @@ export default function Playground({ health, embedded = false }: { health: Healt
                     <BubbleRow
                       key={m.id}
                       msg={m}
-                      saving={saving}
-                      onOpenSave={(verdict) => setSaving({ msgId: m.id, verdict })}
-                      onSave={(tc) => {
+                      onRate={(rating) => {
                         const userMessage = prevUser?.text ?? "";
                         // The dropdown defaults to English; trust what the user actually typed.
                         const detected = detectLang(userMessage);
+                        const picked = m.language ?? "en";
                         const language =
-                          tc.language === "en" && detected !== "en" && detected !== "unknown"
-                            ? detected
-                            : tc.language;
-                        const full = {
-                          ...tc,
+                          picked === "en" && detected !== "en" && detected !== "unknown" ? detected : picked;
+                        const { checks, expected } = checksForRating(language, rating.verdict, rating.reason, m.text.length);
+                        const reasonLabel = BAD_REASONS.find((r) => r.id === rating.reason)?.label ?? "";
+                        const tc: SavedTestCase = {
+                          id: crypto.randomUUID(),
                           userMessage,
+                          assistantReply: m.text,
                           language,
-                          checks: suggestChecks({ language, verdict: tc.verdict }),
+                          verdict: rating.verdict,
+                          note: [reasonLabel, rating.note].filter(Boolean).join(": "),
+                          expectedBehavior: expected,
+                          savedAt: new Date().toISOString(),
+                          checks,
                           context: state.playgroundData.trim() || undefined,
                         };
-                        dispatch({ type: "addTestCase", testCase: full });
-                        setMessages((ms) => ms.map((x) => x.id === m.id ? { ...x, savedId: full.id } : x));
-                        setSaving(null);
+                        dispatch({ type: "addTestCase", testCase: tc });
+                        setMessages((ms) => ms.map((x) => (x.id === m.id ? { ...x, savedId: tc.id, rating } : x)));
                       }}
-                      onCancelSave={() => setSaving(null)}
                       onShowTranslation={() => showTranslation(m.id, m.text)}
                     />
                   );
@@ -861,24 +742,140 @@ export default function Playground({ health, embedded = false }: { health: Healt
           )}
         </Card>
 
-        {/* RIGHT — quick prompts */}
-        <Card className="p-4">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Try these
-          </h3>
-          <div className="space-y-2">
-            {quick.map((q) => (
-              <button
-                key={q}
-                onClick={() => { setMode("chat"); setInput(q); }}
-                disabled={loading}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-xs text-slate-600 hover:border-forge-400 hover:text-forge-700 disabled:opacity-50"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        </Card>
+        {/* RIGHT — what the app knows, suggestions, and advanced settings */}
+        <div className="space-y-3">
+          <Card className="p-4">
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-800">What your app knows</h3>
+              {spec?.sampleData && state.playgroundData !== spec.sampleData && (
+                <button
+                  onClick={() => dispatch({ type: "setPlaygroundData", data: spec.sampleData! })}
+                  className="text-[11px] text-forge-600 hover:underline"
+                >
+                  Use sample
+                </button>
+              )}
+            </div>
+            <p className="mb-2 text-[11px] leading-snug text-slate-500">
+              {spec?.dataLabel ? `${spec.dataLabel}: ` : ""}facts your app answers from. Paste your own — they're saved
+              with each test.
+            </p>
+            <textarea
+              className="h-32 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs leading-relaxed text-slate-700 focus:border-forge-500 focus:outline-none"
+              value={state.playgroundData}
+              onChange={(e) => dispatch({ type: "setPlaygroundData", data: e.target.value })}
+              placeholder="e.g. a price list, an order record, your lecture notes, a law extract…"
+            />
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="mb-2 text-sm font-semibold text-slate-800">Try asking</h3>
+            <div className="space-y-1.5">
+              {quick.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => { setMode("chat"); setInput(q); }}
+                  disabled={loading}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-left text-xs text-slate-600 hover:border-forge-400 hover:text-forge-700 disabled:opacity-50"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <button
+              onClick={() => setSettingsOpen((o) => !o)}
+              className="flex w-full items-center justify-between text-sm font-semibold text-slate-600 hover:text-slate-800"
+            >
+              <span>Advanced</span>
+              <span className="text-xs">{settingsOpen ? "▾" : "▸"}</span>
+            </button>
+            {!settingsOpen && (
+              <p className="mt-1 text-[11px] text-slate-400">System prompt, model settings, and code to call it.</p>
+            )}
+            {settingsOpen && (
+              <div className="mt-3 space-y-4">
+                <div>
+                  <div className="mb-1 text-xs font-medium text-slate-600">System prompt</div>
+                  <textarea
+                    className="h-44 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-2 font-mono text-[11px] leading-relaxed text-slate-700 focus:border-forge-500 focus:outline-none"
+                    value={state.systemPrompt}
+                    onChange={(e) => dispatch({ type: "setSystemPrompt", systemPrompt: e.target.value })}
+                    placeholder="Your app's system instructions…"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 flex justify-between text-xs text-slate-600">
+                    <span>Temperature</span>
+                    <span className="font-mono">{temperature.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="1" step="0.05"
+                    value={temperature}
+                    onChange={(e) => setTemperature(Number(e.target.value))}
+                    className="w-full accent-forge-500"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 flex justify-between text-xs text-slate-600">
+                    <span>Max tokens</span>
+                    <span className="font-mono">{shortAnswers ? 150 : maxTokens}</span>
+                  </div>
+                  <input
+                    type="range" min="64" max="2048" step="64"
+                    value={maxTokens}
+                    disabled={shortAnswers}
+                    onChange={(e) => setMaxTokens(Number(e.target.value))}
+                    className="w-full accent-forge-500 disabled:opacity-40"
+                  />
+                </div>
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={shortAnswers}
+                    onChange={(e) => setShortAnswers(e.target.checked)}
+                    className="accent-forge-500"
+                  />
+                  <span className="text-xs text-slate-700">
+                    <strong>Short answers</strong> — 150 tokens, faster testing
+                  </span>
+                </label>
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>
+                    Model: <span className="font-medium text-slate-600">{health?.model ?? "N-ATLAS"}</span>
+                  </span>
+                  <button
+                    onClick={() => setCodeOpen(true)}
+                    className="rounded-md border border-slate-200 px-2 py-0.5 font-mono font-medium text-slate-600 hover:border-forge-400 hover:text-forge-700"
+                    title="Copy this exact request as JavaScript, Python or curl"
+                  >
+                    {"</>"} Get code
+                  </button>
+                </div>
+              </div>
+            )}
+          </Card>
+          {codeOpen && (
+            <GetCode
+              onClose={() => setCodeOpen(false)}
+              request={{
+                endpoint: (health?.endpoint ?? "http://localhost:11434/v1").replace(/\/chat\/completions\/?$/, ""),
+                model: health?.model ?? "n-atlas",
+                system: withContext(state.systemPrompt, state.playgroundData),
+                language,
+                temperature: shortAnswers ? 0.1 : temperature,
+                maxTokens: shortAnswers ? 150 : maxTokens,
+                message:
+                  input.trim() ||
+                  [...messages].reverse().find((m) => m.role === "user")?.text ||
+                  quick[0] ||
+                  "Hello!",
+              }}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -936,17 +933,11 @@ function AppWelcome({
 
 function BubbleRow({
   msg,
-  saving,
-  onOpenSave,
-  onSave,
-  onCancelSave,
+  onRate,
   onShowTranslation,
 }: {
   msg: Msg;
-  saving: { msgId: string; verdict: "good" | "bad" } | null;
-  onOpenSave: (verdict: "good" | "bad") => void;
-  onSave: (tc: SavedTestCase) => void;
-  onCancelSave: () => void;
+  onRate: (rating: Rating) => void;
   onShowTranslation: () => void;
 }) {
   if (msg.role === "user") {
@@ -1020,111 +1011,8 @@ function BubbleRow({
           </div>
         )}
 
-        {/* Save as test case actions */}
-        {!msg.streaming && !msg.error && (
-          <>
-            {saving?.msgId === msg.id ? (
-              <SaveForm
-                msg={msg}
-                initialVerdict={saving.verdict}
-                onSave={onSave}
-                onCancel={onCancelSave}
-              />
-            ) : msg.savedId ? (
-              <div className="text-[10px] text-green-600">✓ Saved as test case</div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onOpenSave("good")}
-                  title="Mark as good response"
-                  className="text-sm opacity-50 hover:opacity-100 transition-opacity"
-                >
-                  👍
-                </button>
-                <button
-                  onClick={() => onOpenSave("bad")}
-                  title="Mark as bad response"
-                  className="text-sm opacity-50 hover:opacity-100 transition-opacity"
-                >
-                  👎
-                </button>
-                <button
-                  onClick={() => onOpenSave("good")}
-                  className="text-[10px] text-slate-400 hover:text-slate-600"
-                >
-                  Save as test case
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Inline save-as-test-case form ────────────────────────────────────────────
-
-function SaveForm({
-  msg,
-  initialVerdict = "good",
-  onSave,
-  onCancel,
-}: {
-  msg: Msg;
-  initialVerdict?: "good" | "bad";
-  onSave: (tc: SavedTestCase) => void;
-  onCancel: () => void;
-}) {
-  const [verdict, setVerdict] = useState<"good" | "bad">(initialVerdict);
-  const [note, setNote] = useState("");
-  const [expected, setExpected] = useState("");
-
-  function save() {
-    onSave({
-      id: crypto.randomUUID(),
-      userMessage: "",  // filled by parent (has the preceding user message in scope)
-      assistantReply: msg.text,
-      language: msg.language ?? "en",
-      verdict,
-      note,
-      expectedBehavior: expected,
-      savedAt: new Date().toISOString(),
-    });
-  }
-
-  return (
-    <div className="mt-1 rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2 text-xs">
-      <div className="flex items-center gap-2">
-        <span className="text-slate-500">Verdict:</span>
-        <button
-          onClick={() => setVerdict("good")}
-          className={`rounded-full border px-2 py-0.5 ${verdict === "good" ? "border-green-400 bg-green-50 text-green-700" : "border-slate-200 text-slate-500"}`}
-        >
-          👍 Good
-        </button>
-        <button
-          onClick={() => setVerdict("bad")}
-          className={`rounded-full border px-2 py-0.5 ${verdict === "bad" ? "border-red-400 bg-red-50 text-red-700" : "border-slate-200 text-slate-500"}`}
-        >
-          👎 Bad
-        </button>
-      </div>
-      <input
-        className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-forge-400"
-        placeholder="Note (e.g. wrong planting month)"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-      />
-      <input
-        className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-forge-400"
-        placeholder="Expected behaviour (optional)"
-        value={expected}
-        onChange={(e) => setExpected(e.target.value)}
-      />
-      <div className="flex gap-2">
-        <Button size="sm" onClick={save}>Save</Button>
-        <Button size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
+        {/* One-tap rating: saves the exchange as a test case */}
+        {!msg.streaming && !msg.error && <RateAnswer saved={msg.rating} onRate={onRate} />}
       </div>
     </div>
   );

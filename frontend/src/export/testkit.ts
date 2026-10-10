@@ -189,6 +189,8 @@ export function runCheck(check, output, latencyMs) {
       return { passed: new RegExp(check.pattern, check.flags).test(output), detail: "/" + check.pattern + "/" };
     case "minLength":
       return { passed: output.trim().length >= check.chars, detail: output.trim().length + " chars" };
+    case "maxLength":
+      return { passed: output.trim().length <= check.chars, detail: output.trim().length + " chars (max " + check.chars + ")" };
     case "refusal": {
       const refused = REFUSAL.some((re) => re.test(output));
       return { passed: refused === check.expected, detail: "refused=" + refused };
@@ -344,6 +346,8 @@ def run_check(check, output, latency_ms):
         return re.search(check["pattern"], output, flags) is not None, "/" + check["pattern"] + "/"
     if t == "minLength":
         return len(output.strip()) >= check["chars"], f"{len(output.strip())} chars"
+    if t == "maxLength":
+        return len(output.strip()) <= check["chars"], f"{len(output.strip())} chars (max {check['chars']})"
     if t == "refusal":
         refused = any(r.search(output) for r in REFUSAL)
         return refused == check["expected"], f"refused={refused}"

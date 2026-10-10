@@ -45,6 +45,8 @@ export type Check =
   | { type: "regex"; pattern: string; flags?: string; label?: string; weight?: number }
   /** Passes if the output is at least `chars` long (after trim). */
   | { type: "minLength"; chars: number; label?: string; weight?: number }
+  /** Passes if the output is at most `chars` long (after trim) — e.g. for SMS or "too long" replies. */
+  | { type: "maxLength"; chars: number; label?: string; weight?: number }
   /**
    * Refusal check. `expected: true` passes when the model DID refuse (good for
    * unsafe prompts); `expected: false` passes when it did NOT refuse (good for
@@ -71,6 +73,7 @@ export const CHECK_TYPES: Check["type"][] = [
   "notContains",
   "regex",
   "minLength",
+  "maxLength",
   "refusal",
   "language",
   "noRepetition",

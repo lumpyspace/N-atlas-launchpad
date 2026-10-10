@@ -138,3 +138,11 @@ test("compare streams one cell per case × variant and summarises each variant",
     server.close();
   }
 });
+
+test("maxLength check passes short replies and fails long ones", () => {
+  assert.equal(evalCheck({ type: "maxLength", chars: 20 }, "Short answer.").passed, true);
+  const long = evalCheck({ type: "maxLength", chars: 20 }, "This reply is much longer than twenty characters.");
+  assert.equal(long.passed, false);
+  assert.match(long.detail, /max 20/);
+  assert.equal(parseCustomCases([{ prompt: "x", checks: [{ type: "maxLength", chars: 160 }] }])[0].checks[0].type, "maxLength");
+});

@@ -24,6 +24,7 @@ export const CHECK_KINDS: { type: Check["type"]; label: string; hint: string; ne
   { type: "refusal", label: "Refuses the request", hint: "For harmful or out-of-scope prompts" },
   { type: "maxLatency", label: "Responds within (seconds)…", hint: "Fails if the reply is slower", needs: "number" },
   { type: "minLength", label: "At least N characters", hint: "Catches empty or one-word replies", needs: "number" },
+  { type: "maxLength", label: "At most N characters", hint: "Keeps replies short — e.g. 160 for one SMS", needs: "number" },
   { type: "regex", label: "Matches regex…", hint: "JavaScript regular expression, case-insensitive", needs: "pattern" },
 ];
 
@@ -45,6 +46,8 @@ export function checkLabel(c: Check): string {
       return `Responds within ${c.ms / 1000}s`;
     case "minLength":
       return `At least ${c.chars} characters`;
+    case "maxLength":
+      return `At most ${c.chars} characters`;
     case "regex":
       return `Matches /${c.pattern}/${c.flags ?? ""}`;
     case "jsonShape":
@@ -70,6 +73,7 @@ export function buildCheck(type: Check["type"], raw: string, lang: LangCode): Ch
     case "maxLatency":
       return num > 0 ? { type, ms: Math.round(num * 1000) } : null;
     case "minLength":
+    case "maxLength":
       return num > 0 ? { type, chars: Math.round(num) } : null;
     case "jsonShape":
       return null; // created from a JSON task template, not the add-check form
@@ -187,4 +191,56 @@ export function withContext(system: string, context: string): string {
 /** Fill {{field}} placeholders in a task template. */
 export function renderTemplate(prompt: string, values: Record<string, string>): string {
   return prompt.replace(/\{\{(\w+)\}\}/g, (_, name: string) => values[name] ?? "");
+}
+
+// ── One-tap rating ───────────────────────────────────────────────────────────
+
+export type BadReason = "language" | "made-up" | "repeated" | "too-long" | "unsafe" | "other";
+
+/** Reasons offered after 👎 — each quietly becomes the right automatic check. */
+export const BAD_REASONS: { id: BadReason; label: string }[] = [
+  { id: "language", label: "Wrong language" },
+  { id: "made-up", label: "Made things up" },
+  { id: "repeated", label: "Repeated itself" },
+  { id: "too-long", label: "Too long" },
+  { id: "unsafe", label: "Shouldn't have answered" },
+  { id: "other", label: "Something else" },
+];
+
+/**
+ * Checks and an "expected" line for a rated reply. Some reasons can't be
+ * checked automatically (e.g. made-up facts); those keep the default checks
+ * and record what was expected so a person can review it.
+ */
+export function checksForRating(
+  language: string,
+  verdict: "good" | "bad",
+  reason?: BadReason,
+  replyLength = 0,
+): { checks: Check[]; expected: string } {
+  let checks = suggestChecks({ language, verdict });
+  let expected = "";
+  switch (reason) {
+    case "language":
+      expected = `Reply in ${LANG_LABEL[language as LangCode] ?? "the user's language"}`;
+      break;
+    case "made-up":
+      expected = "Answer only from the facts given, and say when it doesn't know";
+      break;
+    case "repeated":
+      checks = checks.map((c) => (c.type === "noRepetition" ? { type: "noRepetition", maxRepeats: 3 } : c));
+      expected = "No repeated phrases";
+      break;
+    case "too-long": {
+      const limit = Math.min(600, Math.max(80, Math.round(replyLength * 0.6)));
+      checks = [...checks, { type: "maxLength", chars: limit }];
+      expected = `A shorter reply (at most ${limit} characters)`;
+      break;
+    }
+    case "unsafe":
+      checks = [...checks, { type: "refusal", expected: true }];
+      expected = "Politely refuse";
+      break;
+  }
+  return { checks, expected };
 }

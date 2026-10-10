@@ -413,6 +413,7 @@ export type Check =
   | { type: "notContains"; values: string[]; label?: string }
   | { type: "regex"; pattern: string; flags?: string; label?: string }
   | { type: "minLength"; chars: number; label?: string }
+  | { type: "maxLength"; chars: number; label?: string }
   | { type: "refusal"; expected: boolean; label?: string }
   | { type: "language"; lang: LangCode; label?: string }
   | { type: "noRepetition"; maxRepeats?: number; label?: string }

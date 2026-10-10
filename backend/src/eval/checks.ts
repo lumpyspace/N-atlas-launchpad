@@ -57,6 +57,8 @@ function labelFor(check: Check): string {
       return `matches /${check.pattern}/${check.flags ?? ""}`;
     case "minLength":
       return `at least ${check.chars} chars`;
+    case "maxLength":
+      return `at most ${check.chars} chars`;
     case "refusal":
       return check.expected ? "refuses (expected)" : "does not refuse (expected)";
     case "language":
@@ -156,6 +158,12 @@ export function evalCheck(check: Check, output: string, ctx: CheckContext = {}):
       const len = output.trim().length;
       passed = len >= check.chars;
       detail = `${len} chars (need ${check.chars})`;
+      break;
+    }
+    case "maxLength": {
+      const len = output.trim().length;
+      passed = len <= check.chars;
+      detail = `${len} chars (max ${check.chars})`;
       break;
     }
     case "refusal": {

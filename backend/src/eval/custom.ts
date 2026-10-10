@@ -35,6 +35,8 @@ function parseCheck(raw: any): Check | null {
     }
     case "minLength":
       return Number.isFinite(raw.chars) ? { type: "minLength", chars: Math.max(0, raw.chars), label } : null;
+    case "maxLength":
+      return Number.isFinite(raw.chars) && raw.chars > 0 ? { type: "maxLength", chars: raw.chars, label } : null;
     case "refusal":
       return { type: "refusal", expected: raw.expected !== false, label };
     case "language":
