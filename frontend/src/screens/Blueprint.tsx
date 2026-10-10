@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { getBlueprint } from "../api";
-import { BuildGuide } from "../components/BuildGuide";
+import { BuildGuide, ByNatlas, Narrated } from "../components/BuildGuide";
 import { useNarration } from "../components/useNarration";
 import { useProject } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
@@ -14,6 +14,9 @@ export default function Blueprint() {
   const bp = state.blueprint;
   // N-ATLAS writes the guide's words in the project's language (the engine keeps the facts).
   const narr = useNarration(bp?.buildPlan?.useCase ? bp : null);
+  // N-ATLAS's feature names double as the primary tasks (the features are built from them, in order).
+  const written = narr.value<{ task: string; how: string }[]>("features");
+  const taskNames = written && bp && written.length === bp.primaryTasks.length ? written.map((f) => f.task) : undefined;
   const [tab, setTab] = useState<Tab>("guide");
   const [loadingPlan, setLoadingPlan] = useState(false);
 
@@ -113,24 +116,30 @@ export default function Blueprint() {
       ) : (
         <>
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <InfoCard title={t("Target users")}>
-            <p className="text-sm text-slate-600">{bp.targetUsers}</p>
+          <InfoCard title={t("Target users")} tag={<ByNatlas narr={narr} section="audience" />}>
+            <Narrated narr={narr} section="audience">
+              <p className="text-sm text-slate-600">{narr.value<string>("audience") ?? bp.targetUsers}</p>
+            </Narrated>
           </InfoCard>
           <InfoCard title={t("Expected languages")}>
             <div className="flex flex-wrap gap-1.5">
               {bp.languages.map((l) => (
-                <Badge key={l}>{l}</Badge>
+                <Badge key={l}>{t(l)}</Badge>
               ))}
             </div>
           </InfoCard>
-          <InfoCard title={t("Primary tasks")}>
-            <List items={bp.primaryTasks} />
+          <InfoCard title={t("Primary tasks")} tag={taskNames && <ByNatlas narr={narr} section="features" />}>
+            <List items={taskNames ?? bp.primaryTasks} />
           </InfoCard>
-          <InfoCard title={t("Nigerian-context considerations")}>
-            <List items={bp.nigerianContext} />
+          <InfoCard title={t("Nigerian-context considerations")} tag={<ByNatlas narr={narr} section="context" />}>
+            <Narrated narr={narr} section="context">
+              <List items={narr.value<string[]>("context") ?? bp.nigerianContext} />
+            </Narrated>
           </InfoCard>
-          <InfoCard title={t("Potential risks")} tone="amber">
-            <List items={bp.risks} />
+          <InfoCard title={t("Potential risks")} tone="amber" tag={<ByNatlas narr={narr} section="risks" />}>
+            <Narrated narr={narr} section="risks">
+              <List items={narr.value<string[]>("risks") ?? bp.risks} />
+            </Narrated>
           </InfoCard>
           <InfoCard title={t("Recommended N-ATLAS configuration")}>
             <dl className="space-y-1 text-sm text-slate-600">
@@ -188,20 +197,24 @@ export default function Blueprint() {
 function InfoCard({
   title,
   tone,
+  tag,
   children,
 }: {
   title: string;
   tone?: "amber";
+  /** e.g. the "✍ N-ATLAS" tag when N-ATLAS wrote the card. */
+  tag?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <Card className="p-4">
       <h3
-        className={`mb-2 text-xs font-semibold uppercase tracking-wide ${
+        className={`mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${
           tone === "amber" ? "text-amber-600" : "text-slate-400"
         }`}
       >
         {title}
+        {tag}
       </h3>
       {children}
     </Card>

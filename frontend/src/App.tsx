@@ -16,6 +16,7 @@ import Export from "./screens/Export";
 import Test from "./screens/Test";
 import PromptStudio from "./screens/PromptStudio";
 import Knowledge from "./screens/Knowledge";
+import Doctor from "./screens/Doctor";
 
 export default function App() {
   return (
@@ -41,6 +42,15 @@ function Shell() {
       <>
         <TopBar health={health} onHealthChange={setHealth} minimal />
         <Landing />
+      </>
+    );
+  }
+
+  if (workspace.view === "doctor") {
+    return (
+      <>
+        <TopBar health={health} onHealthChange={setHealth} />
+        <Doctor health={health} />
       </>
     );
   }
@@ -161,6 +171,13 @@ function TopBar({
             </span>
           )}
           <LanguageSwitcher compact={minimal} />
+          <button
+            onClick={() => setView("doctor")}
+            title={t("Check your N-ATLAS setup and how to fix it")}
+            className={`hidden text-xs font-medium sm:inline ${workspace.view === "doctor" ? "text-forge-700" : "text-slate-500 hover:text-slate-800"}`}
+          >
+            🩺 {t("Setup doctor")}
+          </button>
           <ModeBadge health={health} />
           <button
             onClick={() => { setOpen(o => !o); setErr(null); setTimeout(() => inputRef.current?.focus(), 50); }}
@@ -212,6 +229,15 @@ function TopBar({
               {t("Cancel")}
             </button>
             {err && <p className="w-full text-xs text-red-600">{err}</p>}
+            <button
+              onClick={() => {
+                setOpen(false);
+                setView("doctor");
+              }}
+              className="w-full text-left text-xs font-medium text-forge-700 hover:underline"
+            >
+              🩺 {t("Something not working? Run the setup doctor →")}
+            </button>
           </div>
         </div>
       )}

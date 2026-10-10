@@ -69,4 +69,13 @@ export interface NAtlasProvider {
     signal?: AbortSignal,
   ): Promise<void>;
   health(): Promise<HealthStatus>;
+  /** Where the provider sends requests (for the setup doctor). Absent for providers with no server. */
+  connection?(): Connection | undefined;
+}
+
+export interface Connection {
+  /** Base URL of the OpenAI-compatible API, e.g. http://localhost:11434/v1 */
+  endpoint: string;
+  model: string;
+  apiKey: string;
 }

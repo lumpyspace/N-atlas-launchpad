@@ -323,7 +323,7 @@ function reducer(state: ProjectState, action: Action): ProjectState {
 
 // ── Workspace (many projects) ────────────────────────────────────────────────
 
-export type View = "landing" | "home" | "project";
+export type View = "landing" | "home" | "project" | "doctor";
 
 export interface WorkspaceState {
   projects: Record<string, Project>;

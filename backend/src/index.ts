@@ -28,6 +28,7 @@ import { compareRouter } from "./routes/compare.js";
 import { designRouter } from "./routes/design.js";
 import { promptRouter } from "./routes/prompt.js";
 import { narrateRouter } from "./routes/narrate.js";
+import { doctorRouter } from "./routes/doctor.js";
 
 const config = loadConfig();
 const provider = new ProviderRef(createProvider(config));
@@ -47,6 +48,7 @@ app.use("/api", compareRouter(provider, config));
 app.use("/api", designRouter(provider));
 app.use("/api", promptRouter());
 app.use("/api", narrateRouter(provider));
+app.use("/api", doctorRouter(provider));
 
 // Root gives a quick sanity response and points at the health check.
 app.get("/", (_req, res) => {

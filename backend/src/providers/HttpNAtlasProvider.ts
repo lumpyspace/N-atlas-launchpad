@@ -12,6 +12,7 @@ import type {
   HealthStatus,
   NAtlasProvider,
   StreamChunk,
+  Connection,
 } from "./NAtlasProvider.js";
 
 interface HttpProviderConfig {
@@ -40,6 +41,14 @@ export class HttpNAtlasProvider implements NAtlasProvider {
           "self-hosted N-ATLAS server (see docs/N-ATLAS-INTEGRATION.md).",
       );
     }
+  }
+
+  connection(): Connection {
+    return {
+      endpoint: this.cfg.endpoint.replace(/\/+$/, "").replace(/\/chat\/completions$/, ""),
+      model: this.cfg.model,
+      apiKey: this.cfg.apiKey,
+    };
   }
 
   private get chatUrl(): string {

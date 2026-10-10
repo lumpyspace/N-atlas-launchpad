@@ -16,7 +16,8 @@ import { detectLanguage, findRepetition, LANG_NAMES, type LangCode } from "../ev
 import { NATLAS_FACTS } from "./buildPlan.js";
 import type { Blueprint } from "./types.js";
 
-export const SECTIONS = ["purpose", "summary", "conversation", "mvp", "features", "pitfalls"] as const;
+// Guide sections first (reading order), then the Blueprint tab's.
+export const SECTIONS = ["purpose", "summary", "conversation", "mvp", "features", "pitfalls", "audience", "context", "risks"] as const;
 export type SectionId = (typeof SECTIONS)[number];
 
 export type SectionValue = string | string[] | { user: string; app: string } | { task: string; how: string }[];
@@ -113,6 +114,30 @@ export function sectionPrompt(section: SectionId, bp: Blueprint, language: LangC
           `List 3 or 4 mistakes to avoid when building ${bp.name}, in ${lang}, one per line starting with "- ". ` +
           `Starting point:\n${plan.pitfalls.map((p) => `- ${p}`).join("\n")}`,
       };
+    case "audience":
+      return {
+        system,
+        maxTokens: 70,
+        prompt: facts + `In one short phrase of ${lang}, say who ${bp.name} is for. Starting point: "${bp.targetUsers}"`,
+      };
+    case "context":
+      return {
+        system,
+        maxTokens: 420,
+        prompt:
+          facts +
+          `List 3 to 5 things about life in Nigeria that ${bp.name} must get right, in ${lang}, one per line starting with "- ". ` +
+          `Starting point:\n${bp.nigerianContext.map((c) => `- ${c}`).join("\n")}`,
+      };
+    case "risks":
+      return {
+        system,
+        maxTokens: 420,
+        prompt:
+          facts +
+          `List 3 to 5 risks of ${bp.name} and how to reduce each, in ${lang}, one per line starting with "- ". ` +
+          `Starting point:\n${bp.risks.map((r) => `- ${r}`).join("\n")}`,
+      };
   }
 }
 
@@ -183,8 +208,14 @@ export function parseSection(
       const app = whole(clean(m[2].split(/\n\s*\n/)[0]));
       return user && app ? { value: { user, app } } : { problem: truncated ? "cut off" : "missing a message" };
     }
+    case "audience": {
+      const value = whole(clean(t.split("\n")[0])).replace(/[.]$/, "");
+      return value.length < 3 ? { problem: truncated ? "cut off" : "too short" } : value.length > 200 ? { problem: "too long" } : { value };
+    }
     case "mvp":
-    case "pitfalls": {
+    case "pitfalls":
+    case "context":
+    case "risks": {
       let items = bullets(t);
       // The last item was cut off mid-way by the token limit.
       if (truncated && items.length > 2) items = items.slice(0, -1);
@@ -228,7 +259,7 @@ export function checkSection(value: SectionValue, bp: Blueprint, language: LangC
   }
   if (OTHER_MODELS.test(text) && !OTHER_MODELS.test(factsFor(bp))) return "mentions another AI model";
   // Numbers of 3+ digits (prices, years, limits) must come from the facts.
-  const known = (factsFor(bp) + JSON.stringify(bp.buildPlan)).replace(/[,\s]/g, "");
+  const known = (factsFor(bp) + JSON.stringify(bp)).replace(/[,\s]/g, "");
   for (const n of text.match(/\d[\d,.]{2,}\d/g) ?? []) {
     if (!known.includes(n.replace(/[,\s]/g, ""))) return `mentions ${n}, which isn't in the facts`;
   }

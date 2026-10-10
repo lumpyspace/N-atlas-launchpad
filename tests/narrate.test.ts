@@ -145,3 +145,11 @@ test("narrate: a phrase shared across list items isn't a repetition loop", () =>
   assert.equal(checkSection(items, bp, "en"), null);
   assert.match(checkSection(["It helps you study it helps you study it helps you study it helps you study"], bp, "en") ?? "", /repeats/);
 });
+
+test("narrate: the Blueprint tab's sections — who it's for, Nigerian context, risks", () => {
+  assert.ok(sectionPrompt("audience", bp, "ig").prompt.includes(bp.targetUsers));
+  assert.ok(sectionPrompt("context", bp, "yo").prompt.includes(bp.nigerianContext[0]));
+  assert.ok(sectionPrompt("risks", bp, "ha").prompt.includes(bp.risks[0]));
+  assert.equal(parseSection("audience", "Ụmụ akwụkwọ mahadum afọ mbụ na Naịjirịa.", bp).value, "Ụmụ akwụkwọ mahadum afọ mbụ na Naịjirịa");
+  assert.deepEqual(parseSection("risks", "- Ihe egwu mbụ\n- Ihe egwu nke abụọ", bp).value, ["Ihe egwu mbụ", "Ihe egwu nke abụọ"]);
+});

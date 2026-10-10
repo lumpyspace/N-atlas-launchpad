@@ -694,8 +694,12 @@ export async function diagnosePrompt(
 
 // ── N-ATLAS writes the build guide ───────────────────────────────────────────
 
-export type NarrationSection = "purpose" | "summary" | "conversation" | "mvp" | "features" | "pitfalls";
-export const NARRATION_SECTIONS: NarrationSection[] = ["purpose", "summary", "conversation", "mvp", "features", "pitfalls"];
+export type NarrationSection =
+  | "purpose" | "summary" | "conversation" | "mvp" | "features" | "pitfalls"
+  | "audience" | "context" | "risks";
+export const NARRATION_SECTIONS: NarrationSection[] = [
+  "purpose", "summary", "conversation", "mvp", "features", "pitfalls", "audience", "context", "risks",
+];
 
 export type NarrationValue = string | string[] | { user: string; app: string } | { task: string; how: string }[];
 
@@ -713,4 +717,25 @@ export async function streamNarration(
   signal?: AbortSignal,
 ): Promise<void> {
   await streamRun<never, never>("/api/blueprint/narrate", body, (e) => onEvent(e as unknown as NarrationEvent), signal);
+}
+
+// ── Setup doctor ─────────────────────────────────────────────────────────────
+
+export type DoctorCheckId = "endpoint" | "model" | "build" | "context" | "settings" | "reply" | "speed" | "hardware";
+export const DOCTOR_CHECKS: DoctorCheckId[] = ["endpoint", "model", "build", "context", "settings", "reply", "speed", "hardware"];
+
+export interface DoctorResult {
+  id: DoctorCheckId;
+  status: "pass" | "warn" | "fail" | "info" | "skip";
+  /** Which explanation applies (the page holds the text, so it can be translated). */
+  variant: string;
+  data: Record<string, string | number>;
+  command?: string;
+}
+
+export type DoctorEvent = { type: "check"; result: DoctorResult } | { type: "error"; message: string } | { type: "done" };
+
+/** Run the setup doctor; checks arrive one by one. */
+export async function streamDoctor(onEvent: (e: DoctorEvent) => void, signal?: AbortSignal): Promise<void> {
+  await streamRun<never, never>("/api/doctor", {}, (e) => onEvent(e as unknown as DoctorEvent), signal);
 }

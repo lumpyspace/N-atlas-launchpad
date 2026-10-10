@@ -1,6 +1,7 @@
 import type {
   GenerateOptions,
   GenerateResult,
+  Connection,
   HealthStatus,
   NAtlasProvider,
   StreamChunk,
@@ -34,6 +35,10 @@ export class ProviderRef implements NAtlasProvider {
 
   health(): Promise<HealthStatus> {
     return this._inner.health();
+  }
+
+  connection(): Connection | undefined {
+    return this._inner.connection?.();
   }
 
   swap(next: NAtlasProvider): void {

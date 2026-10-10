@@ -347,7 +347,7 @@ function NarrationBar({ narr }: { narr: NarrationView }) {
 }
 
 /** "✍ N-ATLAS" next to a section N-ATLAS wrote, with a button to rewrite it. */
-function ByNatlas({ narr, section }: { narr: NarrationView; section: NarrationSection }) {
+export function ByNatlas({ narr, section }: { narr: NarrationView; section: NarrationSection }) {
   const t = useT();
   if (!narr.value(section)) return null;
   return (
@@ -365,7 +365,7 @@ function ByNatlas({ narr, section }: { narr: NarrationView; section: NarrationSe
 }
 
 /** A section's content — or, while N-ATLAS writes it, what it has written so far. */
-function Narrated({ narr, section, children }: { narr: NarrationView; section: NarrationSection; children: React.ReactNode }) {
+export function Narrated({ narr, section, children }: { narr: NarrationView; section: NarrationSection; children: React.ReactNode }) {
   const t = useT();
   if (narr.writing?.section === section) {
     return (
