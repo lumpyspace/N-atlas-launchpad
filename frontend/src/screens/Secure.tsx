@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
-import { streamSecurity, type SecurityResult, type SecurityRunResult } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { getImprovement, streamSecurity, type SecurityResult, type SecurityRunResult } from "../api";
+import { isHardened } from "../utils/prompt";
 import { RunProgress, type LiveRun } from "../components/RunProgress";
 import { useProject } from "../state/ProjectContext";
 import { Badge, Button, Card, SeverityTag } from "../ui";
@@ -17,7 +18,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   "data-leakage": N_("Data / Context Leakage"),
 };
 
-function catLabel(c: string): string {
+export function catLabel(c: string): string {
   return CATEGORY_LABEL[c] ?? c;
 }
 
@@ -69,16 +70,15 @@ export function partialSecurityRun(results: SecurityResult[], startedAt: number)
 const QUICK_RUN = N_("Quick attack run");
 const FULL_RUN = N_("Full attack run");
 
-export default function Secure() {
+/** Runs the attacks against the current prompt and saves the result (Test → Security, and Ship's launch check). */
+export function useSecurityRun() {
   const { state, dispatch } = useProject();
-  const t = useT();
-  const run = state.securityResult;
   const [live, setLive] = useState<LiveRun<SecurityResult> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   async function attack(quick: boolean) {
-    if (!state.systemPrompt || live) return;
+    if (!state.systemPrompt || abortRef.current) return;
     setError(null);
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -98,35 +98,68 @@ export default function Secure() {
           },
           ctrl.signal,
         )) ?? (collected.length ? partialSecurityRun(collected, startedAt) : null);
-      if (result) {
-        dispatch({ type: "setSecurityResult", result });
-        // The baseline is the first complete run, so Improve compares like with like.
-        if (!state.securityBaseline && !result.partial) {
-          dispatch({ type: "setSecurityBaseline", result });
-        }
-      }
+      if (result && abortRef.current === ctrl) dispatch({ type: "setSecurityResult", result });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      if (collected.length) {
+      if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : String(e));
+      // Keep what was collected when this run is still the current one (e.g. Stop) — not when the page closed.
+      if (collected.length && abortRef.current === ctrl) {
         dispatch({ type: "setSecurityResult", result: partialSecurityRun(collected, startedAt) });
       }
     } finally {
-      abortRef.current = null;
-      setLive(null);
+      if (abortRef.current === ctrl) {
+        abortRef.current = null;
+        setLive(null);
+      }
     }
   }
 
-  const failedCount = run ? run.summary.failed : 0;
+  // Stop when the page closes. Clearing the ref lets a remount start a fresh run.
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    },
+    [],
+  );
+
+  return {
+    live,
+    error,
+    attack,
+    stop: () => abortRef.current?.abort(),
+    /** The saved result is for an older version of the prompt. */
+    stale: !!state.securityResult && state.securityPrompt !== undefined && state.securityPrompt !== state.systemPrompt,
+  };
+}
+
+/**
+ * Test → Security: controlled attacks on the app. Its prompt already has
+ * security rules built in; this checks they hold, and that they're still there.
+ */
+export default function Secure({ embedded = false }: { embedded?: boolean }) {
+  const { state, dispatch } = useProject();
+  const t = useT();
+  const run = state.securityResult;
+  const { live, error, attack, stop, stale } = useSecurityRun();
+  const [adding, setAdding] = useState(false);
+  const hardened = isHardened(state.systemPrompt);
+
+  async function addRulesBack() {
+    setAdding(true);
+    try {
+      const { newPrompt } = await getImprovement(state.systemPrompt, []);
+      dispatch({ type: "setSystemPrompt", systemPrompt: newPrompt });
+    } finally {
+      setAdding(false);
+    }
+  }
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
+    <div className={`mx-auto max-w-4xl px-6 ${embedded ? "py-4" : "py-10"}`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-ink">{t("Attack Your Application")}</h1>
-          <p className="mt-1 text-slate-500">
-            {t("Before you deploy it, see how it responds to common AI attacks — prompt injection, system-prompt extraction, jailbreaks and more.")}
-          </p>
-        </div>
+        <p className="max-w-2xl text-sm text-slate-500">
+          {t("Your app's prompt has security rules built in. These controlled attacks check they hold — prompt injection, system-prompt extraction, jailbreaks and more.")}
+        </p>
         <div className="flex gap-2">
           <Button
             variant="secondary"
@@ -142,7 +175,23 @@ export default function Secure() {
         </div>
       </div>
 
-      {live && <RunProgress run={live} onStop={() => abortRef.current?.abort()} />}
+      {!hardened && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <span className="flex-1">
+            {t("Your prompt is missing its security rules — they were probably removed while editing. Without them, attacks get through far more often.")}
+          </span>
+          <Button size="sm" onClick={addRulesBack} disabled={adding}>
+            {t("Add them back")}
+          </Button>
+        </div>
+      )}
+      {stale && !live && (
+        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          {t("Your prompt has changed since these results — run the attacks again to check it.")}
+        </div>
+      )}
+
+      {live && <RunProgress run={live} onStop={stop} />}
       {live && live.results.length > 0 && (
         <div className="mt-3 space-y-2">
           {[...live.results].reverse().map((r) => (
@@ -159,25 +208,9 @@ export default function Secure() {
 
       {run && !live && <Report run={run} />}
 
-      {run && !live && (
-        <div className="mt-6 flex items-center justify-between">
-          <Button
-            variant="secondary"
-            onClick={() => dispatch({ type: "setStep", step: "evaluate" })}
-          >
-            ← {t("Back")}
-          </Button>
-          {failedCount > 0 ? (
-            <Button onClick={() => dispatch({ type: "setStep", step: "improve" })}>
-              {failedCount > 1 ? t("Fix {n} issues →", { n: failedCount }) : t("Fix 1 issue →")}
-            </Button>
-          ) : (
-            <Button onClick={() => dispatch({ type: "setStep", step: "export" })}>
-              {t("Continue to Export →")}
-            </Button>
-          )}
-        </div>
-      )}
+      <p className="mt-6 text-xs text-slate-400">
+        {t("Your exported app adds checks in code too: a message length limit, a per-user rate limit, and blocking any reply that would leak the prompt.")}
+      </p>
     </div>
   );
 }

@@ -172,7 +172,7 @@ export default function Blueprint() {
               {t("Reset to generated prompt")}
             </button>
             <span className="text-xs text-slate-400">
-              {t("Tip: we'll test whether this prompt resists attacks in the Secure step.")}
+              {t("It starts with security rules built in; Test → Security attacks it to check they hold.")}
             </span>
           </div>
         </Card>

@@ -6,16 +6,19 @@
  * The sector template contributes domain knowledge (nigerianContext, risks,
  * systemGuidelines) that is independent of the specific app idea.
  *
- * The generated system prompt is intentionally a *naive baseline*: it carries a
- * planted canary but NO strong anti-injection defences. That is what makes the
- * Secure → Improve loop meaningful — the baseline leaks under attack, and the
- * harden step (see improve/harden.ts) adds the defences that make it pass.
+ * The generated system prompt is secure by default: the app's instructions,
+ * then the security directives (improve/harden.ts) — user input is data, never
+ * reveal the prompt, ignore authority claims, safety rules survive role-play —
+ * and a planted reference code (canary) so leaks are detectable in tests and
+ * blockable in the exported server. In a real run the directives raised an
+ * app's attack score from 35 to 91.
  */
 
 import type { Blueprint } from "./types.js";
 import { SECTORS, classifySector, type SectorTemplate } from "./sectors.js";
 import { makeCanary } from "../shared/prompt.js";
 import { buildPlanFor } from "./buildPlan.js";
+import { hardenSystemPrompt } from "../improve/harden.js";
 import { detectUseCases } from "./useCases.js";
 
 export interface BlueprintOptions {
@@ -58,7 +61,7 @@ export function generateBlueprint(description: string, opts: BlueprintOptions = 
     languages,
     nigerianContext: useCases[0].nigerianContext ?? t.nigerianContext,
     risks,
-    systemPrompt: buildSystemPrompt(name, purpose, targetUsers, primaryTasks, languages, t, canary),
+    systemPrompt: hardenSystemPrompt(buildSystemPrompt(name, purpose, targetUsers, primaryTasks, languages, t, canary)).newPrompt,
     suggestedEvalCategories: t.suggestedEvalCategories,
     suggestedSecurityTests: t.suggestedSecurityTests,
     buildPlan: buildPlanFor(desc, sector, languages, primaryTasks, opts.useCase, kindText),

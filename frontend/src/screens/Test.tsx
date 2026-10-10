@@ -3,6 +3,7 @@ import Playground from "../components/Playground";
 import { useProject } from "../state/ProjectContext";
 import { Badge, Button } from "../ui";
 import Evaluate from "./Evaluate";
+import Secure from "./Secure";
 import { useT } from "../i18n";
 
 /**
@@ -14,7 +15,8 @@ import { useT } from "../i18n";
 export default function Test({ health }: { health: HealthStatus | null }) {
   const { state, dispatch } = useProject();
   const t = useT();
-  const tab = state.step === "evaluate" ? "evaluate" : "playground";
+  const tab = state.step === "evaluate" ? "evaluate" : state.step === "secure" || state.step === "improve" ? "secure" : "playground";
+  const sec = state.securityResult;
   const saved = state.savedTestCases.length;
   const bp = state.blueprint;
 
@@ -30,7 +32,7 @@ export default function Test({ health }: { health: HealthStatus | null }) {
               )}
             </p>
           </div>
-          <Button onClick={() => dispatch({ type: "setStep", step: "secure" })}>{t("Continue to Security →")}</Button>
+          <Button onClick={() => dispatch({ type: "setStep", step: "export" })}>{t("Continue to Ship →")}</Button>
         </div>
 
         <div className="mt-5 flex gap-1 border-b border-slate-200">
@@ -40,6 +42,10 @@ export default function Test({ health }: { health: HealthStatus | null }) {
           <TabButton active={tab === "evaluate"} onClick={() => dispatch({ type: "setStep", step: "evaluate" })}>
             ✅ {t("Test cases & scores")}
             {saved > 0 && <Badge tone="blue">{saved}</Badge>}
+          </TabButton>
+          <TabButton active={tab === "secure"} onClick={() => dispatch({ type: "setStep", step: "secure" })}>
+            🛡 {t("Security")}
+            {sec && <Badge tone={sec.summary.failed ? "amber" : "green"}>{sec.summary.score}</Badge>}
           </TabButton>
           {/* Compare is an optional tool here, not a step of its own. */}
           {saved > 0 && (
@@ -54,7 +60,7 @@ export default function Test({ health }: { health: HealthStatus | null }) {
         </div>
       </div>
 
-      {tab === "playground" ? <Playground health={health} embedded /> : <Evaluate embedded />}
+      {tab === "playground" ? <Playground health={health} embedded /> : tab === "evaluate" ? <Evaluate embedded /> : <Secure embedded />}
     </div>
   );
 }

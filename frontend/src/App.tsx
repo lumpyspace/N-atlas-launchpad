@@ -10,8 +10,6 @@ import Landing from "./screens/Landing";
 import Describe from "./screens/Describe";
 import Blueprint from "./screens/Blueprint";
 import Compare from "./screens/Compare";
-import Secure from "./screens/Secure";
-import Improve from "./screens/Improve";
 import Export from "./screens/Export";
 import Test from "./screens/Test";
 import PromptStudio from "./screens/PromptStudio";
@@ -87,13 +85,11 @@ function renderStep(step: string, health: HealthStatus | null) {
       return <Knowledge />;
     case "playground":
     case "evaluate":
+    case "secure":
+    case "improve":
       return <Test health={health} />;
     case "compare":
       return <Compare />;
-    case "secure":
-      return <Secure />;
-    case "improve":
-      return <Improve />;
     case "export":
       return <Export />;
     default:

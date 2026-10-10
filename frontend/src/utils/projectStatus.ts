@@ -8,7 +8,7 @@ import type { ProjectState, Step } from "../state/ProjectContext";
 
 const EN: T = (text, vars) => translate("en", text, vars);
 
-export type StageKey = "design" | "build" | "prompt" | "knowledge" | "test" | "secure" | "ship";
+export type StageKey = "design" | "build" | "prompt" | "knowledge" | "test" | "ship";
 
 export interface StageStatus {
   key: StageKey;
@@ -95,27 +95,17 @@ export function stages(p: ProjectState, t: T = EN): StageStatus[] {
       key: "test",
       label: t("Test"),
       step: "playground",
-      steps: ["playground", "evaluate", "compare"],
-      done: tests > 0 && !!lastRun,
+      steps: ["playground", "evaluate", "compare", "secure", "improve"],
+      done: tests > 0 && !!lastRun && !!sec && !sec.partial,
       available: built,
       detail: tests
         ? plural(t, tests, "{n} test case", "{n} test cases") +
           " · " +
           (lastRun
             ? t("{passed}/{total} passing", { passed: lastRun.summary.passed, total: lastRun.summary.total })
-            : t("not run yet"))
+            : t("not run yet")) +
+          (sec ? " · " + t("Security score {score}", { score: sec.summary.score }) : "")
         : t("Try it and save test cases"),
-    },
-    {
-      key: "secure",
-      label: t("Secure"),
-      step: "secure",
-      steps: ["secure", "improve"],
-      done: !!sec && !sec.partial,
-      available: built,
-      detail: sec
-        ? t("Security score {score}", { score: sec.summary.score }) + (sec.partial ? " " + t("(partial)") : "")
-        : t("Attack it before launch"),
     },
     {
       key: "ship",
@@ -138,10 +128,8 @@ export function nextStep(p: ProjectState, t: T = EN): { step: Step; text: string
   }
   if (!p.savedTestCases.length) return { step: "playground", text: t("Try your app and save a few good and bad answers as test cases.") };
   if (!byKey.test.done) return { step: "evaluate", text: t("Run your test cases to get a baseline.") };
-  if (!byKey.secure.done) return { step: "secure", text: t("Run the security tests before you ship.") };
-  if (p.securityResult && p.securityResult.summary.failed > 0 && !p.improvement) {
-    return { step: "improve", text: t("Fix {n} security issue(s) with a hardened prompt.", { n: p.securityResult.summary.failed }) };
-  }
+  const sec = p.securityResult;
+  if (!sec || sec.partial) return { step: "secure", text: t("Run the security tests before you ship.") };
   if (!byKey.ship.done) return { step: "export", text: t("Download your starter project, tests and CI.") };
   return null;
 }

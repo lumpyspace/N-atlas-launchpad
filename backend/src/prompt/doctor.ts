@@ -147,13 +147,13 @@ export function diagnose(input: DoctorInput): DoctorResult {
 
   // 5. Security hardening.
   if (isHardened(p)) {
-    findings.push({ id: "hardened", severity: "good", title: "Hardened against prompt injection", detail: "Security directives from the Improve step are in place." });
+    findings.push({ id: "hardened", severity: "good", title: "Hardened against prompt injection", detail: "The security rules every Launchpad prompt starts with are in place." });
   } else {
     findings.push({
       id: "hardened",
       severity: "warn",
-      title: "Not hardened against attacks yet",
-      detail: "Run the security tests to see whether users can make it ignore its instructions or reveal this prompt, then apply the hardened version.",
+      title: "Security rules are missing",
+      detail: "This prompt lacks the security rules Launchpad prompts start with, so users can more easily make it ignore its instructions or reveal this prompt. Add them back in Test → Security.",
       action: "secure",
     });
   }

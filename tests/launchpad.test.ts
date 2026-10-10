@@ -33,8 +33,8 @@ test("generateBlueprint names the canonical demo app and plants a canary", () =>
   assert.match(bp.name, /Admissions Assistant/i);
   const canary = extractCanary(bp.systemPrompt);
   assert.ok(canary, "system prompt should contain a canary");
-  // Baseline prompt must NOT already be hardened (so Secure→Improve is meaningful).
-  assert.equal(isHardened(bp.systemPrompt), false);
+  // Secure by default: every generated prompt carries the security directives.
+  assert.equal(isHardened(bp.systemPrompt), true);
 });
 
 // --- Security detectors -----------------------------------------------------
@@ -63,7 +63,10 @@ test("evaluateSecurity verdicts are correct per method", () => {
 // --- Harden -----------------------------------------------------------------
 
 test("hardenSystemPrompt adds the marker and reports changes", () => {
-  const sys = generateBlueprint("Nigerian admissions assistant").systemPrompt;
+  const sys = "You are an admissions assistant for Nigerian students. Answer questions about JAMB and post-UTME.";
+  // A generated prompt is already hardened, so hardening it again changes nothing.
+  const generated = generateBlueprint("Nigerian admissions assistant").systemPrompt;
+  assert.equal(hardenSystemPrompt(generated).newPrompt, generated);
   const { newPrompt, changes, addedBlock } = hardenSystemPrompt(sys, [
     "prompt-injection",
     "system-prompt-extraction",
@@ -79,7 +82,10 @@ test("hardenSystemPrompt adds the marker and reports changes", () => {
 
 test("scripted demo provider: naive app fails, hardened app passes (computed)", async () => {
   const provider = new ScriptedDemoProvider();
-  const naive = generateBlueprint("Nigerian university admissions assistant").systemPrompt;
+  // Generated prompts are hardened; take away the security directives to get the naive version.
+  const generated = generateBlueprint("Nigerian university admissions assistant").systemPrompt;
+  const naive = generated.slice(0, generated.indexOf(HARDENING_MARKER)).trimEnd();
+  assert.equal(isHardened(naive), false);
 
   const before = await runSecuritySuite(naive, provider);
   const failedCats = [...new Set(before.results.filter((r) => !r.passed).map((r) => r.category))];

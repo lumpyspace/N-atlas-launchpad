@@ -110,40 +110,82 @@ export function starterCode(channelId: string, sources: DataSource[]): StarterCo
     : `// Add your own facts here later (FAQ, documents, database lookups).\nasync function findFacts(question) {\n  return "";\n}`;
 
   const common = `import express from "express";
-import { SYSTEM_PROMPT } from "./systemPrompt.js"; // from Launchpad's Export step
+import { fileURLToPath } from "node:url";
+import { Natlas, detectLanguage } from "./natlas.js"; // the N-ATLAS SDK (one file, no dependencies)
+import { LANGUAGE, SYSTEM_PROMPT } from "./systemPrompt.js"; // from Launchpad's Export step
 
-const NATLAS = process.env.NATLAS_BASE_URL ?? "http://localhost:11434/v1";
+// Settings from .env (NATLAS_BASE_URL, NATLAS_MODEL, NATLAS_API_KEY, PORT…). Node 20.12+.
+try {
+  process.loadEnvFile();
+} catch {
+  /* no .env file: use the environment as it is */
+}
+
+const natlas = new Natlas(); // reads NATLAS_BASE_URL / NATLAS_MODEL / NATLAS_API_KEY
 
 ${factsStub}
+
+// ── Safety: checks in code, so they hold even when the model slips ──────────
+const MAX_MESSAGE = 1000; // characters per message
+const PER_MINUTE = 20; // messages per user per minute
+const SAFE_REPLY = "Sorry, I can't help with that. Please ask me something else.";
+// The reference code planted in your system prompt, and its longer lines, must never appear in a reply.
+const CANARY = SYSTEM_PROMPT.match(/reference code ([A-Z0-9-]+)/)?.[1];
+const PROMPT_LINES = SYSTEM_PROMPT.split("\\n").map((l) => l.trim()).filter((l) => l.length > 40);
+const recent = new Map();
+
+/** Why a message can't be answered ("" if it can). */
+function checkMessage(message, user) {
+  if (!message.trim()) return "Please type a message.";
+  if (message.length > MAX_MESSAGE) return \`Please keep messages under \${MAX_MESSAGE} characters.\`;
+  const now = Date.now();
+  const times = (recent.get(user) ?? []).filter((t) => now - t < 60_000);
+  recent.set(user, [...times, now]);
+  if (times.length >= PER_MINUTE) return "Too many messages — please wait a minute.";
+  return "";
+}
+
+const leaksPrompt = (reply) => (CANARY && reply.includes(CANARY)) || PROMPT_LINES.some((line) => reply.includes(line));
+
+// Languages a reply may be in: the app's own (English and Pidgin apps accept either).
+const NAMES = { en: "English", pid: "Nigerian Pidgin", yo: "Yoruba", ha: "Hausa", ig: "Igbo" };
+const ALLOWED = LANGUAGE === "en" || LANGUAGE === "pid" ? ["en", "pid"] : [LANGUAGE];
 
 async function askNatlas(question) {
   const facts = await findFacts(question);
   const system = facts
     ? SYSTEM_PROMPT + "\\n\\nAnswer only from these facts. If they don't cover the question, say so:\\n" + facts
     : SYSTEM_PROMPT;
-  const res = await fetch(NATLAS + "/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + (process.env.NATLAS_API_KEY ?? ""),
-    },
-    body: JSON.stringify({
-      model: process.env.NATLAS_MODEL ?? "n-atlas",
-      temperature: 0.1,
-      max_tokens: 400,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: question },
-      ],
-    }),
-  });
-  if (!res.ok) throw new Error("N-ATLAS returned HTTP " + res.status);
-  const data = await res.json();
-  return data.choices[0].message.content;
+  let { text } = await natlas.chat(question, { system, language: LANGUAGE, maxTokens: 400 });
+  // N-ATLAS sometimes drifts into another Nigerian language: ask once more, firmly.
+  if (!ALLOWED.includes(detectLanguage(text))) {
+    ({ text } = await natlas.chat(question, {
+      system: system + \`\\n\\nReply only in \${NAMES[LANGUAGE]}, whatever language the question is in.\`,
+      language: LANGUAGE,
+      maxTokens: 400,
+    }));
+  }
+  return leaksPrompt(text) ? SAFE_REPLY : text;
 }
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "20kb" }));
+app.use(express.static(fileURLToPath(new URL("../public", import.meta.url)))); // the chat page
+
+// The chat page (and any web or mobile client) posts { message } here.
+app.post("/api/chat", async (req, res) => {
+  const message = String(req.body?.message ?? "");
+  const problem = checkMessage(message, req.ip);
+  if (problem) return res.status(problem.startsWith("Too many") ? 429 : 400).json({ error: problem });
+  try {
+    res.json({ reply: await askNatlas(message) });
+  } catch (err) {
+    console.error("N-ATLAS failed:", err.message);
+    res.status(502).json({ error: "N-ATLAS is unavailable right now — please try again." });
+  }
+});
+
+const PORT = process.env.PORT ?? 3000;
 `;
 
   switch (channelId) {
@@ -158,7 +200,7 @@ app.use(express.json());
       return {
         filename: "server.js",
         setup:
-          "npm install express — then set WA_TOKEN, WA_PHONE_NUMBER_ID and WA_VERIFY_TOKEN from your Meta WhatsApp app, and point its webhook at https://your-domain/webhook.",
+          "npm install express, and put natlas.js (the N-ATLAS SDK) and systemPrompt.js next to server.js — then set WA_TOKEN, WA_PHONE_NUMBER_ID and WA_VERIFY_TOKEN from your Meta WhatsApp app, and point its webhook at https://your-domain/webhook.",
         code:
           common +
           `
@@ -175,7 +217,7 @@ app.post("/webhook", async (req, res) => {
   if (!msg) return;
   if (msg.type !== "text") return; // voice notes arrive as type "audio": transcribe first (see the voice step)
   try {
-    const reply = await askNatlas(msg.text.body);
+    const reply = checkMessage(msg.text.body, msg.from) || (await askNatlas(msg.text.body));
     // Use the Graph API version your Meta app is set to.
     await fetch("https://graph.facebook.com/v21.0/" + process.env.WA_PHONE_NUMBER_ID + "/messages", {
       method: "POST",
@@ -187,14 +229,14 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT ?? 3000);
+app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\`));
 `,
       };
     case "telegram":
       return {
         filename: "server.js",
         setup:
-          "npm install express — create a bot with @BotFather, set TELEGRAM_TOKEN, then register the webhook once: https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://your-domain/telegram",
+          "npm install express, and put natlas.js (the N-ATLAS SDK) and systemPrompt.js next to server.js — create a bot with @BotFather, set TELEGRAM_TOKEN, then register the webhook once: https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://your-domain/telegram",
         code:
           common +
           `
@@ -203,7 +245,7 @@ app.post("/telegram", async (req, res) => {
   const msg = req.body.message;
   if (!msg?.text) return;
   try {
-    const reply = await askNatlas(msg.text);
+    const reply = checkMessage(msg.text, String(msg.chat.id)) || (await askNatlas(msg.text));
     await fetch("https://api.telegram.org/bot" + process.env.TELEGRAM_TOKEN + "/sendMessage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -214,7 +256,7 @@ app.post("/telegram", async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT ?? 3000);
+app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\`));
 `,
       };
     default:
@@ -222,24 +264,14 @@ app.listen(process.env.PORT ?? 3000);
         filename: "server.js",
         setup:
           channelId === "mobile"
-            ? "npm install express — your mobile app POSTs { message } to /api/chat; keep N-ATLAS and your system prompt on the server."
+            ? "npm install express, with natlas.js (the N-ATLAS SDK) and systemPrompt.js next to server.js — your mobile app POSTs { message } to /api/chat; keep N-ATLAS and your system prompt on the server."
             : channelId === "sms" || channelId === "ussd"
-              ? "npm install express — start with this chat API, then add your SMS/USSD gateway's callback route that calls askNatlas()."
-              : "npm install express — your web page POSTs { message } to /api/chat.",
+              ? "npm install express, with natlas.js (the N-ATLAS SDK) and systemPrompt.js next to server.js — start with this chat API, then add your SMS/USSD gateway's callback route that calls askNatlas()."
+              : "npm install express, with natlas.js (the N-ATLAS SDK) and systemPrompt.js next to server.js — it serves your chat page from public/ and answers POST /api/chat.",
         code:
           common +
           `
-app.post("/api/chat", async (req, res) => {
-  const message = String(req.body?.message ?? "").slice(0, 2000);
-  if (!message.trim()) return res.status(400).json({ error: "message is required" });
-  try {
-    res.json({ reply: await askNatlas(message) });
-  } catch (err) {
-    res.status(502).json({ error: "N-ATLAS is unavailable, please try again." });
-  }
-});
-
-app.listen(process.env.PORT ?? 3000);
+app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\`));
 `,
       };
   }
@@ -247,6 +279,13 @@ app.listen(process.env.PORT ?? 3000);
 
 /** Backend for a game: in-character dialogue and validated JSON events. */
 const GAME_SERVER = `import express from "express";
+
+// Settings from .env (NATLAS_BASE_URL, NATLAS_MODEL, NATLAS_API_KEY, PORT…). Node 20.12+.
+try {
+  process.loadEnvFile();
+} catch {
+  /* no .env file: use the environment as it is */
+}
 
 const NATLAS = process.env.NATLAS_BASE_URL ?? "http://localhost:11434/v1";
 

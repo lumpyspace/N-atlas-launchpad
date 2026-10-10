@@ -229,7 +229,7 @@ export default function Evaluate({ embedded = false }: { embedded?: boolean }) {
             ← {t("Try it")}
           </Button>
           <Button onClick={() => dispatch({ type: "setStep", step: "secure" })}>
-            {t("Continue to Security →")}
+            {t("Next: security tests →")}
           </Button>
         </div>
       )}

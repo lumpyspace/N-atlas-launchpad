@@ -68,9 +68,21 @@ test("a test case's saved data is added to the system prompt when it runs", asyn
 
 test("every channel's starter server is valid JavaScript", async () => {
   const { starterCode } = await import("../backend/src/blueprint/features.ts");
-  for (const ch of ["web", "whatsapp", "telegram", "game", "mobile", "sms"]) {
-    const { code } = starterCode(ch, [{ name: "Data", why: "x", kind: "live-data" }]);
-    // Parse the body without running it (imports stripped).
-    assert.doesNotThrow(() => new Function("return async () => {" + code.replace(/^import .*$/gm, "") + "}"), `${ch} server has a syntax error`);
+  const { spawnSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "starter-"));
+  try {
+    for (const ch of ["web", "whatsapp", "telegram", "game", "mobile", "sms"]) {
+      const { code } = starterCode(ch, [{ name: "Data", why: "x", kind: "live-data" }]);
+      // Parse it as the ES module Node will run, without running it.
+      const file = join(dir, `${ch}.mjs`);
+      writeFileSync(file, code);
+      const check = spawnSync(process.execPath, ["--check", file], { encoding: "utf8" });
+      assert.equal(check.status, 0, `${ch} server has a syntax error: ${check.stderr}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

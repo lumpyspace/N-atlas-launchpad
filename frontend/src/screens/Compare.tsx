@@ -16,12 +16,10 @@ import { N_, plural, useT, type T } from "../i18n";
 const MAX_VARIANTS = 3;
 const cellKey = (caseId: string, variantId: string) => `${caseId}::${variantId}`;
 
-function defaultVariants(t: T, systemPrompt: string, hardened?: string): CompareVariant[] {
+function defaultVariants(t: T, systemPrompt: string): CompareVariant[] {
   return [
     { id: "v1", label: t("Current prompt"), modelId: "natlas", systemPrompt, temperature: 0.2 },
-    hardened
-      ? { id: "v2", label: t("Hardened prompt"), modelId: "natlas", systemPrompt: hardened, temperature: 0.2 }
-      : { id: "v2", label: t("Higher temperature"), modelId: "natlas", systemPrompt, temperature: 0.7 },
+    { id: "v2", label: t("Higher temperature"), modelId: "natlas", systemPrompt, temperature: 0.7 },
   ];
 }
 
@@ -33,7 +31,7 @@ export default function Compare() {
   const cases = state.savedTestCases;
   const saved = state.compare;
   const [variants, setVariants] = useState<CompareVariant[]>(
-    saved?.variants ?? defaultVariants(t, state.systemPrompt, state.improvement?.newPrompt),
+    saved?.variants ?? defaultVariants(t, state.systemPrompt),
   );
   const [models, setModels] = useState<ModelOption[]>([{ id: "natlas", label: "N-ATLAS", model: "n-atlas" }]);
   const [live, setLive] = useState<LiveRun<CaseResult> | null>(null);

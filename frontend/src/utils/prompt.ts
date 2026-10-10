@@ -14,3 +14,10 @@ export function applyFix(systemPrompt: string, line: string): string {
   }
   return `${systemPrompt.replace(/\s+$/, "")}\n${line}`;
 }
+
+/** Mirrors backend/src/shared/prompt.ts: the heading of the security rules every generated prompt starts with. */
+export const HARDENING_MARKER = "SECURITY DIRECTIVES (highest priority)";
+
+export function isHardened(systemPrompt: string): boolean {
+  return systemPrompt.includes(HARDENING_MARKER);
+}

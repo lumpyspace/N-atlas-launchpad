@@ -291,7 +291,7 @@ export function buildPlanFor(
     },
     {
       title: "Attack it before launch",
-      detail: "Run the security tests, apply the hardened prompt, and re-test until the critical attacks are defended.",
+      detail: "Your prompt starts with security rules built in. Run the attacks in Test → Security after every prompt change; the exported server also blocks prompt leaks and message floods in code.",
       launchpadStep: "secure",
     },
   );

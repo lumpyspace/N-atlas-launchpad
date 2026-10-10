@@ -42,7 +42,7 @@ const STEP_LINK: Record<string, { step: Step; label: string }> = {
   playground: { step: "playground", label: N_("Open Test → Try it") },
   evaluate: { step: "evaluate", label: N_("Open Test → Test cases") },
   compare: { step: "compare", label: N_("Open Compare") },
-  secure: { step: "secure", label: N_("Open Security tests") },
+  secure: { step: "secure", label: N_("Open Test → Security") },
   export: { step: "export", label: N_("Open Export") },
 };
 

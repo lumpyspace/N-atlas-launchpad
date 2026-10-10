@@ -136,5 +136,24 @@ class NatlasTest(unittest.TestCase):
         self.assertEqual(detect_language("The rice price went up again this week in Lagos."), "en")
 
 
+class LoadEnvTest(unittest.TestCase):
+    def test_load_env(self):
+        import os
+        import tempfile
+
+        from natlas import load_env
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, ".env")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write('# comment\nNATLAS_TEST_A=one\nNATLAS_TEST_B="two words"\nNATLAS_TEST_KEEP=from-file\n')
+            os.environ["NATLAS_TEST_KEEP"] = "from-env"
+            load_env(path)
+            self.assertEqual(os.environ["NATLAS_TEST_A"], "one")
+            self.assertEqual(os.environ["NATLAS_TEST_B"], "two words")
+            self.assertEqual(os.environ["NATLAS_TEST_KEEP"], "from-env", "existing variables win")
+            load_env(os.path.join(d, "missing.env"))  # no error
+
+
 if __name__ == "__main__":
     unittest.main()

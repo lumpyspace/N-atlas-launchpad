@@ -6,10 +6,9 @@ import { LanguagePicker } from "../components/LanguageSwitcher";
 const FLOW = [
   { n: "01", label: N_("Design"), blurb: N_("Talk your idea through with N-ATLAS and watch it take shape.") },
   { n: "02", label: N_("Build"), blurb: N_("A step-by-step build guide, blueprint and system prompt.") },
-  { n: "03", label: N_("Test"), blurb: N_("Try your app, save replies as test cases, score it.") },
-  { n: "04", label: N_("Secure"), blurb: N_("Attack it before anyone else does.") },
-  { n: "05", label: N_("Improve"), blurb: N_("Apply fixes and re-test.") },
-  { n: "06", label: N_("Export"), blurb: N_("Leave with code, tests, CI and training data.") },
+  { n: "03", label: N_("Knowledge"), blurb: N_("Upload the documents your app answers from.") },
+  { n: "04", label: N_("Test"), blurb: N_("Try your app, save replies as test cases, and attack it — security is built in from the start.") },
+  { n: "05", label: N_("Ship"), blurb: N_("Download an app you can open in a browser, with tests, CI and safety checks in code.") },
 ];
 
 const DEV_FEATURES = [
@@ -46,7 +45,7 @@ const DEV_FEATURES = [
   {
     title: N_("Export that keeps working"),
     body: N_(
-      "A runnable JS or Python project with a scored test runner, a GitHub Actions workflow, and your 👍 replies as fine-tuning data (JSONL).",
+      "A JavaScript or Python app with its own chat page — unzip, start it, open it in your browser — plus a scored test runner, a GitHub Actions workflow and your 👍 replies as fine-tuning data.",
     ),
   },
 ];

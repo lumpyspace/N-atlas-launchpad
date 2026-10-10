@@ -33,3 +33,4 @@ inference/*.gguf
 /package-lock.json
 
 scripts/.translate-cache/
+backend/.tmp-export/

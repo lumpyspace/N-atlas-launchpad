@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useProject, useWorkspace } from "../state/ProjectContext";
+import { getBlueprint } from "../api";
 import { Badge, Button, Card } from "../ui";
 import { downloadProjectZip, listProjectFiles } from "../export/zip";
 import type { ExportLang, ProjectInput } from "../export/templates";
 import { downloadSdk } from "../utils/sdkDownload";
 import { useT } from "../i18n";
+import { RunProgress } from "../components/RunProgress";
+import { catLabel, useSecurityRun } from "./Secure";
+import { isHardened } from "../utils/prompt";
 
 export default function Export() {
   const { state, dispatch } = useProject();
@@ -16,6 +20,21 @@ export default function Export() {
   const [error, setError] = useState<string | null>(null);
 
   const bp = state.blueprint;
+
+  // Projects built before the app kit carry an older server (no chat page, .env or safety checks):
+  // fetch today's server for the same kind of app, keeping everything else the developer made.
+  const oldServer = !!bp?.buildPlan?.starter && !bp.buildPlan.starter.code.includes("loadEnvFile");
+  useEffect(() => {
+    if (!oldServer || !bp?.buildPlan || !state.description) return;
+    getBlueprint(state.description, bp.buildPlan.useCase.ids[0])
+      .then((fresh) => {
+        if (fresh.buildPlan?.starter) {
+          dispatch({ type: "patchBlueprint", patch: { buildPlan: { ...bp.buildPlan!, starter: fresh.buildPlan.starter } } });
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oldServer]);
   if (!bp) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
@@ -34,6 +53,14 @@ export default function Export() {
     savedTestCases: state.savedTestCases,
     knowledge: state.knowledge,
     language: state.language,
+    // The chat page's text, in the project's language.
+    page: {
+      placeholder: t("Type your message…"),
+      send: t("Send"),
+      thinking: t("Thinking…"),
+      error: t("Something went wrong — please try again."),
+      poweredBy: t("Powered by N-ATLAS"),
+    },
   };
   const files = listProjectFiles(input, lang);
 
@@ -101,6 +128,8 @@ export default function Export() {
         </Card>
       </div>
 
+      <LaunchCheck />
+
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
@@ -121,7 +150,7 @@ export default function Export() {
       <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-6">
         <Button
           variant="secondary"
-          onClick={() => dispatch({ type: "setStep", step: "secure" })}
+          onClick={() => dispatch({ type: "setStep", step: "playground" })}
         >
           ← {t("Back")}
         </Button>
@@ -135,6 +164,82 @@ export default function Export() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Before download: the quick attacks against the prompt being shipped. Runs by
+ * itself when there's no result for this prompt yet; never blocks the download.
+ */
+function LaunchCheck() {
+  const { state, dispatch } = useProject();
+  const t = useT();
+  const { live, error, attack, stop, stale } = useSecurityRun();
+  const run = state.securityResult;
+  const fresh = !!run && !run.partial && !stale;
+  // Check by itself when there's no result for this prompt (each time the page opens).
+  useEffect(() => {
+    if (!fresh) attack(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const failed = run?.results.filter((r) => !r.passed) ?? [];
+  const tone = !fresh ? "border-slate-200 bg-white" : failed.length ? "border-amber-200 bg-amber-50" : "border-forge-200 bg-forge-50";
+  return (
+    <Card className={`mt-6 border p-5 ${tone}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-900">🛡 {t("Launch check")}</h2>
+        {!live && (
+          <button onClick={() => attack(true)} className="text-xs font-medium text-forge-700 hover:underline">
+            {t("Run again")}
+          </button>
+        )}
+      </div>
+      {!isHardened(state.systemPrompt) && (
+        <p className="mt-2 text-sm text-amber-800">
+          {t("Your prompt is missing its security rules — they were probably removed while editing. Without them, attacks get through far more often.")}{" "}
+          <button onClick={() => dispatch({ type: "setStep", step: "secure" })} className="font-medium underline">
+            {t("Fix it in Test → Security")}
+          </button>
+        </p>
+      )}
+      {live ? (
+        <>
+          <p className="mt-1 text-sm text-slate-500">
+            {t("Attacking your app with the quick security check before you ship. You can download meanwhile.")}
+          </p>
+          <RunProgress run={live} onStop={stop} />
+        </>
+      ) : fresh ? (
+        failed.length === 0 ? (
+          <p className="mt-1 text-sm text-forge-800">
+            {t("✓ Your app defended every attack ({total}) — security score {score}.", { total: run!.summary.total, score: run!.summary.score })}
+          </p>
+        ) : (
+          <div className="mt-1 text-sm text-amber-900">
+            <p>
+              {t("{failed} of {total} attacks got through (security score {score}). Your exported server still blocks prompt leaks, message floods and over-long messages in code — but look at these before real users do:", {
+                failed: failed.length,
+                total: run!.summary.total,
+                score: run!.summary.score,
+              })}
+            </p>
+            <ul className="mt-2 list-disc space-y-0.5 pl-5">
+              {failed.map((r) => (
+                <li key={r.id}>
+                  {t(catLabel(r.category))} — {t(r.severity)}
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => dispatch({ type: "setStep", step: "secure" })} className="mt-2 font-medium underline">
+              {t("See the details in Test → Security")}
+            </button>
+          </div>
+        )
+      ) : (
+        <p className="mt-1 text-sm text-slate-500">{error ?? t("Not checked yet for this version of your prompt.")}</p>
+      )}
+    </Card>
   );
 }
 

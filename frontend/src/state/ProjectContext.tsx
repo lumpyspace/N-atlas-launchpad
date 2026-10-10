@@ -44,21 +44,6 @@ export type Step =
   | "improve"
   | "export";
 
-export const STEPS: { key: Step; label: string }[] = [
-  { key: "describe", label: "Design" },
-  { key: "blueprint", label: "Build" },
-  // One "Test" step: "playground" (try it) and "evaluate" (test cases & scores) are its two tabs.
-  { key: "playground", label: "Test" },
-  { key: "secure", label: "Secure" },
-  { key: "improve", label: "Improve" },
-  { key: "export", label: "Export" },
-];
-
-export function stepIndex(step: Step): number {
-  // "evaluate" is the second tab of the Test step, and Compare is a tool opened from it.
-  const key = step === "evaluate" || step === "compare" ? "playground" : step;
-  return STEPS.findIndex((s) => s.key === key);
-}
 
 /** A single developer-saved test case from the Playground. */
 export interface SavedTestCase {
@@ -83,6 +68,8 @@ export interface ProjectState {
   systemPrompt: string;
   evalResult: SuiteRunResult | null;
   securityResult: SecurityRunResult | null;
+  /** The system prompt securityResult was run against (stale once the prompt changes). */
+  securityPrompt?: string;
   securityBaseline: SecurityRunResult | null;
   improvement: Improvement | null;
   /** Test cases saved from the Playground for developer review in Evaluate. */
@@ -234,7 +221,7 @@ function reducer(state: ProjectState, action: Action): ProjectState {
     case "setEvalResult":
       return { ...state, evalResult: action.result };
     case "setSecurityResult":
-      return { ...state, securityResult: action.result };
+      return { ...state, securityResult: action.result, securityPrompt: action.result ? state.systemPrompt : undefined };
     case "setSecurityBaseline":
       return { ...state, securityBaseline: action.result };
     case "setImprovement":
