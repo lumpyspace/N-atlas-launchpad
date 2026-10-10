@@ -29,6 +29,7 @@ export default function Export() {
     evalResult: state.evalResult,
     securityResult: state.securityResult,
     savedTestCases: state.savedTestCases,
+    knowledge: state.knowledge,
   };
   const files = listProjectFiles(input, lang);
 

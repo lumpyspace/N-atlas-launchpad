@@ -8,6 +8,8 @@
 import type { Blueprint, SecurityRunResult, SuiteRunResult } from "../api";
 import type { SavedTestCase } from "../state/ProjectContext";
 import { testKitFiles } from "./testkit";
+import { JS_CHAT_WITH_KNOWLEDGE, knowledgeFiles, PY_CHAT_WITH_KNOWLEDGE, wireServer } from "./knowledgeKit";
+import type { KDoc } from "../utils/knowledge";
 
 export interface ProjectInput {
   blueprint: Blueprint;
@@ -16,6 +18,8 @@ export interface ProjectInput {
   securityResult: SecurityRunResult | null;
   /** The developer's own test cases (with checks) and 👍/👎 verdicts. */
   savedTestCases: SavedTestCase[];
+  /** Documents the app answers from. */
+  knowledge?: KDoc[];
 }
 
 export type ExportLang = "js" | "python";
@@ -59,12 +63,32 @@ export function buildProject(
   const evals = JSON.stringify(evalTests(input.evalResult), null, 2);
   const secs = JSON.stringify(securityTests(input.securityResult), null, 2);
 
-  const files = {
+  const files: Record<string, string> = {
     ...(lang === "js"
       ? jsFiles(name, input.blueprint, sp, evals, secs, input.savedTestCases.length)
       : pyFiles(name, input.blueprint, sp, evals, secs, input.savedTestCases.length)),
     ...testKitFiles(name, input.systemPrompt, input.savedTestCases, lang),
   };
+
+  // Knowledge: ship the passages and the search, and use them in the app.
+  const docs = input.knowledge ?? [];
+  if (docs.length) {
+    Object.assign(files, knowledgeFiles(docs, lang));
+    if (lang === "js") {
+      files["src/server.js"] = wireServer(files["src/server.js"]);
+      files["src/chat.js"] = JS_CHAT_WITH_KNOWLEDGE;
+    } else {
+      files["chat.py"] = PY_CHAT_WITH_KNOWLEDGE;
+    }
+    const passages = docs.reduce((s, d) => s + d.chunks.length, 0);
+    files["README.md"] +=
+      `\n## Knowledge\n\n` +
+      `\`knowledge/passages.json\` holds ${passages} passages from your ${docs.length} document${docs.length === 1 ? "" : "s"} ` +
+      `(${docs.map((d) => d.name).join(", ")}). For each question, ` +
+      (lang === "js" ? "`src/knowledge.js`" : "`knowledge_search.py`") +
+      ` finds the 3 most relevant passages (keyword search, accent-insensitive) and adds them to the prompt with an ` +
+      `instruction to answer only from them — the same as in Launchpad. To update, re-export or edit the JSON.\n`;
+  }
 
   return { files, rootDir: root };
 }
