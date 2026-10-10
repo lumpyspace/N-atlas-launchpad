@@ -39,7 +39,17 @@ export default function PromptStudio() {
       diagnosePrompt(
         {
           systemPrompt: prompt,
-          data: state.playgroundData,
+          // Worst case per question: the 3 largest knowledge passages + extra facts.
+          data: [
+            ...state.knowledge
+              .flatMap((d) => d.chunks)
+              .sort((a, b) => b.text.length - a.text.length)
+              .slice(0, 3)
+              .map((c) => c.text),
+            state.playgroundData,
+          ]
+            .filter((t) => t.trim())
+            .join("\n\n"),
           languages: bp?.languages,
           needsKnowledge: !!bp?.buildPlan?.knowledge?.needed,
           maxTokens: replyTokens,
@@ -54,7 +64,7 @@ export default function PromptStudio() {
       clearTimeout(t);
       ctrl.abort();
     };
-  }, [prompt, state.playgroundData, replyTokens, bp]);
+  }, [prompt, state.playgroundData, state.knowledge, replyTokens, bp]);
 
   const latest = state.promptVersions[0];
   const unsaved = !latest || latest.text !== prompt;

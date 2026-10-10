@@ -6,6 +6,8 @@ import { checkLangMismatch, detectLang, hasYorubaToneMarks } from "../utils/lang
 import { BAD_REASONS, checksForRating, suggestChecks, withContext } from "../utils/testCases";
 import { GetCode } from "./GetCode";
 import { RateAnswer, type Rating } from "./RateAnswer";
+import { SourcesList, type Source } from "./SourcesList";
+import { formatHits, search } from "../utils/knowledge";
 import { TaskRunner } from "./TaskRunner";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -29,6 +31,10 @@ interface Msg {
   savedId?: string;
   /** How the developer rated this reply (once saved as a test case). */
   rating?: Rating;
+  /** Facts sent with this question (knowledge passages + extra facts). */
+  context?: string;
+  /** Knowledge passages used for this reply. */
+  sources?: Source[];
   translation?: string;
   translationLoading?: boolean;
 }
@@ -168,9 +174,19 @@ export default function Playground({ health, embedded = false }: { health: Healt
     );
   }
 
-  function buildOptions(lang = language): GenerateOptions {
+  /**
+   * Facts for one question: the most relevant knowledge passages (if the
+   * project has documents) plus any extra facts typed into the panel.
+   */
+  function factsFor(question: string): { context: string; sources: Source[] } {
+    const hits = state.knowledge.length ? search(state.knowledge, question, 3) : [];
+    const context = [formatHits(hits), state.playgroundData.trim()].filter(Boolean).join("\n\n");
+    return { context, sources: hits.map((h) => ({ doc: h.doc.name, index: h.index, text: h.chunk.text })) };
+  }
+
+  function buildOptions(lang = language, context = state.playgroundData): GenerateOptions {
     return {
-      system: withContext(state.systemPrompt, state.playgroundData) || undefined,
+      system: withContext(state.systemPrompt, context) || undefined,
       language: lang,
       temperature: shortAnswers ? 0.1 : temperature,
       maxTokens: shortAnswers ? 150 : maxTokens,
@@ -186,7 +202,16 @@ export default function Playground({ health, embedded = false }: { health: Healt
 
     const userMsg: Msg = { id: nextId(), role: "user", text: prompt, language };
     const asstId = nextId();
-    const asstMsg: Msg = { id: asstId, role: "assistant", text: "", language, streaming: true };
+    const facts = factsFor(prompt);
+    const asstMsg: Msg = {
+      id: asstId,
+      role: "assistant",
+      text: "",
+      language,
+      streaming: true,
+      context: facts.context,
+      sources: facts.sources,
+    };
     setMessages((m) => [...m, userMsg, asstMsg]);
     setLoading(true);
 
@@ -206,7 +231,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
     try {
       let fullText = "";
 
-      for await (const event of streamGenerate(prompt, buildOptions(), ctrl.signal)) {
+      for await (const event of streamGenerate(prompt, buildOptions(language, facts.context), ctrl.signal)) {
         clearTimeout(timeout);
         timeout = setTimeout(onIdle, IDLE_MS);
         if (event.type === "delta") {
@@ -638,6 +663,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
               template={activeTemplate}
               systemPrompt={state.systemPrompt}
               data={state.playgroundData}
+              knowledge={state.knowledge}
               temperature={temperature}
               onSave={(tc) => dispatch({ type: "addTestCase", testCase: tc })}
             />
@@ -658,6 +684,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
                     <BubbleRow
                       key={m.id}
                       msg={m}
+                      hasKnowledge={state.knowledge.length > 0}
                       onRate={(rating) => {
                         const userMessage = prevUser?.text ?? "";
                         // The dropdown defaults to English; trust what the user actually typed.
@@ -677,7 +704,8 @@ export default function Playground({ health, embedded = false }: { health: Healt
                           expectedBehavior: expected,
                           savedAt: new Date().toISOString(),
                           checks,
-                          context: state.playgroundData.trim() || undefined,
+                          // Exactly the facts this reply was given, so re-runs replay them.
+                          context: (m.context ?? state.playgroundData).trim() || undefined,
                         };
                         dispatch({ type: "addTestCase", testCase: tc });
                         setMessages((ms) => ms.map((x) => (x.id === m.id ? { ...x, savedId: tc.id, rating } : x)));
@@ -756,15 +784,32 @@ export default function Playground({ health, embedded = false }: { health: Healt
                 </button>
               )}
             </div>
-            <p className="mb-2 text-[11px] leading-snug text-slate-500">
-              {spec?.dataLabel ? `${spec.dataLabel}: ` : ""}facts your app answers from. Paste your own — they're saved
-              with each test.
-            </p>
+            {state.knowledge.length > 0 ? (
+              <div className="mb-2 rounded-lg border border-forge-200 bg-forge-50/60 p-2 text-[11px] leading-snug text-slate-600">
+                📚 <b>{state.knowledge.length} document{state.knowledge.length === 1 ? "" : "s"}</b> (
+                {state.knowledge.reduce((s, d) => s + d.chunks.length, 0)} passages). The most relevant passages are
+                added to each question automatically.{" "}
+                <button onClick={() => dispatch({ type: "setStep", step: "knowledge" })} className="font-medium text-forge-700 hover:underline">
+                  Manage →
+                </button>
+              </div>
+            ) : (
+              <p className="mb-2 text-[11px] leading-snug text-slate-500">
+                {spec?.dataLabel ? `${spec.dataLabel}: ` : ""}facts your app answers from — saved with each test.{" "}
+                <button onClick={() => dispatch({ type: "setStep", step: "knowledge" })} className="font-medium text-forge-600 hover:underline">
+                  Upload documents instead →
+                </button>
+              </p>
+            )}
             <textarea
-              className="h-32 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs leading-relaxed text-slate-700 focus:border-forge-500 focus:outline-none"
+              className={`${state.knowledge.length ? "h-20" : "h-32"} w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs leading-relaxed text-slate-700 focus:border-forge-500 focus:outline-none`}
               value={state.playgroundData}
               onChange={(e) => dispatch({ type: "setPlaygroundData", data: e.target.value })}
-              placeholder="e.g. a price list, an order record, your lecture notes, a law extract…"
+              placeholder={
+                state.knowledge.length
+                  ? "Extra facts for every question (optional)…"
+                  : "e.g. a price list, an order record, your lecture notes, a law extract…"
+              }
             />
           </Card>
 
@@ -943,10 +988,12 @@ function BubbleRow({
   msg,
   onRate,
   onShowTranslation,
+  hasKnowledge = false,
 }: {
   msg: Msg;
   onRate: (rating: Rating) => void;
   onShowTranslation: () => void;
+  hasKnowledge?: boolean;
 }) {
   if (msg.role === "user") {
     return (
@@ -1018,6 +1065,8 @@ function BubbleRow({
             )}
           </div>
         )}
+
+        {!msg.streaming && !msg.error && <SourcesList sources={msg.sources} hasKnowledge={hasKnowledge} />}
 
         {/* One-tap rating: saves the exchange as a test case */}
         {!msg.streaming && !msg.error && <RateAnswer saved={msg.rating} onRate={onRate} />}

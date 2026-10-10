@@ -13,6 +13,7 @@ import Improve from "./screens/Improve";
 import Export from "./screens/Export";
 import Test from "./screens/Test";
 import PromptStudio from "./screens/PromptStudio";
+import Knowledge from "./screens/Knowledge";
 
 export default function App() {
   return (
@@ -69,6 +70,8 @@ function renderStep(step: string, health: HealthStatus | null) {
       return <Blueprint />;
     case "prompt":
       return <PromptStudio />;
+    case "knowledge":
+      return <Knowledge />;
     case "playground":
     case "evaluate":
       return <Test health={health} />;

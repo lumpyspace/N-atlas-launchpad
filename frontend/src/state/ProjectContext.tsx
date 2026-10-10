@@ -18,6 +18,7 @@ import type {
   SecurityRunResult,
   SuiteRunResult,
 } from "../api";
+import type { KDoc } from "../utils/knowledge";
 
 /**
  * Workspace state: several projects, one open at a time. Screens use
@@ -32,6 +33,7 @@ export type Step =
   | "describe"
   | "blueprint"
   | "prompt"
+  | "knowledge"
   | "playground"
   | "evaluate"
   | "compare"
@@ -94,6 +96,8 @@ export interface ProjectState {
   exportedAt?: string;
   /** Saved versions of the system prompt, newest first. */
   promptVersions: PromptVersion[];
+  /** The app's documents; relevant passages are added to each question. */
+  knowledge: KDoc[];
 }
 
 export interface PromptVersion {
@@ -148,6 +152,7 @@ const initialState: ProjectState = {
   playgroundData: "",
   design: EMPTY_DESIGN,
   promptVersions: [],
+  knowledge: [],
 };
 
 type Action =
@@ -171,6 +176,8 @@ type Action =
   | { type: "markExported" }
   | { type: "savePromptVersion"; label: string }
   | { type: "deletePromptVersion"; id: string }
+  | { type: "addKnowledge"; doc: KDoc }
+  | { type: "removeKnowledge"; id: string }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -250,6 +257,10 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       };
       return { ...state, promptVersions: [v, ...state.promptVersions].slice(0, 50) };
     }
+    case "addKnowledge":
+      return { ...state, knowledge: [...state.knowledge, action.doc] };
+    case "removeKnowledge":
+      return { ...state, knowledge: state.knowledge.filter((d) => d.id !== action.id) };
     case "deletePromptVersion":
       return { ...state, promptVersions: state.promptVersions.filter((v) => v.id !== action.id) };
     case "markExported":

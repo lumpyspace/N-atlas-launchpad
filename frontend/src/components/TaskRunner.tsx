@@ -5,6 +5,8 @@ import { Badge, Button, Card, Spinner } from "../ui";
 import { detectLang } from "../utils/langDetect";
 import { BAD_REASONS, checksForRating, renderTemplate, withContext } from "../utils/testCases";
 import { RateAnswer, type Rating } from "./RateAnswer";
+import { SourcesList, type Source } from "./SourcesList";
+import { formatHits, search, type KDoc } from "../utils/knowledge";
 
 /** Mirror of backend extractJson/shapeErrors (eval/checks.ts). */
 function checkJson(text: string, schema: Record<string, JsonType>): { value?: unknown; errors: string[] } {
@@ -38,6 +40,12 @@ interface Result {
   error?: string;
 }
 
+/** Facts and passages used for one run. */
+interface Facts {
+  context: string;
+  sources: Source[];
+}
+
 /**
  * Form → result mode: fill the template's fields, run one request with the
  * app's system prompt and "Your data", and check JSON output against its shape.
@@ -46,12 +54,15 @@ export function TaskRunner({
   template,
   systemPrompt,
   data,
+  knowledge,
   temperature,
   onSave,
 }: {
   template: TaskTemplate;
   systemPrompt: string;
   data: string;
+  /** The project's documents; relevant passages are added per run. */
+  knowledge: KDoc[];
   temperature: number;
   onSave: (tc: SavedTestCase) => void;
 }) {
@@ -59,6 +70,7 @@ export function TaskRunner({
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [result, setResult] = useState<Result | null>(null);
   const [saved, setSaved] = useState<Rating | null>(null);
+  const [facts, setFacts] = useState<Facts | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // A different template resets the form.
@@ -78,12 +90,18 @@ export function TaskRunner({
     abortRef.current = ctrl;
     setSaved(null);
     let text = "";
+    const hits = knowledge.length ? search(knowledge, prompt, 3) : [];
+    const used: Facts = {
+      context: [formatHits(hits), data.trim()].filter(Boolean).join("\n\n"),
+      sources: hits.map((h) => ({ doc: h.doc.name, index: h.index, text: h.chunk.text })),
+    };
+    setFacts(used);
     setResult({ text: "", done: false });
     try {
       for await (const e of streamGenerate(
         prompt,
         {
-          system: withContext(systemPrompt, data) || undefined,
+          system: withContext(systemPrompt, used.context) || undefined,
           temperature,
           maxTokens: template.maxTokens ?? 300,
         },
@@ -133,7 +151,8 @@ export function TaskRunner({
       expectedBehavior: fromRating.expected,
       savedAt: new Date().toISOString(),
       checks,
-      context: data.trim() || undefined,
+      // Exactly the facts this run was given, so re-runs replay them.
+      context: (facts?.context ?? data).trim() || undefined,
     });
     setSaved(rating);
   }
@@ -195,6 +214,11 @@ export function TaskRunner({
           </div>
           <div className="whitespace-pre-wrap text-sm text-slate-800">{result.text || (running ? "" : "(empty)")}</div>
           {result.error && <div className="mt-2 text-sm text-red-600">{result.error}</div>}
+          {result.done && (
+            <div className="mt-2">
+              <SourcesList sources={facts?.sources} hasKnowledge={knowledge.length > 0} />
+            </div>
+          )}
 
           {json && (
             <div
