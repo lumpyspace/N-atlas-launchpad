@@ -180,7 +180,14 @@ function TopBar({
           </button>
           <ModeBadge health={health} />
           <button
-            onClick={() => { setOpen(o => !o); setErr(null); setTimeout(() => inputRef.current?.focus(), 50); }}
+            onClick={() => {
+              // Start from what the backend is actually using, so "Connect" never quietly reverts a custom model.
+              if (!open && health?.endpoint) setEndpoint(health.endpoint.replace(/\/chat\/completions\/?$/, ""));
+              if (!open && health?.model) setModel(health.model);
+              setOpen(o => !o);
+              setErr(null);
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
             className={
               isConnected
                 ? "rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50 transition-colors"

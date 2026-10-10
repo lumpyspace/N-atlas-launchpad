@@ -1,0 +1,16 @@
+# N-ATLAS with its full context window and the model card's recommended settings.
+#
+# Built on top of the installed `n-atlas` model (no new download):
+#   ollama create n-atlas-8k -f ./Modelfile.8k
+# then set NATLAS_MODEL=n-atlas-8k in backend/.env.
+#
+# Compared with ./Modelfile (num_ctx 4096): N-ATLAS sees up to ~8k tokens of
+# prompt + documents + history instead of having the start silently cut off,
+# at the cost of ~0.5 GB more memory while the model is loaded.
+# To go back: set NATLAS_MODEL=n-atlas again.
+FROM n-atlas
+
+PARAMETER num_ctx 8192
+PARAMETER temperature 0.1
+PARAMETER repeat_penalty 1.12
+PARAMETER stop "<|eot_id|>"
