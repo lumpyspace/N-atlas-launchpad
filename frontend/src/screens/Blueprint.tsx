@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getBlueprint } from "../api";
 import { BuildGuide } from "../components/BuildGuide";
+import { useNarration } from "../components/useNarration";
 import { useProject } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 import { N_, useT } from "../i18n";
@@ -11,6 +12,8 @@ export default function Blueprint() {
   const { state, dispatch } = useProject();
   const t = useT();
   const bp = state.blueprint;
+  // N-ATLAS writes the guide's words in the project's language (the engine keeps the facts).
+  const narr = useNarration(bp?.buildPlan?.useCase ? bp : null);
   const [tab, setTab] = useState<Tab>("guide");
   const [loadingPlan, setLoadingPlan] = useState(false);
 
@@ -54,7 +57,13 @@ export default function Blueprint() {
             <Badge tone="green">{t(bp.buildPlan?.useCase?.label ?? sectorLabel(bp.sector))}</Badge>
           </div>
           <p className="mt-2 max-w-2xl text-slate-600">
-            {bp.purpose.charAt(0).toUpperCase() + bp.purpose.slice(1).replace(/[.!?]*$/, ".")}
+            {narr.value<string>("purpose") ??
+              bp.purpose.charAt(0).toUpperCase() + bp.purpose.slice(1).replace(/[.!?]*$/, ".")}
+            {narr.value("purpose") && (
+              <span title={t("Written by N-ATLAS")} className="ml-2 rounded-full bg-forge-50 px-2 py-0.5 align-middle text-[10px] font-semibold text-forge-700">
+                ✍ N-ATLAS
+              </span>
+            )}
           </p>
         </div>
       </div>
@@ -84,6 +93,7 @@ export default function Blueprint() {
             <BuildGuide
               plan={bp.buildPlan}
               appName={bp.name}
+              narr={narr}
               onChangeUseCase={async (id) => {
                 const fresh = await getBlueprint(state.description, id);
                 dispatch({ type: "setBlueprint", blueprint: fresh });

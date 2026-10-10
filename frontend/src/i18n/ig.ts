@@ -438,8 +438,6 @@ const dict: Record<string, string> = {
   "The workflow": "Usoro ọrụ",
   "This blueprint was created before the latest build guide. Generate it now — your edited system prompt and test results are kept.":
     "E mepụtara blueprint a tupu ntuziaka iwu ọhụrụ. Mepụta ya ugbu a — a ga-edobe system prompt ị deziri na nsonaazụ nnwale gị.",
-  "This guide's details are written in English for now; headings and buttons are in your language.":
-    "Ka ugbu a, e dere nkọwa ntuziaka a na Bekee; isiokwu na bọtịnụ dị n'asụsụ gị.",
   "This project's language": "Asụsụ ọrụ a",
   "This project's language: pages and N-ATLAS replies use it": "Asụsụ ọrụ a: ibe na azịza N-ATLAS na-eji ya",
   "Time to first token": "Oge ruo token mbụ",
@@ -612,6 +610,19 @@ const dict: Record<string, string> = {
   "~{tokens} tokens · {words} words": "~{tokens} tokens · mkpụrụokwu {words}",
   "~{total} of {limit} tokens ({pct}%)": "~{total} n'ime {limit} tokens ({pct}%)",
   "⌘/Ctrl + Enter to continue": "⌘/Ctrl + Enter ka ịga n'ihu",
+  "Sections marked ✍ N-ATLAS were written by N-ATLAS in your language; the rest of this guide is still in English.": "N-ATLAS dere akụkụ ndị nwere akara ✍ N-ATLAS n'asụsụ gị; ihe fọdụrụ na ntuziaka a ka dị na Bekee.",
+  "✍ N-ATLAS is writing this guide in {language}…": "✍ N-ATLAS na-ede ntuziaka a na {language}…",
+  "{done} of {total} sections": "akụkụ {done} n'ime {total}",
+  "You can read the guide meanwhile; sections update as they're written.": "Ị nwere ike ịgụ ntuziaka ahụ ka ọ na-aga; akụkụ ọ bụla ga-emelite ka e dere ya.",
+  "N-ATLAS couldn't write the guide: {error}": "N-ATLAS enweghị ike ide ntuziaka ahụ: {error}",
+  "Try again": "Nwaa ọzọ",
+  "Let N-ATLAS write this guide in {language}": "Kwe ka N-ATLAS dee ntuziaka a na {language}",
+  "{n} sections written by N-ATLAS in {language}": "N-ATLAS dere akụkụ {n} na {language}",
+  "{n} kept the guide's own text": "{n} jigidere ederede ntuziaka n'onwe ya",
+  "Try those again": "Nwaa ndị ahụ ọzọ",
+  "Written by N-ATLAS": "N-ATLAS dere ya",
+  "Rewrite": "Dee ya ọzọ",
+  "N-ATLAS's version didn't pass a check ({problem}), so this is the guide's own text.": "Ụdị nke N-ATLAS agafeghị otu nlele ({problem}), ya mere nke a bụ ederede ntuziaka n'onwe ya.",
 };
 
 export default dict;

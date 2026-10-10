@@ -438,8 +438,6 @@ const dict: Record<string, string> = {
   "The workflow": "Bí iṣẹ́ ṣe ń lọ",
   "This blueprint was created before the latest build guide. Generate it now — your edited system prompt and test results are kept.":
     "A ṣẹ̀dá blueprint yìí ṣáájú ìtọ́sọ́nà kíkọ́ tuntun. Ṣẹ̀dá rẹ̀ báyìí — system prompt tí o tún ṣe àti èsì ìdánwò rẹ á wà síbẹ̀.",
-  "This guide's details are written in English for now; headings and buttons are in your language.":
-    "Fún báyìí, àwọn àlàyé inú ìtọ́sọ́nà yìí wà ní Gẹ̀ẹ́sì; àwọn àkọlé àti bọ́tìnnì wà ní èdè rẹ.",
   "This project's language": "Èdè iṣẹ́ akanṣe yìí",
   "This project's language: pages and N-ATLAS replies use it": "Èdè iṣẹ́ akanṣe yìí: àwọn ojú ìwé àti ìdáhùn N-ATLAS ń lò ó",
   "Time to first token": "Àkókò títí di token àkọ́kọ́",
@@ -612,6 +610,19 @@ const dict: Record<string, string> = {
   "~{tokens} tokens · {words} words": "~{tokens} tokens · ọ̀rọ̀ {words}",
   "~{total} of {limit} tokens ({pct}%)": "~{total} nínú {limit} tokens ({pct}%)",
   "⌘/Ctrl + Enter to continue": "⌘/Ctrl + Enter láti tẹ̀síwájú",
+  "Sections marked ✍ N-ATLAS were written by N-ATLAS in your language; the rest of this guide is still in English.": "N-ATLAS ló kọ àwọn apá tí a sàmì sí ✍ N-ATLAS ní èdè rẹ; ìyókù ìtọ́sọ́nà yìí ṣì wà ní Gẹ̀ẹ́sì.",
+  "✍ N-ATLAS is writing this guide in {language}…": "✍ N-ATLAS ń kọ ìtọ́sọ́nà yìí ní {language}…",
+  "{done} of {total} sections": "apá {done} nínú {total}",
+  "You can read the guide meanwhile; sections update as they're written.": "O lè ka ìtọ́sọ́nà náà ní báyìí ná; àwọn apá á yí padà bí wọ́n ṣe ń kọ wọ́n.",
+  "N-ATLAS couldn't write the guide: {error}": "N-ATLAS kò lè kọ ìtọ́sọ́nà náà: {error}",
+  "Try again": "Gbìyànjú lẹ́ẹ̀kan sí i",
+  "Let N-ATLAS write this guide in {language}": "Jẹ́ kí N-ATLAS kọ ìtọ́sọ́nà yìí ní {language}",
+  "{n} sections written by N-ATLAS in {language}": "N-ATLAS kọ apá {n} ní {language}",
+  "{n} kept the guide's own text": "{n} ṣì lo ọ̀rọ̀ ìtọ́sọ́nà fúnra rẹ̀",
+  "Try those again": "Tún àwọn yẹn gbìyànjú",
+  "Written by N-ATLAS": "N-ATLAS ló kọ ọ́",
+  "Rewrite": "Tún un kọ",
+  "N-ATLAS's version didn't pass a check ({problem}), so this is the guide's own text.": "Ẹ̀dà N-ATLAS kò yege àyẹ̀wò kan ({problem}), nítorí náà ọ̀rọ̀ ìtọ́sọ́nà fúnra rẹ̀ nìyí.",
 };
 
 export default dict;

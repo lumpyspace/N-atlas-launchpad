@@ -691,3 +691,26 @@ export async function diagnosePrompt(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+
+// ── N-ATLAS writes the build guide ───────────────────────────────────────────
+
+export type NarrationSection = "purpose" | "summary" | "conversation" | "mvp" | "features" | "pitfalls";
+export const NARRATION_SECTIONS: NarrationSection[] = ["purpose", "summary", "conversation", "mvp", "features", "pitfalls"];
+
+export type NarrationValue = string | string[] | { user: string; app: string } | { task: string; how: string }[];
+
+export type NarrationEvent =
+  | { type: "start"; section: NarrationSection }
+  | { type: "delta"; section: NarrationSection; delta: string }
+  | { type: "section"; section: NarrationSection; value?: NarrationValue; problem?: string }
+  | { type: "error"; section: NarrationSection; message: string }
+  | { type: "done" };
+
+/** N-ATLAS writes the guide's sections in the project's language, one after another. */
+export async function streamNarration(
+  body: { blueprint: Blueprint; language: string; sections?: NarrationSection[] },
+  onEvent: (e: NarrationEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  await streamRun<never, never>("/api/blueprint/narrate", body, (e) => onEvent(e as unknown as NarrationEvent), signal);
+}

@@ -438,8 +438,6 @@ const dict: Record<string, string> = {
   "The workflow": "Yadda aikin yake tafiya",
   "This blueprint was created before the latest build guide. Generate it now — your edited system prompt and test results are kept.":
     "An ƙirƙiri wannan blueprint kafin sabuwar jagorar gini. Samar da ita yanzu — za a riƙe system prompt ɗin da ka gyara da sakamakon gwaje-gwajenka.",
-  "This guide's details are written in English for now; headings and buttons are in your language.":
-    "A yanzu, cikakkun bayanan wannan jagorar suna da Turanci; kanun labarai da maɓallai suna cikin harshenka.",
   "This project's language": "Harshen wannan aikin",
   "This project's language: pages and N-ATLAS replies use it": "Harshen wannan aikin: shafuka da amsoshin N-ATLAS suna amfani da shi",
   "Time to first token": "Lokaci zuwa token na farko",
@@ -612,6 +610,19 @@ const dict: Record<string, string> = {
   "~{tokens} tokens · {words} words": "~{tokens} tokens · kalmomi {words}",
   "~{total} of {limit} tokens ({pct}%)": "~{total} cikin {limit} tokens ({pct}%)",
   "⌘/Ctrl + Enter to continue": "⌘/Ctrl + Enter don ci gaba",
+  "Sections marked ✍ N-ATLAS were written by N-ATLAS in your language; the rest of this guide is still in English.": "N-ATLAS ne ya rubuta sassan da ke da alamar ✍ N-ATLAS a cikin harshenka; sauran wannan jagorar har yanzu da Turanci suke.",
+  "✍ N-ATLAS is writing this guide in {language}…": "✍ N-ATLAS na rubuta wannan jagorar da {language}…",
+  "{done} of {total} sections": "sassa {done} cikin {total}",
+  "You can read the guide meanwhile; sections update as they're written.": "Za ka iya karanta jagorar a halin yanzu; sassan za su sabunta yayin da ake rubuta su.",
+  "N-ATLAS couldn't write the guide: {error}": "N-ATLAS bai iya rubuta jagorar ba: {error}",
+  "Try again": "Sake gwadawa",
+  "Let N-ATLAS write this guide in {language}": "Bari N-ATLAS ya rubuta wannan jagorar da {language}",
+  "{n} sections written by N-ATLAS in {language}": "N-ATLAS ya rubuta sassa {n} da {language}",
+  "{n} kept the guide's own text": "{n} sun riƙe rubutun jagorar na asali",
+  "Try those again": "Sake gwada waɗancan",
+  "Written by N-ATLAS": "N-ATLAS ne ya rubuta",
+  "Rewrite": "Sake rubutawa",
+  "N-ATLAS's version didn't pass a check ({problem}), so this is the guide's own text.": "Sigar N-ATLAS ba ta ci wani bincike ba ({problem}), don haka wannan rubutun jagorar ne na asali.",
 };
 
 export default dict;

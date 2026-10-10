@@ -437,8 +437,6 @@ const dict: Record<string, string> = {
   "The workflow": "How e dey work",
   "This blueprint was created before the latest build guide. Generate it now — your edited system prompt and test results are kept.":
     "We create this blueprint before the latest build guide. Generate am now — your edited system prompt and test results go still dey.",
-  "This guide's details are written in English for now; headings and buttons are in your language.":
-    "For now, the details for this guide dey for English; headings and buttons dey for your language.",
   "This project's language": "This project language",
   "This project's language: pages and N-ATLAS replies use it": "This project language: pages and N-ATLAS answers dey use am",
   "Time to first token": "Time to first token",
@@ -611,6 +609,19 @@ const dict: Record<string, string> = {
   "~{tokens} tokens · {words} words": "~{tokens} tokens · {words} words",
   "~{total} of {limit} tokens ({pct}%)": "~{total} out of {limit} tokens ({pct}%)",
   "⌘/Ctrl + Enter to continue": "⌘/Ctrl + Enter to continue",
+  "Sections marked ✍ N-ATLAS were written by N-ATLAS in your language; the rest of this guide is still in English.": "The sections wey get ✍ N-ATLAS na N-ATLAS write them for your language; the rest of this guide still dey for English.",
+  "✍ N-ATLAS is writing this guide in {language}…": "✍ N-ATLAS dey write this guide for {language}…",
+  "{done} of {total} sections": "{done} out of {total} sections",
+  "You can read the guide meanwhile; sections update as they're written.": "You fit read the guide as e dey go; each section go update once e finish.",
+  "N-ATLAS couldn't write the guide: {error}": "N-ATLAS no fit write the guide: {error}",
+  "Try again": "Try again",
+  "Let N-ATLAS write this guide in {language}": "Make N-ATLAS write this guide for {language}",
+  "{n} sections written by N-ATLAS in {language}": "N-ATLAS write {n} sections for {language}",
+  "{n} kept the guide's own text": "{n} still use the guide own text",
+  "Try those again": "Try those ones again",
+  "Written by N-ATLAS": "Na N-ATLAS write am",
+  "Rewrite": "Write am again",
+  "N-ATLAS's version didn't pass a check ({problem}), so this is the guide's own text.": "N-ATLAS own version no pass one check ({problem}), so na the guide own text be this.",
 };
 
 export default dict;

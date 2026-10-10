@@ -15,6 +15,8 @@ import type {
   DesignSlot,
   DesignSnapshot,
   Improvement,
+  NarrationSection,
+  NarrationValue,
   SecurityRunResult,
   SuiteRunResult,
 } from "../api";
@@ -101,6 +103,26 @@ export interface ProjectState {
   knowledge: KDoc[];
   /** The project's language: N-ATLAS replies in it and Launchpad's pages are shown in it. */
   language: LangCode;
+  /** Build-guide sections written by N-ATLAS, per language, for the current blueprint. */
+  narration?: Narration;
+}
+
+/** One section N-ATLAS wrote: its value, or why it couldn't be used (the engine's text is shown instead). */
+export interface NarrationEntry {
+  value?: NarrationValue;
+  problem?: string;
+  at: string;
+}
+
+export interface Narration {
+  /** Which blueprint these were written for (see narrationKey). */
+  key: string;
+  byLanguage: Partial<Record<LangCode, Partial<Record<NarrationSection, NarrationEntry>>>>;
+}
+
+/** Changes whenever the blueprint's content does, so stale sections are rewritten. */
+export function narrationKey(bp: Blueprint): string {
+  return [bp.name, bp.targetUsers, bp.buildPlan?.useCase.ids.join("+"), bp.primaryTasks.join("|")].join("::");
 }
 
 export interface PromptVersion {
@@ -183,6 +205,8 @@ type Action =
   | { type: "addKnowledge"; doc: KDoc }
   | { type: "removeKnowledge"; id: string }
   | { type: "setLanguage"; language: LangCode }
+  | { type: "setNarrationSection"; key: string; language: LangCode; section: NarrationSection; entry: NarrationEntry }
+  | { type: "clearNarration"; language: LangCode; sections: NarrationSection[] }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -203,6 +227,7 @@ function reducer(state: ProjectState, action: Action): ProjectState {
         testRun: null,
         compare: null,
         playgroundData: action.blueprint.buildPlan?.playground?.sampleData ?? "",
+        narration: undefined,
       };
     case "setSystemPrompt":
       return { ...state, systemPrompt: action.systemPrompt };
@@ -270,6 +295,23 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, promptVersions: state.promptVersions.filter((v) => v.id !== action.id) };
     case "setLanguage":
       return { ...state, language: action.language };
+    case "setNarrationSection": {
+      const same = state.narration?.key === action.key;
+      const byLanguage = same ? state.narration!.byLanguage : {};
+      return {
+        ...state,
+        narration: {
+          key: action.key,
+          byLanguage: { ...byLanguage, [action.language]: { ...byLanguage[action.language], [action.section]: action.entry } },
+        },
+      };
+    }
+    case "clearNarration": {
+      if (!state.narration) return state;
+      const current = { ...state.narration.byLanguage[action.language] };
+      for (const s of action.sections) delete current[s];
+      return { ...state, narration: { ...state.narration, byLanguage: { ...state.narration.byLanguage, [action.language]: current } } };
+    }
     case "markExported":
       return { ...state, exportedAt: new Date().toISOString() };
     case "reset":
