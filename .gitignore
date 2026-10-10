@@ -31,3 +31,5 @@ inference/*.gguf
 /screenshots/
 /package.json
 /package-lock.json
+
+scripts/.translate-cache/
