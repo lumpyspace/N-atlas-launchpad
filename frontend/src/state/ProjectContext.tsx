@@ -20,9 +20,11 @@ import type {
 } from "../api";
 
 /**
- * Central state for the Launchpad wizard. One project lives here and flows
- * through every screen: Describe → Build → Try → Evaluate → Secure → Improve →
- * Export. Persisted to localStorage so a refresh doesn't lose work.
+ * Workspace state: several projects, one open at a time. Screens use
+ * useProject(), which reads and updates the open project only; useWorkspace()
+ * manages the list (new, open, rename, duplicate, delete) and which view is
+ * showing (landing page, My projects, or a project). Persisted to
+ * localStorage so a refresh doesn't lose work.
  */
 
 export type Step =
@@ -87,6 +89,17 @@ export interface ProjectState {
   playgroundData: string;
   /** The Design chat: conversation, the developer's answers, and the latest canvas. */
   design: DesignState;
+  /** When the starter project was last downloaded. */
+  exportedAt?: string;
+}
+
+/** A saved project in the workspace. */
+export interface Project extends ProjectState {
+  id: string;
+  /** Name chosen by the developer; otherwise the blueprint's name is shown. */
+  title?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DesignState {
@@ -111,7 +124,7 @@ export interface CompareState {
 }
 
 const initialState: ProjectState = {
-  step: "landing",
+  step: "describe",
   description: "",
   blueprint: null,
   systemPrompt: "",
@@ -144,6 +157,7 @@ type Action =
   | { type: "patchBlueprint"; patch: Partial<Blueprint> }
   | { type: "setPlaygroundData"; data: string }
   | { type: "setDesign"; design: DesignState }
+  | { type: "markExported" }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -212,6 +226,8 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, playgroundData: action.data };
     case "patchBlueprint":
       return state.blueprint ? { ...state, blueprint: { ...state.blueprint, ...action.patch } } : state;
+    case "markExported":
+      return { ...state, exportedAt: new Date().toISOString() };
     case "reset":
       return { ...initialState };
     default:
@@ -219,45 +235,199 @@ function reducer(state: ProjectState, action: Action): ProjectState {
   }
 }
 
-const STORAGE_KEY = "natlas-launchpad-project-v2";
+// ── Workspace (many projects) ────────────────────────────────────────────────
 
-function load(): ProjectState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return initialState;
-    return { ...initialState, ...(JSON.parse(raw) as Partial<ProjectState>) };
-  } catch {
-    return initialState;
+export type View = "landing" | "home" | "project";
+
+export interface WorkspaceState {
+  projects: Record<string, Project>;
+  /** Most recently updated first. */
+  order: string[];
+  currentId: string | null;
+  view: View;
+}
+
+type WorkspaceAction =
+  | { type: "project"; action: Action }
+  | { type: "newProject" }
+  | { type: "openProject"; id: string }
+  | { type: "renameProject"; id: string; title: string }
+  | { type: "duplicateProject"; id: string }
+  | { type: "deleteProject"; id: string }
+  | { type: "setView"; view: View };
+
+function newId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `p-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function makeProject(from: Partial<ProjectState> = {}): Project {
+  const now = new Date().toISOString();
+  return { ...initialState, ...from, id: newId(), createdAt: now, updatedAt: now };
+}
+
+function touch(ws: WorkspaceState, p: Project): WorkspaceState {
+  return {
+    ...ws,
+    projects: { ...ws.projects, [p.id]: p },
+    order: [p.id, ...ws.order.filter((id) => id !== p.id)],
+  };
+}
+
+function workspaceReducer(ws: WorkspaceState, action: WorkspaceAction): WorkspaceState {
+  switch (action.type) {
+    case "project": {
+      const current = ws.currentId ? ws.projects[ws.currentId] : null;
+      // Older screens navigate "home" with setStep("landing").
+      if (action.action.type === "setStep" && action.action.step === "landing") {
+        return { ...ws, view: ws.order.length ? "home" : "landing" };
+      }
+      if (!current) return ws;
+      if (action.action.type === "reset") return workspaceReducer(ws, { type: "newProject" });
+      const next = reducer(current, action.action);
+      if (next === current) return ws;
+      // Moving between tabs isn't an edit; don't reorder the project list for it.
+      const updatedAt = action.action.type === "setStep" ? current.updatedAt : new Date().toISOString();
+      const project = { ...current, ...next, updatedAt };
+      return action.action.type === "setStep"
+        ? { ...ws, projects: { ...ws.projects, [project.id]: project } }
+        : touch(ws, project);
+    }
+    case "newProject": {
+      const p = makeProject();
+      return { ...touch(ws, p), currentId: p.id, view: "project" };
+    }
+    case "openProject":
+      return ws.projects[action.id] ? { ...ws, currentId: action.id, view: "project" } : ws;
+    case "renameProject": {
+      const p = ws.projects[action.id];
+      return p ? touch(ws, { ...p, title: action.title.trim() || undefined, updatedAt: new Date().toISOString() }) : ws;
+    }
+    case "duplicateProject": {
+      const src = ws.projects[action.id];
+      if (!src) return ws;
+      const copy = makeProject({ ...src });
+      copy.title = `${projectName(src)} (copy)`;
+      return touch(ws, copy);
+    }
+    case "deleteProject": {
+      const projects = { ...ws.projects };
+      delete projects[action.id];
+      const order = ws.order.filter((id) => id !== action.id);
+      const currentId = ws.currentId === action.id ? null : ws.currentId;
+      return { ...ws, projects, order, currentId, view: currentId ? ws.view : order.length ? "home" : "landing" };
+    }
+    case "setView":
+      return { ...ws, view: action.view };
   }
 }
 
-interface ProjectContextValue {
-  state: ProjectState;
-  dispatch: React.Dispatch<Action>;
+/** Display name: the developer's title, else the blueprint's or design's name. */
+export function projectName(p: ProjectState & { title?: string }): string {
+  return p.title || p.blueprint?.name || designPreview(p)?.blueprint.name || "Untitled project";
 }
 
-const ProjectContext = createContext<ProjectContextValue | null>(null);
+/** The Design chat's live preview — only once the developer has described an idea. */
+export function designPreview(p: ProjectState) {
+  return p.design.answers.idea ? p.design.snapshot : null;
+}
+
+/** The kind of app ("Notes & study assistant"), once known. */
+export function projectKind(p: ProjectState): string | undefined {
+  return p.blueprint?.buildPlan?.useCase?.label ?? designPreview(p)?.blueprint.buildPlan?.useCase?.label;
+}
+
+const STORAGE_KEY = "natlas-launchpad-workspace-v1";
+/** The single-project store used before workspaces; imported once, never deleted. */
+const LEGACY_KEY = "natlas-launchpad-project-v2";
+
+const EMPTY_WORKSPACE: WorkspaceState = { projects: {}, order: [], currentId: null, view: "landing" };
+
+function loadWorkspace(): WorkspaceState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const ws = JSON.parse(raw) as WorkspaceState;
+      // Fill fields added after a project was saved.
+      for (const id of Object.keys(ws.projects)) {
+        ws.projects[id] = { ...initialState, ...ws.projects[id] };
+      }
+      return { ...EMPTY_WORKSPACE, ...ws };
+    }
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const old = JSON.parse(legacy) as Partial<ProjectState>;
+      if (old.blueprint || old.description || old.design?.messages?.length) {
+        const p = makeProject({ ...old, step: old.step === "landing" || !old.step ? "describe" : old.step });
+        return { projects: { [p.id]: p }, order: [p.id], currentId: null, view: "home" };
+      }
+    }
+  } catch {
+    /* corrupt or unavailable storage — start fresh */
+  }
+  return EMPTY_WORKSPACE;
+}
+
+interface ProjectContextValue {
+  state: Project;
+  dispatch: (action: Action) => void;
+}
+
+interface WorkspaceContextValue {
+  workspace: WorkspaceState;
+  current: Project | null;
+  newProject: () => void;
+  openProject: (id: string) => void;
+  renameProject: (id: string, title: string) => void;
+  duplicateProject: (id: string) => void;
+  deleteProject: (id: string) => void;
+  setView: (view: View) => void;
+  /** Update the open project (same actions screens use). */
+  dispatchProject: (action: Action) => void;
+}
+
+const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, load);
+  const [workspace, dispatch] = useReducer(workspaceReducer, undefined, loadWorkspace);
 
+  // Save shortly after changes settle (typing fires many updates).
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      /* storage full / unavailable — non-fatal */
-    }
-  }, [state]);
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+      } catch {
+        /* storage full / unavailable — non-fatal */
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [workspace]);
 
-  return (
-    <ProjectContext.Provider value={{ state, dispatch }}>
-      {children}
-    </ProjectContext.Provider>
-  );
+  const value: WorkspaceContextValue = {
+    workspace,
+    current: workspace.currentId ? workspace.projects[workspace.currentId] ?? null : null,
+    newProject: () => dispatch({ type: "newProject" }),
+    openProject: (id) => dispatch({ type: "openProject", id }),
+    renameProject: (id, title) => dispatch({ type: "renameProject", id, title }),
+    duplicateProject: (id) => dispatch({ type: "duplicateProject", id }),
+    deleteProject: (id) => dispatch({ type: "deleteProject", id }),
+    setView: (view) => dispatch({ type: "setView", view }),
+    dispatchProject: (action) => dispatch({ type: "project", action }),
+  };
+
+  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
 
-export function useProject(): ProjectContextValue {
-  const ctx = useContext(ProjectContext);
-  if (!ctx) throw new Error("useProject must be used within a ProjectProvider");
+export function useWorkspace(): WorkspaceContextValue {
+  const ctx = useContext(WorkspaceContext);
+  if (!ctx) throw new Error("useWorkspace must be used within a ProjectProvider");
   return ctx;
+}
+
+/** The open project. Only used inside the project workspace, where one is open. */
+export function useProject(): ProjectContextValue {
+  const { current, dispatchProject } = useWorkspace();
+  if (!current) throw new Error("useProject needs an open project");
+  return { state: current, dispatch: dispatchProject };
 }

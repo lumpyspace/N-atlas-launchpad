@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { getHealth, switchMode, type HealthStatus } from "./api";
-import { ProjectProvider, useProject } from "./state/ProjectContext";
-import Stepper from "./components/Stepper";
+import { ProjectProvider, useWorkspace } from "./state/ProjectContext";
 import ModeBadge, { modeHint } from "./components/ModeBadge";
+import WorkspaceLayout from "./components/WorkspaceLayout";
+import Home from "./screens/Home";
 import Landing from "./screens/Landing";
 import Describe from "./screens/Describe";
 import Blueprint from "./screens/Blueprint";
@@ -21,16 +22,16 @@ export default function App() {
 }
 
 function Shell() {
-  const { state } = useProject();
+  const { workspace, current } = useWorkspace();
   const [health, setHealth] = useState<HealthStatus | null>(null);
 
   const refreshHealth = () =>
     getHealth().then(setHealth).catch(() => setHealth(null));
 
   useEffect(() => { refreshHealth(); }, []);
-  useEffect(() => { window.scrollTo(0, 0); }, [state.step]);
+  useEffect(() => { window.scrollTo(0, 0); }, [workspace.view, current?.id, current?.step]);
 
-  if (state.step === "landing") {
+  if (workspace.view === "landing" || (workspace.view === "project" && !current)) {
     return (
       <>
         <TopBar health={health} onHealthChange={setHealth} minimal />
@@ -39,16 +40,22 @@ function Shell() {
     );
   }
 
+  if (workspace.view === "home") {
+    return (
+      <>
+        <TopBar health={health} onHealthChange={setHealth} />
+        <Home />
+      </>
+    );
+  }
+
   return (
     <>
       <TopBar health={health} onHealthChange={setHealth} />
-      <div className="border-b border-slate-200 bg-white/70 backdrop-blur">
-        <div className="mx-auto max-w-5xl px-6 py-3">
-          <Stepper />
-          <p className="mt-2 text-xs text-slate-400">{modeHint(health)}</p>
-        </div>
-      </div>
-      <main>{renderStep(state.step, health)}</main>
+      <WorkspaceLayout>
+        <p className="pt-3 text-xs text-slate-400">{modeHint(health)}</p>
+        <main>{renderStep(current!.step, health)}</main>
+      </WorkspaceLayout>
     </>
   );
 }
@@ -84,7 +91,8 @@ function TopBar({
   onHealthChange: (h: HealthStatus) => void;
   minimal?: boolean;
 }) {
-  const { dispatch } = useProject();
+  const { workspace, setView } = useWorkspace();
+  const hasProjects = workspace.order.length > 0;
   const [open, setOpen] = useState(false);
   const [endpoint, setEndpoint] = useState("http://localhost:11434/v1");
   const [model, setModel] = useState("n-atlas");
@@ -114,9 +122,10 @@ function TopBar({
 
   return (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+      <div className="mx-auto flex max-w-[90rem] items-center justify-between px-6 py-3">
+        <div className="flex items-center gap-5">
         <button
-          onClick={() => dispatch({ type: "setStep", step: "landing" })}
+          onClick={() => setView("landing")}
           className="flex items-center gap-2"
         >
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-forge-500 text-sm font-bold text-white">
@@ -126,6 +135,15 @@ function TopBar({
             N-ATLAS Launchpad
           </span>
         </button>
+        {hasProjects && (
+          <button
+            onClick={() => setView("home")}
+            className={`text-sm font-medium ${workspace.view === "home" ? "text-forge-700" : "text-slate-500 hover:text-slate-800"}`}
+          >
+            My projects
+          </button>
+        )}
+        </div>
         <div className="flex items-center gap-3">
           {!minimal && (
             <span className="hidden text-xs text-slate-400 sm:inline">

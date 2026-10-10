@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useProject } from "../state/ProjectContext";
+import { useProject, useWorkspace } from "../state/ProjectContext";
 import { Badge, Button, Card } from "../ui";
 import { downloadProjectZip, listProjectFiles } from "../export/zip";
 import type { ExportLang, ProjectInput } from "../export/templates";
 
 export default function Export() {
   const { state, dispatch } = useProject();
+  const { setView, newProject } = useWorkspace();
   const [lang, setLang] = useState<ExportLang>("js");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -37,6 +38,7 @@ export default function Export() {
     try {
       await downloadProjectZip(input, lang);
       setDone(true);
+      dispatch({ type: "markExported" });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -46,7 +48,7 @@ export default function Export() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-bold text-ink">Export your N-ATLAS application</h1>
+      <h1 className="text-2xl font-bold text-ink">Ship your N-ATLAS app</h1>
       <p className="mt-1 text-slate-500">
         Download a real, runnable starter project — your system prompt, an N-ATLAS
         client, your test cases with a scored runner, a GitHub Actions workflow,
@@ -120,15 +122,14 @@ export default function Export() {
         >
           ← Back
         </Button>
-        <button
-          onClick={() => {
-            dispatch({ type: "reset" });
-            dispatch({ type: "setStep", step: "landing" });
-          }}
-          className="text-sm font-medium text-slate-500 hover:text-slate-700"
-        >
-          Start a new application
-        </button>
+        <div className="flex items-center gap-4">
+          <button onClick={() => setView("home")} className="text-sm font-medium text-slate-500 hover:text-slate-700">
+            My projects
+          </button>
+          <button onClick={newProject} className="text-sm font-medium text-forge-600 hover:text-forge-700">
+            + Start another project
+          </button>
+        </div>
       </div>
     </div>
   );

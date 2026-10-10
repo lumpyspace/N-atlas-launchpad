@@ -1,4 +1,4 @@
-import { useProject } from "../state/ProjectContext";
+import { useWorkspace } from "../state/ProjectContext";
 import { Button, Card } from "../ui";
 
 const FLOW = [
@@ -38,8 +38,9 @@ const DEV_FEATURES = [
 ];
 
 export default function Landing() {
-  const { dispatch } = useProject();
-  const start = () => dispatch({ type: "setStep", step: "describe" });
+  const { newProject, workspace, setView } = useWorkspace();
+  const start = newProject;
+  const projectCount = workspace.order.length;
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-14">
@@ -60,9 +61,15 @@ export default function Landing() {
           <Button size="md" onClick={start} className="px-6 py-3 text-base">
             Start Building →
           </Button>
-          <a href="#how" className="text-sm font-semibold text-slate-600 hover:text-slate-900">
-            See how it works
-          </a>
+          {projectCount > 0 ? (
+            <Button variant="secondary" onClick={() => setView("home")} className="px-5 py-3 text-base">
+              My projects ({projectCount})
+            </Button>
+          ) : (
+            <a href="#how" className="text-sm font-semibold text-slate-600 hover:text-slate-900">
+              See how it works
+            </a>
+          )}
         </div>
         <p className="mt-4 text-xs text-slate-400">
           No sign-up. Point it at your Ollama instance and start building.
