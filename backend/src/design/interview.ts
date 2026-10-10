@@ -11,7 +11,7 @@
 
 import { generateBlueprint } from "../blueprint/generate.js";
 import type { Blueprint } from "../blueprint/types.js";
-import { detectLanguage, LANG_NAMES } from "../eval/lang.js";
+import { detectLanguage, LANG_NAMES, type LangCode } from "../eval/lang.js";
 
 export const SLOTS = ["idea", "users", "problem", "features", "channel", "languages", "data", "limits"] as const;
 export type Slot = (typeof SLOTS)[number] | "notes";
@@ -195,10 +195,20 @@ export interface ChatMessage {
 
 const MAX_HISTORY = 6;
 
-export function replyPrompt(snap: DesignSnapshot, history: ChatMessage[]): { system: string; prompt: string } {
+/**
+ * @param language the project's language; without one, N-ATLAS replies in the
+ *   language of the developer's latest message.
+ */
+export function replyPrompt(
+  snap: DesignSnapshot,
+  history: ChatMessage[],
+  language?: LangCode,
+): { system: string; prompt: string } {
   const latest = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
-  const lang = detectLanguage(latest);
-  const replyLang = lang.lang === "en" ? "English" : LANG_NAMES[lang.lang];
+  const detected = detectLanguage(latest).lang;
+  const code = language ?? detected;
+  const replyLang = code === "en" ? "English" : LANG_NAMES[code];
+  const translateQuestion = code !== "en";
   const b = snap.brief;
   const plan = snap.blueprint.buildPlan;
 
@@ -236,7 +246,18 @@ export function replyPrompt(snap: DesignSnapshot, history: ChatMessage[]): { sys
     `Recent conversation:\n${recent}\n\n` +
     "Write your next reply. In ONE sentence, respond only to the developer's latest message — do not repeat or re-summarise earlier replies or the whole idea. " +
     "If one of the notes is relevant to that message, add it as one short tip. " +
-    `Then end with exactly this question: "${snap.question}"`;
+    (translateQuestion
+      ? `Then end by asking this question, in ${replyLang}: "${snap.question}"`
+      : `Then end with exactly this question: "${snap.question}"`);
 
   return { system, prompt };
+}
+
+/** Ask N-ATLAS to put one of the engine's questions into the project's language. */
+export function translationPrompt(question: string, language: LangCode): { system: string; prompt: string } {
+  const name = LANG_NAMES[language];
+  return {
+    system: `You translate short English questions into natural, everyday ${name}. Reply with only the ${name} translation — no notes, no quotation marks, no English.`,
+    prompt: `Translate into ${name}:\n${question}`,
+  };
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { getUseCases, type BuildPlan, type UseCaseOption } from "../api";
-import { useProject, type Step } from "../state/ProjectContext";
+import { useProject, useWorkspace, type Step } from "../state/ProjectContext";
 import { Badge, Button, Card } from "../ui";
+import { N_, useT } from "../i18n";
 
 type Plan = BuildPlan;
 
@@ -13,10 +14,10 @@ const NODE_STYLE: Record<Plan["architecture"][number]["kind"], string> = {
 };
 
 const NODE_TAG: Record<Plan["architecture"][number]["kind"], string> = {
-  user: "User",
-  yours: "You build",
+  user: N_("User"),
+  yours: N_("You build"),
   natlas: "N-ATLAS",
-  optional: "You connect",
+  optional: N_("You connect"),
 };
 
 const APPROACH_TONE: Record<Plan["features"][number]["approach"], "green" | "blue" | "amber" | "slate" | "red"> = {
@@ -30,17 +31,17 @@ const APPROACH_TONE: Record<Plan["features"][number]["approach"], "green" | "blu
 };
 
 const SOURCE_KIND: Record<Plan["dataSources"][number]["kind"], string> = {
-  documents: "Official documents",
-  "live-data": "Live data",
-  "your-content": "Your content",
+  documents: N_("Official documents"),
+  "live-data": N_("Live data"),
+  "your-content": N_("Your content"),
 };
 
 const STEP_LINK: Record<string, { step: Step; label: string }> = {
-  playground: { step: "playground", label: "Open Test → Try it" },
-  evaluate: { step: "evaluate", label: "Open Test → Test cases" },
-  compare: { step: "compare", label: "Open Compare" },
-  secure: { step: "secure", label: "Open Security tests" },
-  export: { step: "export", label: "Open Export" },
+  playground: { step: "playground", label: N_("Open Test → Try it") },
+  evaluate: { step: "evaluate", label: N_("Open Test → Test cases") },
+  compare: { step: "compare", label: N_("Open Compare") },
+  secure: { step: "secure", label: N_("Open Security tests") },
+  export: { step: "export", label: N_("Open Export") },
 };
 
 /** "How to build it": a plan specific to this app idea. */
@@ -55,21 +56,28 @@ export function BuildGuide({
   onChangeUseCase: (id: string) => Promise<void>;
 }) {
   const { dispatch } = useProject();
+  const { language } = useWorkspace();
+  const t = useT();
   const go = (step: Step) => dispatch({ type: "setStep", step });
 
   return (
     <div className="space-y-6">
+      {language !== "en" && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-800">
+          {t("This guide's details are written in English for now; headings and buttons are in your language.")}
+        </div>
+      )}
       {/* What you're building */}
       <Card className="p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-semibold text-slate-900">What you're building</h2>
+          <h2 className="font-semibold text-slate-900">{t("What you're building")}</h2>
           {plan.useCase.label.split(" + ").map((l) => (
             <Badge key={l} tone="green">
-              {l}
+              {t(l)}
             </Badge>
           ))}
-          <Badge>{plan.channel.label}</Badge>
-          {plan.voice.needed && <Badge tone="blue">Voice input</Badge>}
+          <Badge>{t(plan.channel.label)}</Badge>
+          {plan.voice.needed && <Badge tone="blue">{t("Voice input")}</Badge>}
         </div>
         <p className="mt-2 text-sm text-slate-600">{plan.useCase.summary}</p>
         <UseCasePicker current={plan.useCase.ids[0]} onChange={onChangeUseCase} />
@@ -77,7 +85,7 @@ export function BuildGuide({
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              How it should feel
+              {t("How it should feel")}
             </div>
             <div className="space-y-2 rounded-lg bg-slate-50 p-3 text-sm">
               <div className="ml-8 rounded-lg rounded-br-sm bg-forge-500 px-3 py-2 text-white">
@@ -89,12 +97,12 @@ export function BuildGuide({
               </div>
             </div>
             <p className="mt-1 text-[11px] text-slate-400">
-              Illustrative — “…” marks facts your app fills in from its data.
+              {t("Illustrative — “…” marks facts your app fills in from its data.")}
             </p>
           </div>
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Start with this first version
+              {t("Start with this first version")}
             </div>
             <Bullets items={plan.mvp} />
           </div>
@@ -103,24 +111,25 @@ export function BuildGuide({
 
       {/* Architecture */}
       <Card className="p-5">
-        <h2 className="font-semibold text-slate-900">How your app fits together</h2>
+        <h2 className="font-semibold text-slate-900">{t("How your app fits together")}</h2>
         <p className="mt-1 text-sm text-slate-500">
           {plan.channel.why}
-          {plan.voice.needed && " It also takes voice input, so speech recognition comes first."}
+          {plan.voice.needed && " " + t("It also takes voice input, so speech recognition comes first.")}
         </p>
         <ArchitectureDiagram nodes={plan.architecture} />
         <p className="mt-3 text-xs text-slate-400">
-          The reply travels back the same way. Only your backend talks to N-ATLAS, so your system prompt
-          {plan.knowledge.needed ? ", data" : ""} and keys stay private.
+          {plan.knowledge.needed
+            ? t("The reply travels back the same way. Only your backend talks to N-ATLAS, so your system prompt, data and keys stay private.")
+            : t("The reply travels back the same way. Only your backend talks to N-ATLAS, so your system prompt and keys stay private.")}
         </p>
       </Card>
 
       {/* Features */}
       {plan.features.length > 0 && (
         <Card className="p-5">
-          <h2 className="font-semibold text-slate-900">Feature by feature</h2>
+          <h2 className="font-semibold text-slate-900">{t("Feature by feature")}</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Not everything should be left to the model. Here's the right technique for each feature of {appName}.
+            {t("Not everything should be left to the model. Here's the right technique for each feature of {app}.", { app: appName })}
           </p>
           <div className="mt-4 divide-y divide-slate-100">
             {plan.features.map((f) => (
@@ -128,7 +137,7 @@ export function BuildGuide({
                 <div>
                   <div className="text-sm font-medium text-slate-800">{f.task}</div>
                   <Badge tone={APPROACH_TONE[f.approach]} className="mt-1">
-                    {f.approachLabel}
+                    {t(f.approachLabel)}
                   </Badge>
                 </div>
                 <p className="text-sm leading-relaxed text-slate-600">{f.how}</p>
@@ -141,9 +150,9 @@ export function BuildGuide({
       {/* Data sources */}
       {plan.dataSources.length > 0 && (
         <Card className="p-5">
-          <h2 className="font-semibold text-slate-900">Where your facts must come from</h2>
+          <h2 className="font-semibold text-slate-900">{t("Where your facts must come from")}</h2>
           <p className="mt-1 text-sm text-slate-500">
-            N-ATLAS doesn't know these — collect them before launch and feed the relevant parts into each answer.
+            {t("N-ATLAS doesn't know these — collect them before launch and feed the relevant parts into each answer.")}
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {plan.dataSources.map((d) => (
@@ -151,7 +160,7 @@ export function BuildGuide({
                 <div className="flex items-start justify-between gap-2">
                   <div className="text-sm font-semibold text-slate-800">{d.name}</div>
                   <Badge tone={d.kind === "live-data" ? "amber" : d.kind === "documents" ? "blue" : "slate"}>
-                    {SOURCE_KIND[d.kind]}
+                    {t(SOURCE_KIND[d.kind])}
                   </Badge>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-slate-500">{d.why}</p>
@@ -163,7 +172,7 @@ export function BuildGuide({
 
       {/* Steps */}
       <div>
-        <h2 className="font-semibold text-slate-900">Build it, step by step</h2>
+        <h2 className="font-semibold text-slate-900">{t("Build it, step by step")}</h2>
         <ol className="mt-3 space-y-3">
           {plan.steps.map((s, i) => (
             <li key={s.title}>
@@ -181,7 +190,7 @@ export function BuildGuide({
                         onClick={() => go(STEP_LINK[s.launchpadStep!].step)}
                         className="mt-2 text-sm font-medium text-forge-600 hover:underline"
                       >
-                        {STEP_LINK[s.launchpadStep].label} →
+                        {t(STEP_LINK[s.launchpadStep].label)} →
                       </button>
                     )}
                   </div>
@@ -196,28 +205,28 @@ export function BuildGuide({
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-red-600">
-            Mistakes to avoid in this kind of app
+            {t("Mistakes to avoid in this kind of app")}
           </h3>
           <Bullets items={plan.pitfalls} />
         </Card>
         <Card className="p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-600">N-ATLAS limits to plan for</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-600">{t("N-ATLAS limits to plan for")}</h3>
           <Bullets items={plan.watchOut} />
-          <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-forge-600">Where N-ATLAS fits well</h3>
+          <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-forge-600">{t("Where N-ATLAS fits well")}</h3>
           <Bullets items={plan.goodFit} />
         </Card>
       </div>
 
       {/* Success */}
       <Card className="p-5">
-        <h2 className="font-semibold text-slate-900">How you'll know it works</h2>
+        <h2 className="font-semibold text-slate-900">{t("How you'll know it works")}</h2>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Measure</div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("Measure")}</div>
             <Bullets items={plan.metrics} />
           </div>
           <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Test with messages like</div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("Test with messages like")}</div>
             <ul className="space-y-1.5">
               {plan.testMessages.map((m) => (
                 <li key={m} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-700">
@@ -226,7 +235,7 @@ export function BuildGuide({
               ))}
             </ul>
             <Button size="sm" variant="secondary" className="mt-3" onClick={() => go("playground")}>
-              Try them in Test →
+              {t("Try them in Test →")}
             </Button>
           </div>
         </div>
@@ -235,21 +244,21 @@ export function BuildGuide({
       {/* Licence */}
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Licence &amp; attribution</h3>
-          <Badge>Check before launch</Badge>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t("Licence & attribution")}</h3>
+          <Badge>{t("Check before launch")}</Badge>
         </div>
         <Bullets items={plan.license} />
         <p className="mt-2 text-xs text-slate-400">
-          Summary of the model card — read the full{" "}
+          {t("Summary of the model card — read the full")}{" "}
           <a
             href="https://huggingface.co/NCAIR1/N-ATLaS"
             target="_blank"
             rel="noreferrer"
             className="underline hover:text-slate-600"
           >
-            N-ATLaS Terms of Use
+            {t("N-ATLaS Terms of Use")}
           </a>{" "}
-          before deploying.
+          {t("before deploying.")}
         </p>
       </Card>
     </div>
@@ -270,6 +279,7 @@ function Bullets({ items }: { items: string[] }) {
 }
 
 function CodeBlock({ code }: { code: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const long = code.split("\n").length > 16;
   const [expanded, setExpanded] = useState(!long);
@@ -287,7 +297,7 @@ function CodeBlock({ code }: { code: string }) {
           onClick={() => setExpanded(true)}
           className="absolute inset-x-0 bottom-0 rounded-b-lg bg-gradient-to-t from-slate-900 to-transparent pb-2 pt-8 text-xs font-medium text-slate-200 hover:text-white"
         >
-          Show all {code.split("\n").length} lines ▾
+          {t("Show all {n} lines", { n: code.split("\n").length })} ▾
         </button>
       )}
       <button
@@ -302,7 +312,7 @@ function CodeBlock({ code }: { code: string }) {
         }}
         className="absolute right-2 top-2 rounded border border-slate-600 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800"
       >
-        {copied ? "✓" : "Copy"}
+        {copied ? "✓" : t("Copy")}
       </button>
     </div>
   );
@@ -311,12 +321,13 @@ function CodeBlock({ code }: { code: string }) {
 /** "Not the right kind of app?" — lets the developer correct the detection. */
 /** User → (speech) → backend → (data) → N-ATLAS. `vertical` for narrow panels. */
 export function ArchitectureDiagram({ nodes, vertical = false }: { nodes: Plan["architecture"]; vertical?: boolean }) {
+  const t = useT();
   return (
     <div className={`mt-4 flex flex-col items-stretch gap-2 ${vertical ? "" : "md:flex-row md:items-center"}`}>
       {nodes.map((n, i) => (
         <div key={n.label} className={`flex flex-col items-center gap-2 ${vertical ? "" : "md:flex-1 md:flex-row"}`}>
           <div className={`w-full rounded-lg border p-3 ${NODE_STYLE[n.kind]}`}>
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{NODE_TAG[n.kind]}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t(NODE_TAG[n.kind])}</div>
             <div className="text-sm font-semibold text-slate-800">{n.label}</div>
             <div className="mt-0.5 text-xs text-slate-500">{n.detail}</div>
           </div>
@@ -333,6 +344,7 @@ export function ArchitectureDiagram({ nodes, vertical = false }: { nodes: Plan["
 }
 
 export function UseCasePicker({ current, onChange }: { current: string; onChange: (id: string) => Promise<void> }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<UseCaseOption[]>([]);
   const [busy, setBusy] = useState(false);
@@ -344,13 +356,13 @@ export function UseCasePicker({ current, onChange }: { current: string; onChange
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="mt-2 text-xs font-medium text-forge-600 hover:underline">
-        Not the right kind of app? Change it
+        {t("Not the right kind of app? Change it")}
       </button>
     );
   }
   return (
     <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-      <div className="text-xs font-semibold text-slate-600">What kind of app is this?</div>
+      <div className="text-xs font-semibold text-slate-600">{t("What kind of app is this?")}</div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {options.map((o) => (
           <button
@@ -372,15 +384,14 @@ export function UseCasePicker({ current, onChange }: { current: string; onChange
                 : "border-slate-300 bg-white text-slate-700 hover:border-forge-400"
             } disabled:cursor-default`}
           >
-            {o.label}
+            {t(o.label)}
           </button>
         ))}
       </div>
       <p className="mt-2 text-[11px] text-slate-400">
-        Picking one rebuilds the blueprint, features and system prompt for that kind of app. Your saved test cases are kept.
-        {" "}
+        {t("Picking one rebuilds the blueprint, features and system prompt for that kind of app. Your saved test cases are kept.")}{" "}
         <button onClick={() => setOpen(false)} className="underline">
-          Cancel
+          {t("Cancel")}
         </button>
       </p>
     </div>

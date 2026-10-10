@@ -3,11 +3,13 @@ import { getBlueprint } from "../api";
 import { BuildGuide } from "../components/BuildGuide";
 import { useProject } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
+import { N_, useT } from "../i18n";
 
 type Tab = "guide" | "blueprint";
 
 export default function Blueprint() {
   const { state, dispatch } = useProject();
+  const t = useT();
   const bp = state.blueprint;
   const [tab, setTab] = useState<Tab>("guide");
   const [loadingPlan, setLoadingPlan] = useState(false);
@@ -30,13 +32,13 @@ export default function Blueprint() {
       <div className="mx-auto max-w-3xl px-6 py-10">
         <Card className="p-8 text-center">
           <p className="text-slate-500">
-            No blueprint yet. Start by describing your application.
+            {t("No blueprint yet. Start by describing your application.")}
           </p>
           <Button
             className="mt-4"
             onClick={() => dispatch({ type: "setStep", step: "describe" })}
           >
-            ← Describe your app
+            ← {t("Describe your app")}
           </Button>
         </Card>
       </div>
@@ -49,7 +51,7 @@ export default function Blueprint() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-ink">{bp.name}</h1>
-            <Badge tone="green">{bp.buildPlan?.useCase?.label ?? sectorLabel(bp.sector)}</Badge>
+            <Badge tone="green">{t(bp.buildPlan?.useCase?.label ?? sectorLabel(bp.sector))}</Badge>
           </div>
           <p className="mt-2 max-w-2xl text-slate-600">
             {bp.purpose.charAt(0).toUpperCase() + bp.purpose.slice(1).replace(/[.!?]*$/, ".")}
@@ -59,8 +61,8 @@ export default function Blueprint() {
 
       <div className="mt-6 flex gap-1 border-b border-slate-200">
         {([
-          ["guide", "How to build it"],
-          ["blueprint", "Blueprint & system prompt"],
+          ["guide", N_("How to build it")],
+          ["blueprint", N_("Blueprint & system prompt")],
         ] as [Tab, string][]).map(([key, label]) => (
           <button
             key={key}
@@ -71,7 +73,7 @@ export default function Blueprint() {
                 : "border-transparent text-slate-500 hover:text-slate-700"
             }`}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
@@ -89,11 +91,10 @@ export default function Blueprint() {
             />
           ) : (
             <Card className="p-6 text-center text-sm text-slate-500">
-              This blueprint was created before the latest build guide. Generate it now — your edited
-              system prompt and test results are kept.
+              {t("This blueprint was created before the latest build guide. Generate it now — your edited system prompt and test results are kept.")}
               <div className="mt-3">
                 <Button size="sm" onClick={loadPlan} disabled={loadingPlan || !state.description}>
-                  {loadingPlan ? <><Spinner /> Generating…</> : "Generate the build guide"}
+                  {loadingPlan ? <><Spinner /> {t("Generating…")}</> : t("Generate the build guide")}
                 </Button>
               </div>
             </Card>
@@ -102,40 +103,38 @@ export default function Blueprint() {
       ) : (
         <>
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <InfoCard title="Target users">
+          <InfoCard title={t("Target users")}>
             <p className="text-sm text-slate-600">{bp.targetUsers}</p>
           </InfoCard>
-          <InfoCard title="Expected languages">
+          <InfoCard title={t("Expected languages")}>
             <div className="flex flex-wrap gap-1.5">
               {bp.languages.map((l) => (
                 <Badge key={l}>{l}</Badge>
               ))}
             </div>
           </InfoCard>
-          <InfoCard title="Primary tasks">
+          <InfoCard title={t("Primary tasks")}>
             <List items={bp.primaryTasks} />
           </InfoCard>
-          <InfoCard title="Nigerian-context considerations">
+          <InfoCard title={t("Nigerian-context considerations")}>
             <List items={bp.nigerianContext} />
           </InfoCard>
-          <InfoCard title="Potential risks" tone="amber">
+          <InfoCard title={t("Potential risks")} tone="amber">
             <List items={bp.risks} />
           </InfoCard>
-          <InfoCard title="Recommended N-ATLAS configuration">
+          <InfoCard title={t("Recommended N-ATLAS configuration")}>
             <dl className="space-y-1 text-sm text-slate-600">
-              <Row k="Model" v="N-ATLAS (NCAIR1/N-ATLaS)" />
-              <Row k="Temperature" v="0.2 (focused, consistent)" />
-              <Row k="Languages" v={bp.languages.join(", ")} />
+              <Row k={t("Model")} v="N-ATLAS (NCAIR1/N-ATLaS)" />
+              <Row k={t("Temperature")} v={t("0.2 (focused, consistent)")} />
+              <Row k={t("Languages")} v={bp.languages.join(", ")} />
             </dl>
           </InfoCard>
         </div>
   
         <Card className="mt-6 p-5">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900">System instructions</h2>
-            <span className="text-xs text-slate-400">
-              Editable — this is your app's behaviour
-            </span>
+            <h2 className="font-semibold text-slate-900">{t("System instructions")}</h2>
+            <span className="text-xs text-slate-400">{t("Editable — this is your app's behaviour")}</span>
           </div>
           <textarea
             className="h-64 w-full resize-y rounded-lg border border-slate-300 bg-slate-50 p-3 font-mono text-xs leading-relaxed text-slate-800 focus:border-forge-500 focus:outline-none focus:ring-2 focus:ring-forge-500/20"
@@ -151,10 +150,10 @@ export default function Blueprint() {
               }
               className="text-xs font-medium text-slate-500 hover:text-slate-700"
             >
-              Reset to generated prompt
+              {t("Reset to generated prompt")}
             </button>
             <span className="text-xs text-slate-400">
-              Tip: we'll test whether this prompt resists attacks in the Secure step.
+              {t("Tip: we'll test whether this prompt resists attacks in the Secure step.")}
             </span>
           </div>
         </Card>
@@ -166,10 +165,10 @@ export default function Blueprint() {
           variant="secondary"
           onClick={() => dispatch({ type: "setStep", step: "describe" })}
         >
-          ← Back
+          ← {t("Back")}
         </Button>
         <Button onClick={() => dispatch({ type: "setStep", step: "playground" })}>
-          Continue to Test →
+          {t("Continue to Test →")}
         </Button>
       </div>
     </div>

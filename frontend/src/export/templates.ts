@@ -21,6 +21,56 @@ export interface ProjectInput {
   savedTestCases: SavedTestCase[];
   /** Documents the app answers from. */
   knowledge?: KDoc[];
+  /** The language the app replies in ("en" | "pid" | "yo" | "ha" | "ig"). */
+  language?: string;
+}
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "Nigerian-accented English",
+  pid: "Nigerian Pidgin",
+  yo: "Yoruba",
+  ha: "Hausa",
+  ig: "Igbo",
+};
+
+/**
+ * Make the app reply in the project's language: a LANGUAGE setting next to the
+ * system prompt, passed to every N-ATLAS call in the server and chat script.
+ */
+function applyLanguage(files: Record<string, string>, lang: ExportLang, language: string) {
+  const name = LANGUAGE_NAMES[language] ?? LANGUAGE_NAMES.en;
+  if (lang === "js") {
+    files["src/systemPrompt.js"] +=
+      `\n// The language your app replies in (${name}): "en", "pid", "yo", "ha" or "ig".\n` +
+      `export const LANGUAGE = ${JSON.stringify(language)};\n\n` +
+      `const LANGUAGE_NAMES = ${JSON.stringify(LANGUAGE_NAMES)};\n\n` +
+      `/** Adds the language instruction to a system prompt (what the SDK's \`language\` option does). */\n` +
+      `export function withLanguage(system) {\n  return system + " Respond in " + LANGUAGE_NAMES[LANGUAGE] + ".";\n}\n`;
+    for (const f of ["src/server.js", "src/chat.js"]) {
+      const code = files[f];
+      if (!code?.includes('import { SYSTEM_PROMPT } from "./systemPrompt.js";')) continue;
+      // SDK calls take a language option; servers that call N-ATLAS directly add it to the system message.
+      const sdkCall = /\{ system: SYSTEM_PROMPT( |,)/.test(code);
+      const direct = code.includes('{ role: "system", content: system }');
+      if (!sdkCall && !direct) continue;
+      const names = [...(sdkCall ? ["LANGUAGE"] : []), "SYSTEM_PROMPT", ...(direct ? ["withLanguage"] : [])];
+      files[f] = code
+        .replace('import { SYSTEM_PROMPT } from "./systemPrompt.js";', `import { ${names.join(", ")} } from "./systemPrompt.js";`)
+        .replace(/\{ system: SYSTEM_PROMPT( |,)/g, "{ system: SYSTEM_PROMPT, language: LANGUAGE$1")
+        .split('{ role: "system", content: system }')
+        .join('{ role: "system", content: withLanguage(system) }');
+    }
+  } else {
+    files["system_prompt.py"] +=
+      `\n# The language your app replies in (${name}): "en", "pid", "yo", "ha" or "ig".\n` +
+      `LANGUAGE = ${JSON.stringify(language)}\n`;
+    const code = files["chat.py"];
+    if (code?.includes("from system_prompt import SYSTEM_PROMPT")) {
+      files["chat.py"] = code
+        .replace("from system_prompt import SYSTEM_PROMPT", "from system_prompt import LANGUAGE, SYSTEM_PROMPT")
+        .replace(/system=SYSTEM_PROMPT/g, "system=SYSTEM_PROMPT, language=LANGUAGE");
+    }
+  }
 }
 
 export type ExportLang = "js" | "python";
@@ -90,6 +140,8 @@ export function buildProject(
       ` finds the 3 most relevant passages (keyword search, accent-insensitive) and adds them to the prompt with an ` +
       `instruction to answer only from them — the same as in Launchpad. To update, re-export or edit the JSON.\n`;
   }
+
+  applyLanguage(files, lang, input.language ?? "en");
 
   return { files, rootDir: root };
 }

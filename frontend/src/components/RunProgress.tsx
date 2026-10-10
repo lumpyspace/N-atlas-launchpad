@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, Spinner } from "../ui";
+import { useT, type T } from "../i18n";
 
 /** Live state of a streaming test run. */
 export interface LiveRun<R> {
@@ -9,11 +10,11 @@ export interface LiveRun<R> {
   startedAt: number;
 }
 
-function formatDuration(ms: number): string {
+function formatDuration(ms: number, t: T): string {
   const s = Math.max(0, Math.round(ms / 1000));
-  if (s < 60) return `${s}s`;
+  if (s < 60) return t("{s}s", { s });
   const m = Math.floor(s / 60);
-  return `${m}m ${String(s % 60).padStart(2, "0")}s`;
+  return t("{m}m {s}s", { m, s: String(s % 60).padStart(2, "0") });
 }
 
 /**
@@ -21,6 +22,7 @@ function formatDuration(ms: number): string {
  * the average time per completed case, so it settles after the first result.
  */
 export function RunProgress<R>({ run, onStop }: { run: LiveRun<R>; onStop: () => void }) {
+  const t = useT();
   const [now, setNow] = useState(Date.now());
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -43,16 +45,16 @@ export function RunProgress<R>({ run, onStop }: { run: LiveRun<R>; onStop: () =>
         <Spinner className="text-forge-500" />
         <div className="flex-1 text-sm">
           <div className="font-medium text-slate-700">
-            {run.label} — {total ? `${done} of ${total}` : "starting…"}
+            {t(run.label)} — {total ? t("{done} of {total}", { done, total }) : t("starting…")}
           </div>
           <div className="text-xs text-slate-400">
-            {formatDuration(elapsed)} elapsed
-            {eta !== null && ` · about ${formatDuration(eta)} left`}
-            {done === 0 && total > 0 && " · the first reply can take a while if the model is cold"}
+            {t("{time} elapsed", { time: formatDuration(elapsed, t) })}
+            {eta !== null && " · " + t("about {time} left", { time: formatDuration(eta, t) })}
+            {done === 0 && total > 0 && " · " + t("the first reply can take a while if the model is cold")}
           </div>
         </div>
         <Button variant="secondary" size="sm" onClick={onStop}>
-          ■ Stop
+          ■ {t("Stop")}
         </Button>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">

@@ -4,10 +4,12 @@ import { Badge, Button, Card } from "../ui";
 import { downloadProjectZip, listProjectFiles } from "../export/zip";
 import type { ExportLang, ProjectInput } from "../export/templates";
 import { downloadSdk } from "../utils/sdkDownload";
+import { useT } from "../i18n";
 
 export default function Export() {
   const { state, dispatch } = useProject();
   const { setView, newProject } = useWorkspace();
+  const t = useT();
   const [lang, setLang] = useState<ExportLang>("js");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -18,7 +20,7 @@ export default function Export() {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
         <Card className="p-8 text-center text-slate-500">
-          Describe and build your app first, then export it.
+          {t("Describe and build your app first, then export it.")}
         </Card>
       </div>
     );
@@ -31,6 +33,7 @@ export default function Export() {
     securityResult: state.securityResult,
     savedTestCases: state.savedTestCases,
     knowledge: state.knowledge,
+    language: state.language,
   };
   const files = listProjectFiles(input, lang);
 
@@ -50,16 +53,16 @@ export default function Export() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-bold text-ink">Ship your N-ATLAS app</h1>
+      <h1 className="text-2xl font-bold text-ink">{t("Ship your N-ATLAS app")}</h1>
       <p className="mt-1 text-slate-500">
-        Download a real, runnable starter project — your system prompt, the N-ATLAS
-        SDK, your test cases with a scored runner, a GitHub Actions workflow,
-        security tests and fine-tuning data. Not a screenshot: actual code.
+        {t(
+          "Download a real, runnable starter project — your system prompt, the N-ATLAS SDK, your test cases with a scored runner, a GitHub Actions workflow, security tests and fine-tuning data. Not a screenshot: actual code.",
+        )}
       </p>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr]">
         <Card className="p-5">
-          <h2 className="text-sm font-semibold text-slate-900">Language</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t("Programming language")}</h2>
           <div className="mt-3 flex gap-2">
             <LangButton active={lang === "js"} onClick={() => setLang("js")}>
               JavaScript
@@ -69,28 +72,24 @@ export default function Export() {
             </LangButton>
           </div>
 
-          <h2 className="mt-5 text-sm font-semibold text-slate-900">
-            Recap
-          </h2>
+          <h2 className="mt-5 text-sm font-semibold text-slate-900">{t("Recap")}</h2>
           <dl className="mt-2 space-y-1 text-sm">
-            <Recap k="Application" v={bp.name} />
-            <Recap k="Sector" v={bp.sector} />
+            <Recap k={t("Application")} v={bp.name} />
+            <Recap k={t("Sector")} v={t(bp.sector)} />
             {state.evalResult && (
               <Recap
-                k="Evaluation"
+                k={t("Evaluation")}
                 v={`${Math.round(state.evalResult.summary.passRate * 100)}/100`}
               />
             )}
             {state.securityResult && (
-              <Recap k="Security" v={`${state.securityResult.summary.score}/100`} />
+              <Recap k={t("Security")} v={`${state.securityResult.summary.score}/100`} />
             )}
           </dl>
         </Card>
 
         <Card className="p-5">
-          <h2 className="text-sm font-semibold text-slate-900">
-            Files in your export
-          </h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t("Files in your export")}</h2>
           <ul className="mt-3 space-y-1 font-mono text-xs text-slate-600">
             {files.map((f) => (
               <li key={f} className="flex items-center gap-2">
@@ -110,10 +109,10 @@ export default function Export() {
 
       <div className="mt-6 flex items-center gap-3">
         <Button onClick={download} disabled={busy} className="px-6 py-3 text-base">
-          {busy ? "Preparing…" : `Download ${lang === "js" ? "JavaScript" : "Python"} project (.zip)`}
+          {busy ? t("Preparing…") : t("Download {lang} project (.zip)", { lang: lang === "js" ? "JavaScript" : "Python" })}
         </Button>
         {done && (
-          <Badge tone="green">Downloaded ✓ — unzip and follow the README</Badge>
+          <Badge tone="green">{t("Downloaded ✓ — unzip and follow the README")}</Badge>
         )}
       </div>
 
@@ -124,14 +123,14 @@ export default function Export() {
           variant="secondary"
           onClick={() => dispatch({ type: "setStep", step: "secure" })}
         >
-          ← Back
+          ← {t("Back")}
         </Button>
         <div className="flex items-center gap-4">
           <button onClick={() => setView("home")} className="text-sm font-medium text-slate-500 hover:text-slate-700">
-            My projects
+            {t("My projects")}
           </button>
           <button onClick={newProject} className="text-sm font-medium text-forge-600 hover:text-forge-700">
-            + Start another project
+            {t("+ Start another project")}
           </button>
         </div>
       </div>
@@ -161,16 +160,17 @@ print(reply.text)`,
 
 /** For developers with an existing codebase: the SDK on its own. */
 function SdkCard({ lang }: { lang: ExportLang }) {
+  const t = useT();
   const file = lang === "js" ? "natlas.js" : "natlas.py";
   return (
     <Card className="mt-8 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Already have a codebase? Use the N-ATLAS SDK</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t("Already have a codebase? Use the N-ATLAS SDK")}</h2>
           <p className="mt-1 max-w-xl text-sm text-slate-500">
-            The same client your export uses, on its own: one file with no dependencies. It sets N-ATLAS's recommended
-            settings, adds language hints, answers from your documents with sources, keeps chats inside the 8,092-token
-            context, streams, and gives errors that say how to fix them (“is Ollama running?”).
+            {t(
+              "The same client your export uses, on its own: one file with no dependencies. It sets N-ATLAS's recommended settings, adds language hints, answers from your documents with sources, keeps chats inside the 8,092-token context, streams, and gives errors that say how to fix them (“is Ollama running?”).",
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -179,7 +179,7 @@ function SdkCard({ lang }: { lang: ExportLang }) {
           </Button>
           {lang === "js" && (
             <button onClick={() => downloadSdk("natlas.d.ts")} className="text-xs font-medium text-forge-700 hover:underline">
-              + TypeScript types
+              + {t("TypeScript types")}
             </button>
           )}
         </div>
@@ -190,20 +190,20 @@ function SdkCard({ lang }: { lang: ExportLang }) {
       <p className="mt-2 text-xs text-slate-500">
         {lang === "python" ? (
           <>
-            Or install it: <code className="rounded bg-slate-100 px-1">pip install "git+https://github.com/lumpyspace/N-atlas-launchpad#subdirectory=sdk/python"</code>
+            {t("Or install it:")} <code className="rounded bg-slate-100 px-1">pip install "git+https://github.com/lumpyspace/N-atlas-launchpad#subdirectory=sdk/python"</code>
             .{" "}
           </>
         ) : null}
-        Streaming, documents and errors are covered in the{" "}
+        {t("Streaming, documents and errors are covered in the")}{" "}
         <a
           href={`https://github.com/lumpyspace/N-atlas-launchpad/tree/master/sdk/${lang === "js" ? "js" : "python"}`}
           target="_blank"
           rel="noreferrer"
           className="font-medium text-forge-700 hover:underline"
         >
-          SDK docs ↗
+          {t("SDK docs ↗")}
         </a>
-        . Test → Get code writes the call for your exact prompt and settings.
+        . {t("Test → Get code writes the call for your exact prompt and settings.")}
       </p>
     </Card>
   );

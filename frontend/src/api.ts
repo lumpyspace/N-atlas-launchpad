@@ -622,12 +622,16 @@ export interface DesignSnapshot {
 export interface DesignMessage {
   role: "user" | "assistant";
   content: string;
+  /** The engine's question in English, when N-ATLAS asked it in another language. */
+  english?: string;
 }
 
 export type DesignEvent =
   | { type: "snapshot"; snapshot: DesignSnapshot }
   | { type: "delta"; delta: string }
   | { type: "warning"; message: string }
+  /** The question this turn asks, in English (sent when replying in another language). */
+  | { type: "question"; english: string }
   | { type: "done" };
 
 /** One Design chat turn: snapshot first (instant), then the streamed reply. */
@@ -638,6 +642,8 @@ export async function streamDesignTurn(
     useCase?: string;
     /** false = just recompute the brief/canvas, no N-ATLAS reply. */
     reply?: boolean;
+    /** The project's language: N-ATLAS replies and asks its questions in it. */
+    language?: string;
   },
   onEvent: (e: DesignEvent) => void,
   signal?: AbortSignal,

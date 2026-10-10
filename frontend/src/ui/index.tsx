@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Severity } from "../api";
+import { useT } from "../i18n";
 
 /** Small set of Tailwind primitives shared across screens (no component lib). */
 
@@ -94,9 +95,10 @@ const SEVERITY_TONE: Record<Severity, Tone> = {
 };
 
 export function SeverityTag({ severity }: { severity: Severity }) {
+  const t = useT();
   return (
     <Badge tone={SEVERITY_TONE[severity]} className="uppercase tracking-wide">
-      {severity}
+      {t(severity)}
     </Badge>
   );
 }

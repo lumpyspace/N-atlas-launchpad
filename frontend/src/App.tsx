@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { getHealth, switchMode, type HealthStatus } from "./api";
 import { ProjectProvider, useWorkspace } from "./state/ProjectContext";
 import ModeBadge, { modeHint } from "./components/ModeBadge";
+import LanguageSwitcher from "./components/LanguageSwitcher";
+import { useT } from "./i18n";
 import WorkspaceLayout from "./components/WorkspaceLayout";
 import Home from "./screens/Home";
 import Landing from "./screens/Landing";
@@ -25,6 +27,7 @@ export default function App() {
 
 function Shell() {
   const { workspace, current } = useWorkspace();
+  const t = useT();
   const [health, setHealth] = useState<HealthStatus | null>(null);
 
   const refreshHealth = () =>
@@ -55,7 +58,7 @@ function Shell() {
     <>
       <TopBar health={health} onHealthChange={setHealth} />
       <WorkspaceLayout>
-        <p className="pt-3 text-xs text-slate-400">{modeHint(health)}</p>
+        <p className="pt-3 text-xs text-slate-400">{modeHint(health, t)}</p>
         <main>{renderStep(current!.step, health)}</main>
       </WorkspaceLayout>
     </>
@@ -98,6 +101,7 @@ function TopBar({
   minimal?: boolean;
 }) {
   const { workspace, setView } = useWorkspace();
+  const t = useT();
   const hasProjects = workspace.order.length > 0;
   const [open, setOpen] = useState(false);
   const [endpoint, setEndpoint] = useState("http://localhost:11434/v1");
@@ -117,10 +121,10 @@ function TopBar({
       onHealthChange(h);
       setOpen(false);
       const ms = h.detail.match(/(\d+)ms/)?.[1];
-      setConnected(ms ? `Connected — first response in ${ms}ms` : "Connected to N-ATLAS");
+      setConnected(ms ? t("Connected — first response in {ms}ms", { ms }) : t("Connected to N-ATLAS"));
       setTimeout(() => setConnected(null), 6000);
     } catch (e: any) {
-      setErr(e.message ?? "Connection failed");
+      setErr(e.message ?? t("Connection failed"));
     } finally {
       setBusy(false);
     }
@@ -146,16 +150,17 @@ function TopBar({
             onClick={() => setView("home")}
             className={`text-sm font-medium ${workspace.view === "home" ? "text-forge-700" : "text-slate-500 hover:text-slate-800"}`}
           >
-            My projects
+            {t("My projects")}
           </button>
         )}
         </div>
         <div className="flex items-center gap-3">
           {!minimal && (
             <span className="hidden text-xs text-slate-400 sm:inline">
-              Powered by N-ATLAS
+              {t("Powered by N-ATLAS")}
             </span>
           )}
+          <LanguageSwitcher compact={minimal} />
           <ModeBadge health={health} />
           <button
             onClick={() => { setOpen(o => !o); setErr(null); setTimeout(() => inputRef.current?.focus(), 50); }}
@@ -165,7 +170,7 @@ function TopBar({
                 : "rounded-md border border-forge-400 px-2.5 py-1 text-xs font-medium text-forge-600 hover:bg-forge-50 transition-colors"
             }
           >
-            {isConnected ? "Settings" : "Connect to N-ATLAS"}
+            {isConnected ? t("Settings") : t("Connect to N-ATLAS")}
           </button>
         </div>
       </div>
@@ -173,7 +178,7 @@ function TopBar({
         <div className="border-t border-slate-100 bg-slate-50 px-6 py-3">
           <div className="mx-auto max-w-5xl flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Ollama endpoint</label>
+              <label className="text-xs font-medium text-slate-600">{t("Ollama endpoint")}</label>
               <input
                 ref={inputRef}
                 value={endpoint}
@@ -184,7 +189,7 @@ function TopBar({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-600">Model name</label>
+              <label className="text-xs font-medium text-slate-600">{t("Model name")}</label>
               <input
                 value={model}
                 onChange={e => setModel(e.target.value)}
@@ -198,13 +203,13 @@ function TopBar({
               disabled={busy || !endpoint.trim()}
               className="rounded-md bg-forge-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-forge-600 disabled:opacity-50 transition-colors"
             >
-              {busy ? "Connecting…" : "Connect"}
+              {busy ? t("Connecting…") : t("Connect")}
             </button>
             <button
               onClick={() => { setOpen(false); setErr(null); }}
               className="text-xs text-slate-400 hover:text-slate-600"
             >
-              Cancel
+              {t("Cancel")}
             </button>
             {err && <p className="w-full text-xs text-red-600">{err}</p>}
           </div>
@@ -212,7 +217,7 @@ function TopBar({
       )}
       {connected && (
         <div className="border-t border-green-100 bg-green-50 px-6 py-2 text-xs text-green-700 font-medium">
-          ✓ {connected} — responses may take 5–15s while the model runs on CPU
+          ✓ {connected} — {t("responses may take 5–15s while the model runs on CPU")}
         </div>
       )}
     </header>

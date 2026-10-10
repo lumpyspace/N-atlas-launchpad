@@ -7,6 +7,7 @@ import { BAD_REASONS, checksForRating, renderTemplate, withContext } from "../ut
 import { RateAnswer, type Rating } from "./RateAnswer";
 import { SourcesList, type Source } from "./SourcesList";
 import { formatHits, search, type KDoc } from "../utils/knowledge";
+import { LANGUAGES, useT, type LangCode } from "../i18n";
 
 /** Mirror of backend extractJson/shapeErrors (eval/checks.ts). */
 function checkJson(text: string, schema: Record<string, JsonType>): { value?: unknown; errors: string[] } {
@@ -56,6 +57,7 @@ export function TaskRunner({
   data,
   knowledge,
   temperature,
+  language,
   onSave,
 }: {
   template: TaskTemplate;
@@ -64,8 +66,13 @@ export function TaskRunner({
   /** The project's documents; relevant passages are added per run. */
   knowledge: KDoc[];
   temperature: number;
+  /** The project's language: results are written in it. */
+  language: LangCode;
   onSave: (tc: SavedTestCase) => void;
 }) {
+  const t = useT();
+  const isJson = template.output === "json";
+  const langName = LANGUAGES.find((l) => l.code === language)?.english ?? "English";
   const initial = () => Object.fromEntries(template.fields.map((f) => [f.name, f.default ?? ""]));
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [result, setResult] = useState<Result | null>(null);
@@ -98,10 +105,16 @@ export function TaskRunner({
     setFacts(used);
     setResult({ text: "", done: false });
     try {
+      // JSON output keeps its keys in English (the app reads them); only the text inside is translated.
+      const jsonLanguage =
+        isJson && language !== "en"
+          ? `\n\nWrite any text values in ${langName}, but keep the JSON keys exactly as given.`
+          : "";
       for await (const e of streamGenerate(
         prompt,
         {
-          system: withContext(systemPrompt, used.context) || undefined,
+          system: (withContext(systemPrompt, used.context) + jsonLanguage).trim() || undefined,
+          language: isJson ? undefined : language,
           temperature,
           maxTokens: template.maxTokens ?? 300,
         },
@@ -128,9 +141,10 @@ export function TaskRunner({
 
   function rate(rating: Rating) {
     if (!result) return;
+    // Replies are asked for in the project's language; for English projects, trust what was typed.
     const detected = detectLang(prompt);
-    const language = detected !== "unknown" ? detected : "en";
-    const fromRating = checksForRating(language, rating.verdict, rating.reason, result.text.length);
+    const replyLanguage = language !== "en" ? language : detected !== "unknown" ? detected : "en";
+    const fromRating = checksForRating(replyLanguage, rating.verdict, rating.reason, result.text.length);
     // JSON tasks are judged on their shape (a language check means little for
     // JSON), plus whatever the reason adds (e.g. a length limit).
     const checks: Check[] =
@@ -145,7 +159,7 @@ export function TaskRunner({
       id: crypto.randomUUID(),
       userMessage: prompt,
       assistantReply: result.text,
-      language,
+      language: replyLanguage,
       verdict: rating.verdict,
       note: [template.label, reasonLabel, rating.note].filter(Boolean).join(": "),
       expectedBehavior: fromRating.expected,
@@ -159,12 +173,12 @@ export function TaskRunner({
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
-      <p className="text-xs text-slate-500">{template.hint}</p>
+      <p className="text-xs text-slate-500">{t(template.hint)}</p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         {template.fields.map((f) => (
           <label key={f.name} className={`flex flex-col gap-1 text-xs text-slate-600 ${f.multiline ? "sm:col-span-2" : ""}`}>
-            {f.label}
+            {t(f.label)}
             {f.multiline ? (
               <textarea
                 value={values[f.name] ?? ""}
@@ -185,34 +199,38 @@ export function TaskRunner({
       </div>
 
       <details className="text-xs text-slate-500">
-        <summary className="cursor-pointer select-none">Prompt sent to N-ATLAS</summary>
+        <summary className="cursor-pointer select-none">{t("Prompt sent to N-ATLAS")}</summary>
         <pre className="mt-1 whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-2 font-mono text-[11px] text-slate-700">{prompt}</pre>
-        {data.trim() && <p className="mt-1">+ your data is added to the system prompt.</p>}
+        {data.trim() && <p className="mt-1">+ {t("your data is added to the system prompt.")}</p>}
       </details>
 
       <div className="flex items-center gap-2">
         {running ? (
           <Button variant="secondary" onClick={() => abortRef.current?.abort()}>
-            ■ Stop
+            ■ {t("Stop")}
           </Button>
         ) : (
-          <Button onClick={run}>▶ Run</Button>
+          <Button onClick={run}>▶ {t("Run")}</Button>
         )}
-        {template.output === "json" && <Badge tone="blue">Expects JSON: {Object.keys(template.schema ?? {}).join(", ")}</Badge>}
+        {isJson && (
+          <Badge tone="blue">
+            {t("Expects JSON:")} {Object.keys(template.schema ?? {}).join(", ")}
+          </Badge>
+        )}
       </div>
 
       {result && (
         <Card className="p-3">
           <div className="mb-1 flex items-center gap-2 text-xs text-slate-400">
             {running && <Spinner className="h-3 w-3 text-forge-500" />}
-            {running ? "N-ATLAS is writing…" : "Result"}
+            {running ? t("N-ATLAS is writing…") : t("Result")}
             {result.totalMs !== undefined && (
               <span className="ml-auto">
                 {(result.totalMs / 1000).toFixed(1)}s{result.tokensPerSec ? ` · ${result.tokensPerSec.toFixed(1)} tok/s` : ""}
               </span>
             )}
           </div>
-          <div className="whitespace-pre-wrap text-sm text-slate-800">{result.text || (running ? "" : "(empty)")}</div>
+          <div className="whitespace-pre-wrap text-sm text-slate-800">{result.text || (running ? "" : t("(empty)"))}</div>
           {result.error && <div className="mt-2 text-sm text-red-600">{result.error}</div>}
           {result.done && (
             <div className="mt-2">
@@ -228,11 +246,11 @@ export function TaskRunner({
             >
               {json.errors.length ? (
                 <>
-                  <b>✗ Your game/app can't use this output:</b> {json.errors.join("; ")}
+                  <b>✗ {t("Your game/app can't use this output:")}</b> {json.errors.join("; ")}
                 </>
               ) : (
                 <>
-                  <b>✓ Valid JSON with the expected fields</b>
+                  <b>✓ {t("Valid JSON with the expected fields")}</b>
                   <pre className="mt-1 whitespace-pre-wrap font-mono text-[11px] text-slate-700">
                     {JSON.stringify(json.value, null, 2)}
                   </pre>

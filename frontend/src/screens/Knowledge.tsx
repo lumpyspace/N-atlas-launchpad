@@ -4,6 +4,7 @@ import { Badge, Button, Card, Spinner } from "../ui";
 import { KNOWLEDGE_LIMIT_BYTES, makeDoc, search, storageBytes, tokenize, type KDoc, type KHit } from "../utils/knowledge";
 import { timeAgo } from "../utils/projectStatus";
 import { ACCEPTED, readFileAsText } from "../utils/readFile";
+import { plural, useT } from "../i18n";
 
 /**
  * Knowledge: the documents your app answers from. They're split into
@@ -12,6 +13,7 @@ import { ACCEPTED, readFileAsText } from "../utils/readFile";
  */
 export default function Knowledge() {
   const { state, dispatch } = useProject();
+  const t = useT();
   const docs = state.knowledge;
   const needs = state.blueprint?.buildPlan?.dataSources ?? [];
   const used = storageBytes(docs);
@@ -26,9 +28,12 @@ export default function Knowledge() {
 
   function add(name: string, text: string): string | null {
     const doc = makeDoc(name, text);
-    if (!doc.chunks.length) return `${name}: no text to add.`;
+    if (!doc.chunks.length) return `${name}: ${t("no text to add.")}`;
     if (used + storageBytes([doc]) > KNOWLEDGE_LIMIT_BYTES) {
-      return `${name}: too large for in-browser storage (limit ~${Math.round(KNOWLEDGE_LIMIT_BYTES / 1_000_000)} MB per project). Split it or keep only the sections your app needs.`;
+      return `${name}: ${t(
+        "too large for in-browser storage (limit ~{mb} MB per project). Split it or keep only the sections your app needs.",
+        { mb: Math.round(KNOWLEDGE_LIMIT_BYTES / 1_000_000) },
+      )}`;
     }
     dispatch({ type: "addKnowledge", doc });
     return null;
@@ -55,20 +60,21 @@ export default function Knowledge() {
     <div className="mx-auto max-w-5xl px-6 py-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Knowledge</h1>
+          <h1 className="text-2xl font-bold text-ink">{t("Knowledge")}</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            The documents your app answers from — notes, price lists, policies, laws, FAQs. N-ATLAS doesn't know them,
-            so for every question the most relevant passages are found and added to the prompt automatically.
+            {t(
+              "The documents your app answers from — notes, price lists, policies, laws, FAQs. N-ATLAS doesn't know them, so for every question the most relevant passages are found and added to the prompt automatically.",
+            )}
           </p>
         </div>
         <Button onClick={() => dispatch({ type: "setStep", step: "playground" })} disabled={!docs.length}>
-          Test with your knowledge →
+          {t("Test with your knowledge →")}
         </Button>
       </div>
 
       {needs.length > 0 && (
         <Card className="mt-5 p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">What this app needs</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t("What this app needs")}</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {needs.map((n) => (
               <span key={n.name} title={n.why} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600">
@@ -76,7 +82,7 @@ export default function Knowledge() {
               </span>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">From your build guide. Hover for why each one matters.</p>
+          <p className="mt-2 text-[11px] text-slate-400">{t("From your build guide. Hover for why each one matters.")}</p>
         </Card>
       )}
 
@@ -98,15 +104,15 @@ export default function Knowledge() {
           }`}
         >
           <div className="text-3xl">📄</div>
-          <p className="mt-2 text-sm font-medium text-slate-700">Drop files here</p>
-          <p className="text-xs text-slate-400">PDF, TXT, Markdown, CSV or JSON</p>
+          <p className="mt-2 text-sm font-medium text-slate-700">{t("Drop files here")}</p>
+          <p className="text-xs text-slate-400">{t("PDF, TXT, Markdown, CSV or JSON")}</p>
           <Button size="sm" className="mt-3" onClick={() => fileRef.current?.click()} disabled={busy}>
             {busy ? (
               <>
-                <Spinner /> Reading…
+                <Spinner /> {t("Reading…")}
               </>
             ) : (
-              "Choose files"
+              t("Choose files")
             )}
           </Button>
           <input
@@ -124,17 +130,17 @@ export default function Knowledge() {
 
         {/* Paste */}
         <Card className="flex flex-col p-4">
-          <div className="text-sm font-semibold text-slate-800">Or paste text</div>
+          <div className="text-sm font-semibold text-slate-800">{t("Or paste text")}</div>
           <input
             value={pasteTitle}
             onChange={(e) => setPasteTitle(e.target.value)}
-            placeholder="Title, e.g. “Mile 12 prices — Tuesday”"
+            placeholder={t("Title, e.g. “Mile 12 prices — Tuesday”")}
             className="mt-2 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-forge-500 focus:outline-none"
           />
           <textarea
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
-            placeholder="Paste the text your app should know…"
+            placeholder={t("Paste the text your app should know…")}
             className="mt-2 h-24 flex-1 resize-y rounded-md border border-slate-300 p-2 text-sm focus:border-forge-500 focus:outline-none"
           />
           <Button
@@ -142,7 +148,7 @@ export default function Knowledge() {
             className="mt-2 self-end"
             disabled={!pasteText.trim()}
             onClick={() => {
-              const err = add(pasteTitle.trim() || `Pasted text ${docs.length + 1}`, pasteText);
+              const err = add(pasteTitle.trim() || t("Pasted text {n}", { n: docs.length + 1 }), pasteText);
               setErrors(err ? [err] : []);
               if (!err) {
                 setPasteText("");
@@ -150,7 +156,7 @@ export default function Knowledge() {
               }
             }}
           >
-            Add to knowledge
+            {t("Add to knowledge")}
           </Button>
         </Card>
       </div>
@@ -167,17 +173,17 @@ export default function Knowledge() {
       <Card className="mt-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold text-slate-800">
-            Documents
+            {t("Documents")}
             {docs.length > 0 && (
               <span className="ml-2 text-sm font-normal text-slate-400">
-                {docs.length} · {docs.reduce((s, d) => s + d.chunks.length, 0)} passages
+                {docs.length} · {plural(t, docs.reduce((s, d) => s + d.chunks.length, 0), "{n} passage", "{n} passages")}
               </span>
             )}
           </h2>
           <StorageMeter used={used} />
         </div>
         {docs.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">No documents yet. Add what your app should answer from.</p>
+          <p className="mt-2 text-sm text-slate-500">{t("No documents yet. Add what your app should answer from.")}</p>
         ) : (
           <ul className="mt-2 divide-y divide-slate-100">
             {docs.map((d) => (
@@ -190,20 +196,21 @@ export default function Knowledge() {
       {/* Try a search */}
       {docs.length > 0 && (
         <Card className="mt-4 p-4">
-          <h2 className="font-semibold text-slate-800">Try a search</h2>
-          <p className="text-xs text-slate-500">Type a question a user might ask — these are the passages N-ATLAS would be given.</p>
+          <h2 className="font-semibold text-slate-800">{t("Try a search")}</h2>
+          <p className="text-xs text-slate-500">{t("Type a question a user might ask — these are the passages N-ATLAS would be given.")}</p>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g. What did my notes say about competitive inhibition?"
+            placeholder={t("e.g. What did my notes say about competitive inhibition?")}
             className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-forge-500 focus:outline-none"
           />
           {query.trim() && (
             <div className="mt-3 space-y-2">
               {hits.length === 0 ? (
                 <p className="text-sm text-amber-700">
-                  No matching passages — N-ATLAS would get no facts for this question. Add documents that cover it, or
-                  check the wording.
+                  {t(
+                    "No matching passages — N-ATLAS would get no facts for this question. Add documents that cover it, or check the wording.",
+                  )}
                 </p>
               ) : (
                 hits.map((h, i) => <HitCard key={h.chunk.id} h={h} rank={i + 1} query={query} />)
@@ -211,7 +218,7 @@ export default function Knowledge() {
             </div>
           )}
           <p className="mt-3 text-[11px] text-slate-400">
-            Keyword search (BM25), accent-insensitive. Up to 3 passages are added per question.
+            {t("Keyword search (BM25), accent-insensitive. Up to 3 passages are added per question.")}
           </p>
         </Card>
       )}
@@ -220,18 +227,20 @@ export default function Knowledge() {
 }
 
 function StorageMeter({ used }: { used: number }) {
+  const t = useT();
   const share = used / KNOWLEDGE_LIMIT_BYTES;
   return (
-    <div className="flex items-center gap-2 text-[11px] text-slate-400" title="Stored in this browser with your project">
+    <div className="flex items-center gap-2 text-[11px] text-slate-400" title={t("Stored in this browser with your project")}>
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
         <div className={`h-full ${share > 0.85 ? "bg-red-500" : "bg-forge-500"}`} style={{ width: `${Math.min(100, share * 100)}%` }} />
       </div>
-      {(used / 1_000_000).toFixed(2)} of {(KNOWLEDGE_LIMIT_BYTES / 1_000_000).toFixed(1)} MB
+      {t("{used} of {limit} MB", { used: (used / 1_000_000).toFixed(2), limit: (KNOWLEDGE_LIMIT_BYTES / 1_000_000).toFixed(1) })}
     </div>
   );
 }
 
 function DocRow({ d, onRemove }: { d: KDoc; onRemove: () => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   return (
@@ -240,22 +249,22 @@ function DocRow({ d, onRemove }: { d: KDoc; onRemove: () => void }) {
         <button onClick={() => setOpen((o) => !o)} className="font-medium text-slate-700 hover:text-forge-700">
           {open ? "▾" : "▸"} {d.name}
         </button>
-        <Badge>{d.chunks.length} passage{d.chunks.length === 1 ? "" : "s"}</Badge>
+        <Badge>{plural(t, d.chunks.length, "{n} passage", "{n} passages")}</Badge>
         <span className="text-xs text-slate-400">
-          {d.chars.toLocaleString("en-US")} characters · added {timeAgo(d.addedAt)}
+          {t("{n} characters", { n: d.chars.toLocaleString("en-US") })} · {t("added {when}", { when: timeAgo(d.addedAt, t) })}
         </span>
         <button
           onClick={() => (confirm ? onRemove() : setConfirm(true))}
           className={`ml-auto text-xs ${confirm ? "font-medium text-red-600" : "text-slate-400 hover:text-red-600"}`}
         >
-          {confirm ? "Click again to remove" : "Remove"}
+          {confirm ? t("Click again to remove") : t("Remove")}
         </button>
       </div>
       {open && (
         <div className="mt-2 max-h-80 space-y-2 overflow-y-auto">
           {d.chunks.map((c, i) => (
             <div key={c.id} className="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Passage {i + 1}</div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t("Passage {n}", { n: i + 1 })}</div>
               <div className="whitespace-pre-wrap">{c.text}</div>
             </div>
           ))}
@@ -285,12 +294,13 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 }
 
 function HitCard({ h, rank, query }: { h: KHit; rank: number; query: string }) {
+  const t = useT();
   return (
     <div className="rounded-lg border border-slate-200 p-3">
       <div className="mb-1 flex items-center gap-2 text-[11px] text-slate-400">
         <Badge tone="green">#{rank}</Badge>
-        {h.doc.name} — passage {h.index}
-        <span className="ml-auto">score {h.score.toFixed(2)}</span>
+        {h.doc.name} — {t("passage {n}", { n: h.index })}
+        <span className="ml-auto">{t("score {n}", { n: h.score.toFixed(2) })}</span>
       </div>
       <div className="line-clamp-6 whitespace-pre-wrap text-sm text-slate-700">
         <Highlighted text={h.chunk.text} query={query} />

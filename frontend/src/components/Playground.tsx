@@ -9,6 +9,7 @@ import { RateAnswer, type Rating } from "./RateAnswer";
 import { SourcesList, type Source } from "./SourcesList";
 import { formatHits, search } from "../utils/knowledge";
 import { TaskRunner } from "./TaskRunner";
+import { isLangCode, LANGUAGES, plural, useT } from "../i18n";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -60,13 +61,7 @@ interface MultiLangState {
 
 // ── Language list ─────────────────────────────────────────────────────────────
 
-const LANGS = [
-  { code: "en", label: "Nigerian English" },
-  { code: "pid", label: "Nigerian Pidgin" },
-  { code: "yo", label: "Yoruba" },
-  { code: "ha", label: "Hausa" },
-  { code: "ig", label: "Igbo" },
-];
+const LANGS = LANGUAGES.map((l) => ({ code: l.code, label: l.code === "en" ? "Nigerian English" : l.native }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -141,6 +136,7 @@ function formatMs(ms: number): string {
 
 export default function Playground({ health, embedded = false }: { health: HealthStatus | null; embedded?: boolean }) {
   const { state, dispatch } = useProject();
+  const t = useT();
   const bp = state.blueprint;
   // How this kind of app is tried out: chat, or its own task forms.
   const spec = bp?.buildPlan?.playground;
@@ -152,7 +148,9 @@ export default function Playground({ health, embedded = false }: { health: Healt
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
-  const [language, setLanguage] = useState("en");
+  // Replies come in the project's language; changing it here changes it for the whole project.
+  const language = state.language;
+  const setLanguage = (l: string) => isLangCode(l) && dispatch({ type: "setLanguage", language: l });
   const [loading, setLoading] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -184,7 +182,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
     return { context, sources: hits.map((h) => ({ doc: h.doc.name, index: h.index, text: h.chunk.text })) };
   }
 
-  function buildOptions(lang = language, context = state.playgroundData): GenerateOptions {
+  function buildOptions(lang: string = language, context = state.playgroundData): GenerateOptions {
     return {
       system: withContext(state.systemPrompt, context) || undefined,
       language: lang,
@@ -242,10 +240,10 @@ export default function Playground({ health, embedded = false }: { health: Healt
           scrollBottom();
         } else if (event.type === "stats") {
           const warnings: string[] = [];
-          const mismatch = checkLangMismatch(language, fullText);
+          const mismatch = checkLangMismatch(language, fullText, t);
           if (mismatch) warnings.push(mismatch);
           if (language === "yo" && !hasYorubaToneMarks(fullText)) {
-            warnings.push("Yoruba reply has few or no tone marks");
+            warnings.push(t("Yoruba reply has few or no tone marks"));
           }
           setMessages((m) =>
             m.map((msg) =>
@@ -283,10 +281,14 @@ export default function Playground({ health, embedded = false }: { health: Healt
             ? {
                 ...msg,
                 streaming: false,
-                text: fullText || (timedOut ? "" : "(stopped)"),
+                text: fullText || (timedOut ? "" : t("(stopped)")),
                 ...(timedOut && {
                   warnings: [
-                    `Timed out — no output for ${IDLE_MS / 1000}s${fullText ? "; reply is incomplete" : ""}. Try Short answers or a smaller model.`,
+                    (fullText
+                      ? t("Timed out — no output for {s}s; reply is incomplete.", { s: IDLE_MS / 1000 })
+                      : t("Timed out — no output for {s}s.", { s: IDLE_MS / 1000 })) +
+                      " " +
+                      t("Try Short answers or a smaller model."),
                   ],
                 }),
               }
@@ -296,10 +298,10 @@ export default function Playground({ health, embedded = false }: { health: Healt
     } catch (e: any) {
       const aborted = (e?.name === "AbortError" || ctrl.signal.aborted) && !timedOut;
       const friendly = aborted
-        ? "(stopped)"
+        ? t("(stopped)")
         : timedOut || e?.message?.includes("timeout") || e?.message?.includes("AbortError")
-          ? "Request timed out. Try the Short Answers toggle in Model Settings, or use a smaller model (e.g. n-atlas:q4_0)."
-          : (e?.message ?? "Unknown error");
+          ? t("Request timed out. Try the Short Answers toggle in Model Settings, or use a smaller model (e.g. n-atlas:q4_0).")
+          : (e?.message ?? t("Unknown error"));
       setMessages((m) =>
         m.map((msg) =>
           msg.id === asstId
@@ -337,7 +339,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
       setMessages((m) =>
         m.map((msg) =>
           msg.id === msgId
-            ? { ...msg, translation: "(translation failed)", translationLoading: false }
+            ? { ...msg, translation: t("(translation failed)"), translationLoading: false }
             : msg,
         ),
       );
@@ -437,10 +439,10 @@ export default function Playground({ health, embedded = false }: { health: Healt
             );
           } else if (event.type === "stats") {
             const warnings: string[] = [];
-            const mismatch = checkLangMismatch(card.lang, fullText);
+            const mismatch = checkLangMismatch(card.lang, fullText, t);
             if (mismatch) warnings.push(mismatch);
             if (card.lang === "yo" && !hasYorubaToneMarks(fullText)) {
-              warnings.push("Yoruba reply has few or no tone marks");
+              warnings.push(t("Yoruba reply has few or no tone marks"));
             }
             setMlState((s) =>
               s ? {
@@ -473,7 +475,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
             ...s,
             cards: s.cards.map((c, idx) =>
               idx === i && c.result?.streaming
-                ? { ...c, result: { ...c.result, text: fullText || "(stopped)", streaming: false } }
+                ? { ...c, result: { ...c.result, text: fullText || t("(stopped)"), streaming: false } }
                 : c,
             ),
           } : s,
@@ -484,7 +486,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
             ...s,
             cards: s.cards.map((c, idx) =>
               idx === i
-                ? { ...c, result: { text: "(error)", streaming: false } }
+                ? { ...c, result: { text: t("(error)"), streaming: false } }
                 : c,
             ),
           } : s,
@@ -522,7 +524,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
   // ── Derived values ────────────────────────────────────────────────────────
 
   const tasks = bp?.primaryTasks ?? [];
-  const placeholder = "Type a message the way a real user would…";
+  const placeholder = t("Type a message the way a real user would…");
 
   // Two app-specific prompts from the tasks, then realistic sector test messages
   // (Pidgin, mixed-language, typos, and an off-topic/borderline request).
@@ -542,9 +544,9 @@ export default function Playground({ health, embedded = false }: { health: Healt
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-ink">Testing in all languages</h1>
+            <h1 className="text-xl font-bold text-ink">{t("Testing in all languages")}</h1>
             <p className="text-sm text-slate-500">
-              Original: <em className="text-slate-700">"{mlState.originalMessage}"</em>
+              {t("Original:")} <em className="text-slate-700">"{mlState.originalMessage}"</em>
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -554,7 +556,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
                 size="sm"
                 onClick={() => mlAbortRef.current?.abort()}
               >
-                ■ Stop all
+                ■ {t("Stop all")}
               </Button>
             )}
             <Button
@@ -562,14 +564,14 @@ export default function Playground({ health, embedded = false }: { health: Healt
               size="sm"
               onClick={() => { mlAbortRef.current?.abort(); setMlState(null); }}
             >
-              ← Back to chat
+              ← {t("Back to chat")}
             </Button>
           </div>
         </div>
 
         {mlState.phase === "translating" && (
           <Card className="p-6 text-center text-sm text-slate-500">
-            <Spinner className="mx-auto mb-2" /> Translating your message into 5 languages…
+            <Spinner className="mx-auto mb-2" /> {t("Translating your message into 5 languages…")}
           </Card>
         )}
 
@@ -577,9 +579,9 @@ export default function Playground({ health, embedded = false }: { health: Healt
           <>
             {mlState.phase === "editing" && (
               <div className="mb-4 flex items-center gap-3">
-                <p className="text-sm text-slate-500">Review and edit translations, then send all.</p>
+                <p className="text-sm text-slate-500">{t("Review and edit translations, then send all.")}</p>
                 <Button onClick={runMultiLang} size="sm">
-                  Send all →
+                  {t("Send all →")}
                 </Button>
               </div>
             )}
@@ -615,20 +617,20 @@ export default function Playground({ health, embedded = false }: { health: Healt
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-ink">
-            {bp?.name ?? "N-ATLAS Playground"}
+            {bp?.name ?? t("N-ATLAS Playground")}
           </h1>
           <p className="text-sm text-slate-500">
             {templates.length
-              ? "Try your app the way it will really be used — chat, or run its tasks with your own data — and save results as test cases."
-              : "Chat with your application — try real prompts, break it, save cases."}
+              ? t("Try your app the way it will really be used — chat, or run its tasks with your own data — and save results as test cases.")
+              : t("Chat with your application — try real prompts, break it, save cases.")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {savedCount > 0 && (
-            <Badge tone="blue">{savedCount} saved</Badge>
+            <Badge tone="blue">{t("{n} saved", { n: savedCount })}</Badge>
           )}
           <Button onClick={() => dispatch({ type: "setStep", step: "evaluate" })}>
-            Continue to Evaluate →
+            {t("Continue to Evaluate →")}
           </Button>
         </div>
       </div>
@@ -640,7 +642,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-2 py-1.5">
             {/* Modes: chat, plus this kind of app's own tasks (forms, JSON output) */}
             <div className="flex min-w-0 flex-wrap gap-1">
-              {[{ id: "chat", label: "💬 Chat" }, ...templates.map((t) => ({ id: t.id, label: (t.output === "json" ? "{ } " : "📝 ") + t.label }))].map((m) => (
+              {[{ id: "chat", label: "💬 " + t("Chat") }, ...templates.map((tpl) => ({ id: tpl.id, label: (tpl.output === "json" ? "{ } " : "📝 ") + t(tpl.label) }))].map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setMode(m.id)}
@@ -654,7 +656,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
             </div>
             {/* health is null until the first check returns (a real inference, ~5–10s) */}
             <Badge tone={connected ? "green" : health ? "red" : "slate"}>
-              {connected ? "● N-ATLAS" : health ? "● Offline" : "● Checking…"}
+              {connected ? "● N-ATLAS" : health ? "● " + t("Offline") : "● " + t("Checking…")}
             </Badge>
           </div>
 
@@ -665,6 +667,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
               data={state.playgroundData}
               knowledge={state.knowledge}
               temperature={temperature}
+              language={language}
               onSave={(tc) => dispatch({ type: "addTestCase", testCase: tc })}
             />
           ) : (
@@ -717,7 +720,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
                 {loading && (
                   <div className="flex items-center gap-2 text-sm text-slate-400">
                     <Spinner />
-                    {bp?.name ?? "N-ATLAS"} is responding…
+                    {t("{name} is responding…", { name: bp?.name ?? "N-ATLAS" })}
                   </div>
                 )}
               </div>
@@ -741,7 +744,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
                   size="sm"
                   onClick={() => abortRef.current?.abort()}
                 >
-                  ■ Stop
+                  ■ {t("Stop")}
                 </Button>
               )}
             </div>
@@ -754,15 +757,15 @@ export default function Playground({ health, embedded = false }: { health: Healt
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send(input)}
               />
               <Button onClick={() => send(input)} disabled={loading || !input.trim()}>
-                Send
+                {t("Send")}
               </Button>
               <button
                 onClick={startMultiLang}
                 disabled={loading || !input.trim()}
-                title="Test in all 5 languages"
+                title={t("Test in all 5 languages")}
                 className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-600 hover:border-forge-400 hover:text-forge-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                🌍 All langs
+                🌍 {t("All languages")}
               </button>
             </div>
           </div>
@@ -774,30 +777,31 @@ export default function Playground({ health, embedded = false }: { health: Healt
         <div className="space-y-3">
           <Card className="p-4">
             <div className="mb-1 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800">What your app knows</h3>
+              <h3 className="text-sm font-semibold text-slate-800">{t("What your app knows")}</h3>
               {spec?.sampleData && state.playgroundData !== spec.sampleData && (
                 <button
                   onClick={() => dispatch({ type: "setPlaygroundData", data: spec.sampleData! })}
                   className="text-[11px] text-forge-600 hover:underline"
                 >
-                  Use sample
+                  {t("Use sample")}
                 </button>
               )}
             </div>
             {state.knowledge.length > 0 ? (
               <div className="mb-2 rounded-lg border border-forge-200 bg-forge-50/60 p-2 text-[11px] leading-snug text-slate-600">
-                📚 <b>{state.knowledge.length} document{state.knowledge.length === 1 ? "" : "s"}</b> (
-                {state.knowledge.reduce((s, d) => s + d.chunks.length, 0)} passages). The most relevant passages are
-                added to each question automatically.{" "}
+                📚 <b>{plural(t, state.knowledge.length, "{n} document", "{n} documents")}</b> (
+                {plural(t, state.knowledge.reduce((s, d) => s + d.chunks.length, 0), "{n} passage", "{n} passages")}).{" "}
+                {t("The most relevant passages are added to each question automatically.")}{" "}
                 <button onClick={() => dispatch({ type: "setStep", step: "knowledge" })} className="font-medium text-forge-700 hover:underline">
-                  Manage →
+                  {t("Manage →")}
                 </button>
               </div>
             ) : (
               <p className="mb-2 text-[11px] leading-snug text-slate-500">
-                {spec?.dataLabel ? `${spec.dataLabel}: ` : ""}facts your app answers from — saved with each test.{" "}
+                {spec?.dataLabel ? `${t(spec.dataLabel)}: ` : ""}
+                {t("facts your app answers from — saved with each test.")}{" "}
                 <button onClick={() => dispatch({ type: "setStep", step: "knowledge" })} className="font-medium text-forge-600 hover:underline">
-                  Upload documents instead →
+                  {t("Upload documents instead →")}
                 </button>
               </p>
             )}
@@ -807,14 +811,14 @@ export default function Playground({ health, embedded = false }: { health: Healt
               onChange={(e) => dispatch({ type: "setPlaygroundData", data: e.target.value })}
               placeholder={
                 state.knowledge.length
-                  ? "Extra facts for every question (optional)…"
-                  : "e.g. a price list, an order record, your lecture notes, a law extract…"
+                  ? t("Extra facts for every question (optional)…")
+                  : t("e.g. a price list, an order record, your lecture notes, a law extract…")
               }
             />
           </Card>
 
           <Card className="p-4">
-            <h3 className="mb-2 text-sm font-semibold text-slate-800">Try asking</h3>
+            <h3 className="mb-2 text-sm font-semibold text-slate-800">{t("Try asking")}</h3>
             <div className="space-y-1.5">
               {quick.map((q) => (
                 <button
@@ -834,34 +838,34 @@ export default function Playground({ health, embedded = false }: { health: Healt
               onClick={() => setSettingsOpen((o) => !o)}
               className="flex w-full items-center justify-between text-sm font-semibold text-slate-600 hover:text-slate-800"
             >
-              <span>Advanced</span>
+              <span>{t("Advanced")}</span>
               <span className="text-xs">{settingsOpen ? "▾" : "▸"}</span>
             </button>
             {!settingsOpen && (
-              <p className="mt-1 text-[11px] text-slate-400">System prompt, model settings, and code to call it.</p>
+              <p className="mt-1 text-[11px] text-slate-400">{t("System prompt, model settings, and code to call it.")}</p>
             )}
             {settingsOpen && (
               <div className="mt-3 space-y-4">
                 <div>
                   <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-600">
-                    <span>System prompt</span>
+                    <span>{t("System prompt")}</span>
                     <button
                       onClick={() => dispatch({ type: "setStep", step: "prompt" })}
                       className="font-medium text-forge-600 hover:underline"
                     >
-                      Open Prompt studio →
+                      {t("Open Prompt studio →")}
                     </button>
                   </div>
                   <textarea
                     className="h-44 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-2 font-mono text-[11px] leading-relaxed text-slate-700 focus:border-forge-500 focus:outline-none"
                     value={state.systemPrompt}
                     onChange={(e) => dispatch({ type: "setSystemPrompt", systemPrompt: e.target.value })}
-                    placeholder="Your app's system instructions…"
+                    placeholder={t("Your app's system instructions…")}
                   />
                 </div>
                 <div>
                   <div className="mb-1 flex justify-between text-xs text-slate-600">
-                    <span>Temperature</span>
+                    <span>{t("Temperature")}</span>
                     <span className="font-mono">{temperature.toFixed(1)}</span>
                   </div>
                   <input
@@ -873,7 +877,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
                 </div>
                 <div>
                   <div className="mb-1 flex justify-between text-xs text-slate-600">
-                    <span>Max tokens</span>
+                    <span>{t("Max tokens")}</span>
                     <span className="font-mono">{shortAnswers ? 150 : maxTokens}</span>
                   </div>
                   <input
@@ -892,19 +896,19 @@ export default function Playground({ health, embedded = false }: { health: Healt
                     className="accent-forge-500"
                   />
                   <span className="text-xs text-slate-700">
-                    <strong>Short answers</strong> — 150 tokens, faster testing
+                    <strong>{t("Short answers")}</strong> — {t("150 tokens, faster testing")}
                   </span>
                 </label>
                 <div className="flex items-center justify-between text-xs text-slate-400">
                   <span>
-                    Model: <span className="font-medium text-slate-600">{health?.model ?? "N-ATLAS"}</span>
+                    {t("Model:")} <span className="font-medium text-slate-600">{health?.model ?? "N-ATLAS"}</span>
                   </span>
                   <button
                     onClick={() => setCodeOpen(true)}
                     className="rounded-md border border-slate-200 px-2 py-0.5 font-mono font-medium text-slate-600 hover:border-forge-400 hover:text-forge-700"
-                    title="Copy this exact request as JavaScript, Python or curl"
+                    title={t("Copy this exact request as JavaScript, Python or curl")}
                   >
-                    {"</>"} Get code
+                    {"</>"} {t("Get code")}
                   </button>
                 </div>
               </div>
@@ -946,10 +950,11 @@ function AppWelcome({
   onTap: (task: string) => void;
   loading: boolean;
 }) {
+  const t = useT();
   if (!bp) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-slate-400">
-        No blueprint yet — describe your app first.
+        {t("No blueprint yet — describe your app first.")}
       </div>
     );
   }
@@ -963,7 +968,7 @@ function AppWelcome({
       <p className="mt-1 max-w-xs text-sm text-slate-500 leading-relaxed">
         {bp.purpose.charAt(0).toUpperCase() + bp.purpose.slice(1).replace(/[.!?]*$/, ".")}
       </p>
-      <p className="mt-2 text-xs text-slate-400">For {bp.targetUsers}</p>
+      <p className="mt-2 text-xs text-slate-400">{t("For {users}", { users: bp.targetUsers })}</p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
         {bp.primaryTasks.map((task) => (
           <button
@@ -977,7 +982,7 @@ function AppWelcome({
         ))}
       </div>
       <p className="mt-6 text-[11px] text-slate-300">
-        Tap a feature above or type your own message
+        {t("Tap a feature above or type your own message")}
       </p>
     </div>
   );
@@ -996,6 +1001,7 @@ function BubbleRow({
   onShowTranslation: () => void;
   hasKnowledge?: boolean;
 }) {
+  const t = useT();
   if (msg.role === "user") {
     return (
       <div className="flex justify-end">
@@ -1026,8 +1032,8 @@ function BubbleRow({
           {msg.text}
           {msg.stats && (
             <div className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-1.5 text-[10px] text-slate-400">
-              <span title="Time to first token">⚡ TTFT {formatMs(msg.stats.ttftMs)}</span>
-              <span title="Total time">⏱ {formatMs(msg.stats.totalMs)}</span>
+              <span title={t("Time to first token")}>⚡ TTFT {formatMs(msg.stats.ttftMs)}</span>
+              <span title={t("Total time")}>⏱ {formatMs(msg.stats.totalMs)}</span>
               {msg.stats.tokensGenerated > 0 && (
                 <>
                   <span>{msg.stats.tokensGenerated} tok</span>
@@ -1049,19 +1055,19 @@ function BubbleRow({
         {isNonEnglish && !msg.streaming && !msg.error && (
           <div className="text-[11px] text-slate-400">
             {msg.translationLoading ? (
-              <span className="flex items-center gap-1"><Spinner className="h-3 w-3" /> Translating…</span>
+              <span className="flex items-center gap-1"><Spinner className="h-3 w-3" /> {t("Translating…")}</span>
             ) : msg.translation ? (
               <div className="mt-1 rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-600">
-                <span className="mr-1 font-semibold text-slate-400">EN (machine):</span>
+                <span className="mr-1 font-semibold text-slate-400">{t("EN (machine):")}</span>
                 {msg.translation}
-                <span className="ml-1 text-[10px] text-amber-600">— verify with a native speaker</span>
+                <span className="ml-1 text-[10px] text-amber-600">— {t("verify with a native speaker")}</span>
               </div>
             ) : (
               <button
                 onClick={onShowTranslation}
                 className="hover:text-slate-600 underline-offset-2 hover:underline"
               >
-                Show English translation
+                {t("Show English translation")}
               </button>
             )}
           </div>
@@ -1089,11 +1095,12 @@ function MultiLangCard({
   onTextChange: (t: string) => void;
   onSave: (verdict: "good" | "bad") => void;
 }) {
+  const t = useT();
   return (
     <Card className="flex flex-col p-4">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-semibold text-slate-700">{card.label}</span>
-        {card.savedId && <Badge tone="green" className="text-[10px]">Saved</Badge>}
+        {card.savedId && <Badge tone="green" className="text-[10px]">{t("Saved")}</Badge>}
       </div>
 
       {editMode ? (
@@ -1104,7 +1111,7 @@ function MultiLangCard({
         />
       ) : (
         <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
-          <span className="mr-1 text-[10px] font-semibold uppercase text-slate-400">Q:</span>
+          <span className="mr-1 text-[10px] font-semibold uppercase text-slate-400">{t("Q:")}</span>
           {card.text}
         </div>
       )}
@@ -1145,7 +1152,7 @@ function MultiLangCard({
                 onClick={() => onSave("good")}
                 className="text-[10px] text-slate-400 hover:text-slate-600"
               >
-                Save
+                {t("Save")}
               </button>
             </div>
           )}

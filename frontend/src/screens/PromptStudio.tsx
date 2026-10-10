@@ -5,6 +5,7 @@ import { Badge, Button, Card, Spinner } from "../ui";
 import { diffLines } from "../utils/diff";
 import { applyFix } from "../utils/prompt";
 import { timeAgo } from "../utils/projectStatus";
+import { plural, useT } from "../i18n";
 
 const SEVERITY: Record<PromptFinding["severity"], { icon: string; box: string; text: string }> = {
   fix: { icon: "!", box: "border-red-200 bg-red-50", text: "text-red-700" },
@@ -20,6 +21,7 @@ const SEVERITY: Record<PromptFinding["severity"], { icon: string; box: string; t
  */
 export default function PromptStudio() {
   const { state, dispatch } = useProject();
+  const t = useT();
   const bp = state.blueprint;
   const [diagnosis, setDiagnosis] = useState<PromptDiagnosis | null>(null);
   const [checking, setChecking] = useState(false);
@@ -78,7 +80,7 @@ export default function PromptStudio() {
   if (!bp) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
-        <Card className="p-8 text-center text-slate-500">Design and build your app first — then refine its prompt here.</Card>
+        <Card className="p-8 text-center text-slate-500">{t("Design and build your app first — then refine its prompt here.")}</Card>
       </div>
     );
   }
@@ -87,13 +89,14 @@ export default function PromptStudio() {
     <div className="mx-auto max-w-6xl px-6 py-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Prompt studio</h1>
+          <h1 className="text-2xl font-bold text-ink">{t("Prompt studio")}</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            The instructions N-ATLAS follows for every reply. The doctor checks them for N-ATLAS's known quirks; save
-            versions as you go so you can compare and roll back.
+            {t(
+              "The instructions N-ATLAS follows for every reply. The doctor checks them for N-ATLAS's known quirks; save versions as you go so you can compare and roll back.",
+            )}
           </p>
         </div>
-        <Button onClick={() => dispatch({ type: "setStep", step: "playground" })}>Test it →</Button>
+        <Button onClick={() => dispatch({ type: "setStep", step: "playground" })}>{t("Test it →")}</Button>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
@@ -101,14 +104,14 @@ export default function PromptStudio() {
         <div className="space-y-4">
           <Card className="p-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-semibold text-slate-800">System prompt</h2>
+              <h2 className="font-semibold text-slate-800">{t("System prompt")}</h2>
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 {diagnosis && (
                   <span>
-                    ~{diagnosis.budget.systemPrompt.toLocaleString("en-US")} tokens · {diagnosis.words} words
+                    {t("~{tokens} tokens · {words} words", { tokens: diagnosis.budget.systemPrompt.toLocaleString("en-US"), words: diagnosis.words })}
                   </span>
                 )}
-                {unsaved ? <Badge tone="amber">Unsaved changes</Badge> : <Badge tone="green">Saved as “{latest!.label}”</Badge>}
+                {unsaved ? <Badge tone="amber">{t("Unsaved changes")}</Badge> : <Badge tone="green">{t("Saved as “{label}”", { label: latest!.label })}</Badge>}
               </div>
             </div>
             <textarea
@@ -127,7 +130,7 @@ export default function PromptStudio() {
                     setLabel("");
                   }
                 }}
-                placeholder="Version name (optional), e.g. “added Pidgin rule”"
+                placeholder={t("Version name (optional), e.g. “added Pidgin rule”")}
                 className="min-w-56 flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-forge-500 focus:outline-none"
               />
               <Button
@@ -138,45 +141,44 @@ export default function PromptStudio() {
                   setLabel("");
                 }}
               >
-                Save version
+                {t("Save version")}
               </Button>
               {editedFromGenerated && (
                 <Button size="sm" variant="ghost" onClick={() => setComparing("generated")}>
-                  Compare with original
+                  {t("Compare with original")}
                 </Button>
               )}
             </div>
           </Card>
 
           <Card className="p-4">
-            <h2 className="font-semibold text-slate-800">Versions</h2>
+            <h2 className="font-semibold text-slate-800">{t("Versions")}</h2>
             {state.promptVersions.length === 0 ? (
               <p className="mt-1 text-sm text-slate-500">
-                No saved versions yet. Save one before a big change — then compare test results and roll back if it
-                gets worse.
+                {t("No saved versions yet. Save one before a big change — then compare test results and roll back if it gets worse.")}
               </p>
             ) : (
               <ul className="mt-2 divide-y divide-slate-100">
                 {state.promptVersions.map((v) => (
                   <li key={v.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
                     <span className="font-medium text-slate-700">{v.label}</span>
-                    <span className="text-xs text-slate-400">{timeAgo(v.savedAt)}</span>
-                    {v.text === prompt && <Badge tone="green">current</Badge>}
+                    <span className="text-xs text-slate-400">{timeAgo(v.savedAt, t)}</span>
+                    {v.text === prompt && <Badge tone="green">{t("current")}</Badge>}
                     <span className="ml-auto flex gap-2 text-xs">
                       {v.text !== prompt && (
                         <>
                           <button onClick={() => setComparing(v)} className="text-forge-600 hover:underline">
-                            Compare
+                            {t("Compare")}
                           </button>
                           <button onClick={() => setPrompt(v.text)} className="text-slate-500 hover:text-slate-800">
-                            Restore
+                            {t("Restore")}
                           </button>
                         </>
                       )}
                       <button
                         onClick={() => dispatch({ type: "deletePromptVersion", id: v.id })}
                         className="text-slate-300 hover:text-red-600"
-                        aria-label="Delete version"
+                        aria-label={t("Delete version")}
                       >
                         ✕
                       </button>
@@ -189,7 +191,7 @@ export default function PromptStudio() {
 
           {comparing && (
             <DiffCard
-              title={comparing === "generated" ? "Original (generated)" : comparing.label}
+              title={comparing === "generated" ? t("Original (generated)") : comparing.label}
               before={comparing === "generated" ? bp.systemPrompt : comparing.text}
               after={prompt}
               onClose={() => setComparing(null)}
@@ -205,37 +207,43 @@ export default function PromptStudio() {
         <div className="space-y-4">
           <Card className="p-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-slate-800">Context budget</h2>
+              <h2 className="font-semibold text-slate-800">{t("Context budget")}</h2>
               <select
                 value={replyTokens}
                 onChange={(e) => setReplyTokens(Number(e.target.value))}
                 className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-xs"
-                title="How long a reply you allow (max tokens)"
+                title={t("How long a reply you allow (max tokens)")}
               >
                 {[150, 256, 512, 1024].map((n) => (
                   <option key={n} value={n}>
-                    replies up to {n}
+                    {t("replies up to {n}", { n })}
                   </option>
                 ))}
               </select>
             </div>
             {diagnosis ? <BudgetBar budget={diagnosis.budget} /> : <div className="mt-3 h-3 rounded-full bg-slate-100" />}
             <p className="mt-2 text-[11px] text-slate-400">
-              Estimate for one exchange: prompt + your data + a typical message + the reply, against N-ATLAS's ~
-              {(diagnosis?.budget.limit ?? 8092).toLocaleString("en-US")}-token window. Conversation history uses more.
+              {t(
+                "Estimate for one exchange: prompt + your data + a typical message + the reply, against N-ATLAS's ~{limit}-token window. Conversation history uses more.",
+                { limit: (diagnosis?.budget.limit ?? 8092).toLocaleString("en-US") },
+              )}
             </p>
           </Card>
 
           <Card className="p-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-slate-800">Prompt doctor</h2>
+              <h2 className="font-semibold text-slate-800">{t("Prompt doctor")}</h2>
               {checking && <Spinner className="h-3 w-3 text-slate-400" />}
             </div>
             {diagnosis && (
               <p className="mt-0.5 text-xs text-slate-500">
                 {problems.length === 0
-                  ? "No issues found."
-                  : `${problems.filter((f) => f.severity === "fix").length} to fix · ${problems.filter((f) => f.severity === "warn").length} to consider · ${problems.filter((f) => f.severity === "info").length} tips`}
+                  ? t("No issues found.")
+                  : t("{fix} to fix · {warn} to consider · {info} tips", {
+                      fix: problems.filter((f) => f.severity === "fix").length,
+                      warn: problems.filter((f) => f.severity === "warn").length,
+                      info: problems.filter((f) => f.severity === "info").length,
+                    })}
               </p>
             )}
             {fixable.length > 1 && (
@@ -245,7 +253,7 @@ export default function PromptStudio() {
                 className="mt-2"
                 onClick={() => setPrompt(fixable.reduce((p, f) => applyFix(p, f.fix!.line), prompt))}
               >
-                Apply all {fixable.length} fixes
+                {t("Apply all {n} fixes", { n: fixable.length })}
               </Button>
             )}
 
@@ -263,7 +271,7 @@ export default function PromptStudio() {
             {good.length > 0 && (
               <div className="mt-3">
                 <button onClick={() => setShowGood((s) => !s)} className="text-xs font-medium text-forge-700 hover:underline">
-                  ✓ {good.length} thing{good.length === 1 ? "" : "s"} already good {showGood ? "▾" : "▸"}
+                  ✓ {plural(t, good.length, "{n} thing already good", "{n} things already good")} {showGood ? "▾" : "▸"}
                 </button>
                 {showGood && (
                   <div className="mt-2 space-y-2">
@@ -282,6 +290,7 @@ export default function PromptStudio() {
 }
 
 function FindingRow({ f, onFix, onAction }: { f: PromptFinding; onFix?: () => void; onAction?: () => void }) {
+  const t = useT();
   const s = SEVERITY[f.severity];
   return (
     <div className={`rounded-lg border p-2.5 ${s.box}`}>
@@ -290,8 +299,8 @@ function FindingRow({ f, onFix, onAction }: { f: PromptFinding; onFix?: () => vo
           {s.icon}
         </span>
         <div className="min-w-0">
-          <div className={`text-sm font-medium ${s.text}`}>{f.title}</div>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{f.detail}</p>
+          <div className={`text-sm font-medium ${s.text}`}>{t(f.title)}</div>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{t(f.detail)}</p>
           {f.fix && onFix && (
             <div className="mt-1.5">
               <button
@@ -299,13 +308,13 @@ function FindingRow({ f, onFix, onAction }: { f: PromptFinding; onFix?: () => vo
                 className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700 hover:border-forge-400 hover:text-forge-700"
                 title={f.fix.line}
               >
-                + {f.fix.label}
+                + {t(f.fix.label)}
               </button>
             </div>
           )}
           {f.action === "secure" && onAction && (
             <button onClick={onAction} className="mt-1.5 text-xs font-medium text-forge-700 hover:underline">
-              Run security tests →
+              {t("Run security tests →")}
             </button>
           )}
         </div>
@@ -315,11 +324,12 @@ function FindingRow({ f, onFix, onAction }: { f: PromptFinding; onFix?: () => vo
 }
 
 function BudgetBar({ budget }: { budget: PromptDiagnosis["budget"] }) {
+  const t = useT();
   const parts = [
-    { label: "System prompt", value: budget.systemPrompt, color: "bg-forge-500" },
-    { label: "Your data", value: budget.data, color: "bg-blue-400" },
-    { label: "Message", value: budget.message, color: "bg-slate-400" },
-    { label: "Reply", value: budget.reply, color: "bg-amber-400" },
+    { label: t("System prompt"), value: budget.systemPrompt, color: "bg-forge-500" },
+    { label: t("Your data"), value: budget.data, color: "bg-blue-400" },
+    { label: t("Message"), value: budget.message, color: "bg-slate-400" },
+    { label: t("Reply"), value: budget.reply, color: "bg-amber-400" },
   ];
   const scale = Math.max(budget.total, budget.limit);
   const over = budget.total > budget.limit;
@@ -332,11 +342,15 @@ function BudgetBar({ budget }: { budget: PromptDiagnosis["budget"] }) {
           ) : null,
         )}
         {over && (
-          <div className="absolute inset-y-0 w-0.5 bg-red-600" style={{ left: `${(budget.limit / scale) * 100}%` }} title="Context limit" />
+          <div className="absolute inset-y-0 w-0.5 bg-red-600" style={{ left: `${(budget.limit / scale) * 100}%` }} title={t("Context limit")} />
         )}
       </div>
       <div className={`mt-1 text-sm font-semibold ${over ? "text-red-600" : budget.share > 0.75 ? "text-amber-600" : "text-slate-700"}`}>
-        ~{budget.total.toLocaleString("en-US")} of {budget.limit.toLocaleString("en-US")} tokens ({Math.round(budget.share * 100)}%)
+        {t("~{total} of {limit} tokens ({pct}%)", {
+          total: budget.total.toLocaleString("en-US"),
+          limit: budget.limit.toLocaleString("en-US"),
+          pct: Math.round(budget.share * 100),
+        })}
       </div>
       <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
         {parts.map((p) => (
@@ -366,21 +380,22 @@ function DiffCard({
   const lines = useMemo(() => diffLines(before, after), [before, after]);
   const added = lines.filter((l) => l.kind === "added").length;
   const removed = lines.filter((l) => l.kind === "removed").length;
+  const t = useT();
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold text-slate-800">
-          Changes from “{title}” to now
+          {t("Changes from “{title}” to now", { title })}
           <span className="ml-2 text-xs font-normal">
             <span className="text-forge-700">+{added}</span> <span className="text-red-600">−{removed}</span>
           </span>
         </h2>
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={onRestore}>
-            Restore “{title}”
+            {t("Restore “{title}”", { title })}
           </Button>
           <Button size="sm" variant="ghost" onClick={onClose}>
-            Close
+            {t("Close")}
           </Button>
         </div>
       </div>

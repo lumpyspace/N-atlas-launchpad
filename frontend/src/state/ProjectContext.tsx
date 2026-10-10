@@ -19,6 +19,7 @@ import type {
   SuiteRunResult,
 } from "../api";
 import type { KDoc } from "../utils/knowledge";
+import type { LangCode } from "../i18n";
 
 /**
  * Workspace state: several projects, one open at a time. Screens use
@@ -98,6 +99,8 @@ export interface ProjectState {
   promptVersions: PromptVersion[];
   /** The app's documents; relevant passages are added to each question. */
   knowledge: KDoc[];
+  /** The project's language: N-ATLAS replies in it and Launchpad's pages are shown in it. */
+  language: LangCode;
 }
 
 export interface PromptVersion {
@@ -153,6 +156,7 @@ const initialState: ProjectState = {
   design: EMPTY_DESIGN,
   promptVersions: [],
   knowledge: [],
+  language: "en",
 };
 
 type Action =
@@ -178,6 +182,7 @@ type Action =
   | { type: "deletePromptVersion"; id: string }
   | { type: "addKnowledge"; doc: KDoc }
   | { type: "removeKnowledge"; id: string }
+  | { type: "setLanguage"; language: LangCode }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -263,6 +268,8 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, knowledge: state.knowledge.filter((d) => d.id !== action.id) };
     case "deletePromptVersion":
       return { ...state, promptVersions: state.promptVersions.filter((v) => v.id !== action.id) };
+    case "setLanguage":
+      return { ...state, language: action.language };
     case "markExported":
       return { ...state, exportedAt: new Date().toISOString() };
     case "reset":
@@ -282,6 +289,8 @@ export interface WorkspaceState {
   order: string[];
   currentId: string | null;
   view: View;
+  /** Language for pages outside a project, and for new projects. */
+  language: LangCode;
 }
 
 type WorkspaceAction =
@@ -291,7 +300,8 @@ type WorkspaceAction =
   | { type: "renameProject"; id: string; title: string }
   | { type: "duplicateProject"; id: string }
   | { type: "deleteProject"; id: string }
-  | { type: "setView"; view: View };
+  | { type: "setView"; view: View }
+  | { type: "setLanguage"; language: LangCode };
 
 function newId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -321,6 +331,8 @@ function workspaceReducer(ws: WorkspaceState, action: WorkspaceAction): Workspac
         return { ...ws, view: ws.order.length ? "home" : "landing" };
       }
       if (!current) return ws;
+      // A project's language is also the default for the next project.
+      if (action.action.type === "setLanguage") ws = { ...ws, language: action.action.language };
       if (action.action.type === "reset") return workspaceReducer(ws, { type: "newProject" });
       const next = reducer(current, action.action);
       if (next === current) return ws;
@@ -332,7 +344,7 @@ function workspaceReducer(ws: WorkspaceState, action: WorkspaceAction): Workspac
         : touch(ws, project);
     }
     case "newProject": {
-      const p = makeProject();
+      const p = makeProject({ language: ws.language });
       return { ...touch(ws, p), currentId: p.id, view: "project" };
     }
     case "openProject":
@@ -357,6 +369,8 @@ function workspaceReducer(ws: WorkspaceState, action: WorkspaceAction): Workspac
     }
     case "setView":
       return { ...ws, view: action.view };
+    case "setLanguage":
+      return { ...ws, language: action.language };
   }
 }
 
@@ -379,7 +393,7 @@ const STORAGE_KEY = "natlas-launchpad-workspace-v1";
 /** The single-project store used before workspaces; imported once, never deleted. */
 const LEGACY_KEY = "natlas-launchpad-project-v2";
 
-const EMPTY_WORKSPACE: WorkspaceState = { projects: {}, order: [], currentId: null, view: "landing" };
+const EMPTY_WORKSPACE: WorkspaceState = { projects: {}, order: [], currentId: null, view: "landing", language: "en" };
 
 function loadWorkspace(): WorkspaceState {
   try {
@@ -397,7 +411,7 @@ function loadWorkspace(): WorkspaceState {
       const old = JSON.parse(legacy) as Partial<ProjectState>;
       if (old.blueprint || old.description || old.design?.messages?.length) {
         const p = makeProject({ ...old, step: old.step === "landing" || !old.step ? "describe" : old.step });
-        return { projects: { [p.id]: p }, order: [p.id], currentId: null, view: "home" };
+        return { ...EMPTY_WORKSPACE, projects: { [p.id]: p }, order: [p.id], view: "home" };
       }
     }
   } catch {
@@ -420,6 +434,10 @@ interface WorkspaceContextValue {
   duplicateProject: (id: string) => void;
   deleteProject: (id: string) => void;
   setView: (view: View) => void;
+  /** The language pages are shown in: the open project's, else the workspace default. */
+  language: LangCode;
+  /** Switch language — the open project's when one is showing, else the default. */
+  setLanguage: (language: LangCode) => void;
   /** Update the open project (same actions screens use). */
   dispatchProject: (action: Action) => void;
 }
@@ -441,9 +459,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [workspace]);
 
+  const current = workspace.currentId ? workspace.projects[workspace.currentId] ?? null : null;
+  const inProject = workspace.view === "project" && current;
   const value: WorkspaceContextValue = {
     workspace,
-    current: workspace.currentId ? workspace.projects[workspace.currentId] ?? null : null,
+    current,
+    language: inProject ? current.language : workspace.language,
+    setLanguage: (language) =>
+      dispatch(inProject ? { type: "project", action: { type: "setLanguage", language } } : { type: "setLanguage", language }),
     newProject: () => dispatch({ type: "newProject" }),
     openProject: (id) => dispatch({ type: "openProject", id }),
     renameProject: (id, title) => dispatch({ type: "renameProject", id, title }),

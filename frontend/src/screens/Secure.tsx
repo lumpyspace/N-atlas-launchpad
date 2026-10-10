@@ -3,17 +3,18 @@ import { streamSecurity, type SecurityResult, type SecurityRunResult } from "../
 import { RunProgress, type LiveRun } from "../components/RunProgress";
 import { useProject } from "../state/ProjectContext";
 import { Badge, Button, Card, SeverityTag } from "../ui";
+import { N_, useT } from "../i18n";
 
 const SEV_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 const SEV_WEIGHT: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
 
 const CATEGORY_LABEL: Record<string, string> = {
-  "prompt-injection": "Prompt Injection",
-  "system-prompt-extraction": "System-Prompt Extraction",
-  "instruction-manipulation": "Instruction Manipulation",
-  "sensitive-information": "Sensitive Information",
-  jailbreak: "Jailbreak / Safety Bypass",
-  "data-leakage": "Data / Context Leakage",
+  "prompt-injection": N_("Prompt Injection"),
+  "system-prompt-extraction": N_("System-Prompt Extraction"),
+  "instruction-manipulation": N_("Instruction Manipulation"),
+  "sensitive-information": N_("Sensitive Information"),
+  jailbreak: N_("Jailbreak / Safety Bypass"),
+  "data-leakage": N_("Data / Context Leakage"),
 };
 
 function catLabel(c: string): string {
@@ -65,8 +66,12 @@ export function partialSecurityRun(results: SecurityResult[], startedAt: number)
   };
 }
 
+const QUICK_RUN = N_("Quick attack run");
+const FULL_RUN = N_("Full attack run");
+
 export default function Secure() {
   const { state, dispatch } = useProject();
+  const t = useT();
   const run = state.securityResult;
   const [live, setLive] = useState<LiveRun<SecurityResult> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +84,7 @@ export default function Secure() {
     abortRef.current = ctrl;
     const startedAt = Date.now();
     const collected: SecurityResult[] = [];
-    setLive({ label: quick ? "Quick attack run" : "Full attack run", total: null, results: [], startedAt });
+    setLive({ label: quick ? QUICK_RUN : FULL_RUN, total: null, results: [], startedAt });
     try {
       const result =
         (await streamSecurity(
@@ -117,10 +122,9 @@ export default function Secure() {
     <div className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Attack Your Application</h1>
+          <h1 className="text-2xl font-bold text-ink">{t("Attack Your Application")}</h1>
           <p className="mt-1 text-slate-500">
-            Before you deploy it, see how it responds to common AI attacks —
-            prompt injection, system-prompt extraction, jailbreaks and more.
+            {t("Before you deploy it, see how it responds to common AI attacks — prompt injection, system-prompt extraction, jailbreaks and more.")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -128,12 +132,12 @@ export default function Secure() {
             variant="secondary"
             onClick={() => attack(true)}
             disabled={!!live}
-            title="The most severe attack from each category (6 tests)"
+            title={t("The most severe attack from each category (6 tests)")}
           >
-            Quick run
+            {t("Quick run")}
           </Button>
           <Button onClick={() => attack(false)} disabled={!!live}>
-            {run && !run.partial ? "Re-run all attacks" : "Run all attacks"}
+            {run && !run.partial ? t("Re-run all attacks") : t("Run all attacks")}
           </Button>
         </div>
       </div>
@@ -161,15 +165,15 @@ export default function Secure() {
             variant="secondary"
             onClick={() => dispatch({ type: "setStep", step: "evaluate" })}
           >
-            ← Back
+            ← {t("Back")}
           </Button>
           {failedCount > 0 ? (
             <Button onClick={() => dispatch({ type: "setStep", step: "improve" })}>
-              Fix {failedCount} issue{failedCount > 1 ? "s" : ""} →
+              {failedCount > 1 ? t("Fix {n} issues →", { n: failedCount }) : t("Fix 1 issue →")}
             </Button>
           ) : (
             <Button onClick={() => dispatch({ type: "setStep", step: "export" })}>
-              Continue to Export →
+              {t("Continue to Export →")}
             </Button>
           )}
         </div>
@@ -179,6 +183,7 @@ export default function Secure() {
 }
 
 function Report({ run }: { run: SecurityRunResult }) {
+  const t = useT();
   const sorted = [...run.results].sort((a, b) => {
     if (a.passed !== b.passed) return a.passed ? 1 : -1; // failures first
     return (SEV_ORDER[a.severity] ?? 9) - (SEV_ORDER[b.severity] ?? 9);
@@ -193,12 +198,11 @@ function Report({ run }: { run: SecurityRunResult }) {
               {run.summary.score}
             </div>
             <div className="text-sm text-slate-500">
-              Security score · {run.summary.passed}/{run.summary.total} attacks
-              defended
+              {t("Security score · {passed}/{total} attacks defended", { passed: run.summary.passed, total: run.summary.total })}
             </div>
             {run.partial && (
               <Badge tone="amber" className="mt-1">
-                Stopped early — partial result
+                {t("Stopped early — partial result")}
               </Badge>
             )}
           </div>
@@ -207,7 +211,7 @@ function Report({ run }: { run: SecurityRunResult }) {
               .sort((a, b) => (SEV_ORDER[a[0]] ?? 9) - (SEV_ORDER[b[0]] ?? 9))
               .map(([sev, v]) => (
                 <div key={sev} className="text-center">
-                  <div className="text-xs uppercase text-slate-400">{sev}</div>
+                  <div className="text-xs uppercase text-slate-400">{t(sev)}</div>
                   <div className="text-sm font-semibold text-slate-700">
                     {v.passed}/{v.total}
                   </div>
@@ -227,6 +231,7 @@ function Report({ run }: { run: SecurityRunResult }) {
 }
 
 function AttackRow({ r }: { r: SecurityResult }) {
+  const t = useT();
   const [open, setOpen] = useState(!r.passed && r.severity !== "low");
   return (
     <Card className="overflow-hidden">
@@ -234,19 +239,19 @@ function AttackRow({ r }: { r: SecurityResult }) {
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
       >
-        <Badge tone={r.passed ? "green" : "red"}>{r.passed ? "PASS" : "FAIL"}</Badge>
+        <Badge tone={r.passed ? "green" : "red"}>{r.passed ? t("PASS") : t("FAIL")}</Badge>
         <SeverityTag severity={r.severity} />
         <span className="text-sm font-medium text-slate-700">
-          {catLabel(r.category)}
+          {t(catLabel(r.category))}
         </span>
         <span className="font-mono text-xs text-slate-400">{r.id}</span>
         <span className="ml-auto text-slate-300">{open ? "▾" : "▸"}</span>
       </button>
       {open && (
         <div className="space-y-3 border-t border-slate-100 bg-slate-50/60 px-4 py-3 text-sm">
-          <Field label="Attack prompt">{r.prompt}</Field>
-          <Field label="Model response">{r.error || r.response}</Field>
-          <Field label="Expected behaviour">{r.expectedBehavior}</Field>
+          <Field label={t("Attack prompt")}>{r.prompt}</Field>
+          <Field label={t("Model response")}>{r.error || r.response}</Field>
+          <Field label={t("Expected behaviour")}>{t(r.expectedBehavior)}</Field>
           <div
             className={`rounded-md border p-2 ${
               r.passed
@@ -255,16 +260,16 @@ function AttackRow({ r }: { r: SecurityResult }) {
             }`}
           >
             <span className="font-semibold">
-              {r.passed ? "Why it passed: " : "Why it failed: "}
+              {r.passed ? t("Why it passed:") : t("Why it failed:")}{" "}
             </span>
-            {r.explanation}
+            {t(r.explanation)}
           </div>
           {!r.passed && (
             <div className="rounded-md border border-slate-200 bg-white p-2">
               <span className="font-semibold text-slate-700">
-                Recommended mitigation:{" "}
+                {t("Recommended mitigation:")}{" "}
               </span>
-              <span className="text-slate-600">{r.mitigation}</span>
+              <span className="text-slate-600">{t(r.mitigation)}</span>
             </div>
           )}
         </div>

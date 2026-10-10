@@ -160,3 +160,74 @@ test("long replies are cut after two sentences and the model is stopped", async 
     server.close();
   }
 });
+
+test("in a project's language, N-ATLAS replies in it and asks the engine's question in it", () => {
+  const s = snapshot({ idea: "A note app for students" });
+  // The developer writes in English, but the project is in Yoruba.
+  const { system, prompt } = replyPrompt(s, [{ role: "user", content: "A note app for students" }], "yo");
+  assert.match(system, /Reply in Yoruba\./);
+  assert.match(prompt, /asking this question, in Yoruba:/);
+  assert.ok(prompt.includes(s.question));
+  // English projects keep the exact-question instruction.
+  assert.match(replyPrompt(s, [{ role: "user", content: "A note app" }], "en").prompt, /end with exactly this question/);
+});
+
+test("translated questions are tidied: no quotes, labels or trailing notes", async () => {
+  const { cleanTranslation } = await import("../backend/src/routes/design.ts");
+  assert.equal(cleanTranslation('Translation: "Ta ni yóò lò ó?"\n\n(Note: informal)'), "Ta ni yóò lò ó?");
+  assert.equal(cleanTranslation("  “Wa ake yi wa?”  "), "Wa ake yi wa?");
+});
+
+async function designTurn(body: unknown, reply: (prompt: string, system?: string) => string) {
+  const express = (await import("../backend/node_modules/express/index.js")).default;
+  const { designRouter } = await import("../backend/src/routes/design.ts");
+  const calls: { prompt: string; system?: string }[] = [];
+  const provider = {
+    name: "scripted", isMock: true,
+    async generate() { throw new Error("unused"); },
+    async generateStream(p: string, o: { system?: string }, onChunk: (c: any) => void) {
+      calls.push({ prompt: p, system: o.system });
+      onChunk({ type: "delta", delta: reply(p, o.system) });
+    },
+    async health() { return { ok: true } as any; },
+  };
+  const app = express();
+  app.use(express.json());
+  app.use("/api", designRouter(provider as any));
+  const server = app.listen(0);
+  try {
+    const { port } = server.address() as import("node:net").AddressInfo;
+    const res = await fetch(`http://127.0.0.1:${port}/api/design/turn`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const events = (await res.text()).split("\n\n").filter((f) => f.startsWith("data: ")).map((f) => JSON.parse(f.slice(6)));
+    return { events, calls, text: events.filter((e) => e.type === "delta").map((e) => e.delta).join("") };
+  } finally {
+    server.close();
+  }
+}
+
+test("a Hausa project opens with the first question translated by N-ATLAS, plus the English original", async () => {
+  const { events, calls, text } = await designTurn({ answers: {}, history: [], language: "ha" }, () => "Me kake son ginawa?");
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].system ?? "", /Hausa/);
+  assert.equal(text, "Me kake son ginawa?");
+  const q = events.find((e) => e.type === "question");
+  assert.ok(q && /What would you like to build/.test(q.english));
+
+  // Translations are cached: the same opening question doesn't call N-ATLAS again.
+  const again = await designTurn({ answers: {}, history: [], language: "ha" }, () => "should not be used");
+  assert.equal(again.calls.length, 0);
+  assert.equal(again.text, "Me kake son ginawa?");
+});
+
+test("when a non-English reply forgets to ask, the question is translated and appended", async () => {
+  const { text, calls } = await designTurn(
+    { answers: { idea: "A note app for students" }, history: [{ role: "user", content: "A note app for students" }], language: "ig" },
+    (_p, system) => (/translate/i.test(system ?? "") ? "Onye ga-eji ya?" : "Echiche dị mma."),
+  );
+  assert.equal(calls.length, 2, "the reply, then a translation of the question");
+  assert.equal(text, "Echiche dị mma.\n\nOnye ga-eji ya?");
+});

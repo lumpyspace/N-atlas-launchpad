@@ -11,25 +11,29 @@ import { RunProgress, type LiveRun } from "../components/RunProgress";
 import { useProject, type CompareState, type SavedTestCase } from "../state/ProjectContext";
 import { Badge, Button, Card } from "../ui";
 import { checksFor, checkLabel, LANG_LABEL, toCaseInput } from "../utils/testCases";
+import { N_, plural, useT, type T } from "../i18n";
 
 const MAX_VARIANTS = 3;
 const cellKey = (caseId: string, variantId: string) => `${caseId}::${variantId}`;
 
-function defaultVariants(systemPrompt: string, hardened?: string): CompareVariant[] {
+function defaultVariants(t: T, systemPrompt: string, hardened?: string): CompareVariant[] {
   return [
-    { id: "v1", label: "Current prompt", modelId: "natlas", systemPrompt, temperature: 0.2 },
+    { id: "v1", label: t("Current prompt"), modelId: "natlas", systemPrompt, temperature: 0.2 },
     hardened
-      ? { id: "v2", label: "Hardened prompt", modelId: "natlas", systemPrompt: hardened, temperature: 0.2 }
-      : { id: "v2", label: "Higher temperature", modelId: "natlas", systemPrompt, temperature: 0.7 },
+      ? { id: "v2", label: t("Hardened prompt"), modelId: "natlas", systemPrompt: hardened, temperature: 0.2 }
+      : { id: "v2", label: t("Higher temperature"), modelId: "natlas", systemPrompt, temperature: 0.7 },
   ];
 }
 
+const COMPARING = N_("Comparing variants");
+
 export default function Compare() {
   const { state, dispatch } = useProject();
+  const t = useT();
   const cases = state.savedTestCases;
   const saved = state.compare;
   const [variants, setVariants] = useState<CompareVariant[]>(
-    saved?.variants ?? defaultVariants(state.systemPrompt, state.improvement?.newPrompt),
+    saved?.variants ?? defaultVariants(t, state.systemPrompt, state.improvement?.newPrompt),
   );
   const [models, setModels] = useState<ModelOption[]>([{ id: "natlas", label: "N-ATLAS", model: "n-atlas" }]);
   const [live, setLive] = useState<LiveRun<CaseResult> | null>(null);
@@ -48,7 +52,7 @@ export default function Compare() {
     const n = Math.max(0, ...variants.map((v) => Number(v.id.slice(1)) || 0)) + 1;
     setVariants((vs) => [
       ...vs,
-      { id: `v${n}`, label: `Variant ${n}`, modelId: "natlas", systemPrompt: state.systemPrompt, temperature: 0.2 },
+      { id: `v${n}`, label: t("Variant {n}", { n }), modelId: "natlas", systemPrompt: state.systemPrompt, temperature: 0.2 },
     ]);
   }
 
@@ -61,7 +65,7 @@ export default function Compare() {
     const collected: CaseResult[] = [];
     const nextCells: Record<string, CaseResult> = {};
     setCells({});
-    setLive({ label: "Comparing variants", total: cases.length * variants.length, results: [], startedAt });
+    setLive({ label: COMPARING, total: cases.length * variants.length, results: [], startedAt });
 
     let summary: CompareState["summary"] = null;
     let partial = true;
@@ -111,28 +115,29 @@ export default function Compare() {
     <div className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Compare variants</h1>
+          <h1 className="text-2xl font-bold text-ink">{t("Compare variants")}</h1>
           <p className="mt-1 max-w-2xl text-slate-500">
-            Run the same test cases against different system prompts, temperatures or models, side by side —
-            then keep the winner. Every cell is scored with the test's own checks.
+            {t(
+              "Run the same test cases against different system prompts, temperatures or models, side by side — then keep the winner. Every cell is scored with the test's own checks.",
+            )}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => dispatch({ type: "setStep", step: "evaluate" })}>
-            ← Back to Test
+            ← {t("Back to Test")}
           </Button>
         </div>
       </div>
 
       {cases.length === 0 ? (
         <Card className="mt-6 p-8 text-center text-sm text-slate-500">
-          Compare needs test cases. Save replies in <b>Test → Try it</b>, or import a suite in <b>Test cases &amp; scores</b>.
+          {t("Compare needs test cases. Save replies in Test → Try it, or import a suite in Test cases & scores.")}
           <div className="mt-3 flex justify-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => dispatch({ type: "setStep", step: "playground" })}>
-              Go to Try it
+              {t("Go to Try it")}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => dispatch({ type: "setStep", step: "evaluate" })}>
-              Go to Test cases
+              {t("Go to Test cases")}
             </Button>
           </div>
         </Card>
@@ -156,18 +161,18 @@ export default function Compare() {
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-slate-500">
-              {cases.length} test{cases.length === 1 ? "" : "s"} × {variants.length} variants ={" "}
-              <b>{calls} model calls</b>
-              {calls > 6 && " — on a laptop CPU this can take a while; try a GPU endpoint for big grids."}
+              {plural(t, cases.length, "{n} test", "{n} tests")} × {t("{n} variants", { n: variants.length })} ={" "}
+              <b>{t("{n} model calls", { n: calls })}</b>
+              {calls > 6 && " — " + t("on a laptop CPU this can take a while; try a GPU endpoint for big grids.")}
             </div>
             <div className="flex gap-2">
               {variants.length < MAX_VARIANTS && (
                 <Button variant="ghost" onClick={addVariant} disabled={!!live}>
-                  + Add variant
+                  + {t("Add variant")}
                 </Button>
               )}
               <Button onClick={run} disabled={!!live}>
-                ▶ {hasResults ? "Re-run comparison" : "Run comparison"}
+                ▶ {hasResults ? t("Re-run comparison") : t("Run comparison")}
               </Button>
             </div>
           </div>
@@ -178,7 +183,7 @@ export default function Compare() {
           )}
           {saved?.partial && !live && hasResults && (
             <div className="mt-4">
-              <Badge tone="amber">Stopped early — some cells were not run</Badge>
+              <Badge tone="amber">{t("Stopped early — some cells were not run")}</Badge>
             </div>
           )}
 
@@ -220,6 +225,7 @@ function VariantEditor({
   onRemove: () => void;
   onUseCurrent: () => void;
 }) {
+  const t = useT();
   return (
     <Card className="flex flex-col p-4">
       <div className="flex items-center gap-2">
@@ -231,18 +237,18 @@ function VariantEditor({
           onChange={(e) => onChange({ label: e.target.value })}
           disabled={disabled}
           className="min-w-0 flex-1 rounded-md border border-transparent px-1 py-0.5 font-semibold text-slate-800 hover:border-slate-200 focus:border-forge-500 focus:outline-none"
-          aria-label="Variant name"
+          aria-label={t("Variant name")}
         />
         {canRemove && (
           <button onClick={onRemove} disabled={disabled} className="text-xs text-slate-400 hover:text-red-600">
-            Remove
+            {t("Remove")}
           </button>
         )}
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <label className="flex flex-col gap-1 text-slate-500">
-          Model
+          {t("Model")}
           <select
             value={v.modelId}
             onChange={(e) => onChange({ modelId: e.target.value })}
@@ -257,7 +263,7 @@ function VariantEditor({
           </select>
         </label>
         <label className="flex flex-col gap-1 text-slate-500">
-          Temperature: {v.temperature.toFixed(1)}
+          {t("Temperature")}: {v.temperature.toFixed(1)}
           <input
             type="range"
             min={0}
@@ -272,9 +278,9 @@ function VariantEditor({
       </div>
 
       <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-        System prompt
+        {t("System prompt")}
         <button onClick={onUseCurrent} disabled={disabled} className="text-forge-600 hover:underline">
-          Reset to current
+          {t("Reset to current")}
         </button>
       </div>
       <textarea
@@ -304,12 +310,13 @@ function Grid({
   onAdopt: (v: CompareVariant) => void;
   currentPrompt: string;
 }) {
+  const t = useT();
   return (
     <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-card">
       <table className="w-full min-w-[640px] table-fixed text-sm">
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50 text-left">
-            <th className="w-64 px-3 py-3 font-semibold text-slate-600">Test case</th>
+            <th className="w-64 px-3 py-3 font-semibold text-slate-600">{t("Test case")}</th>
             {variants.map((v, i) => {
               const s = scores.find((x) => x.id === v.id)!;
               const pct = s.ran ? Math.round((s.passed / s.ran) * 100) : null;
@@ -318,18 +325,18 @@ function Grid({
                 <th key={v.id} className="px-3 py-3 align-top">
                   <div className="flex items-center gap-1.5 font-semibold text-slate-700">
                     <span className="text-forge-600">{String.fromCharCode(65 + i)}</span> {v.label}
-                    {bestId === v.id && <Badge tone="green">Best</Badge>}
+                    {bestId === v.id && <Badge tone="green">{t("Best")}</Badge>}
                   </div>
                   <div className="mt-0.5 text-xs font-normal text-slate-500">
-                    {pct === null ? "not run" : `${s.passed}/${s.ran} passing (${pct}%)`}
-                    {s.ran > 0 && ` · avg ${(s.avgMs / 1000).toFixed(1)}s`}
+                    {pct === null ? t("not run") : t("{passed}/{ran} passing ({pct}%)", { passed: s.passed, ran: s.ran, pct })}
+                    {s.ran > 0 && " · " + t("avg {s}s", { s: (s.avgMs / 1000).toFixed(1) })}
                   </div>
                   <button
                     onClick={() => onAdopt(v)}
                     disabled={adopted}
                     className="mt-1 text-xs font-medium text-forge-600 hover:underline disabled:text-slate-400 disabled:no-underline"
                   >
-                    {adopted ? "Same prompt as your app" : "Use this prompt in my app"}
+                    {adopted ? t("Same prompt as your app") : t("Use this prompt in my app")}
                   </button>
                 </th>
               );
@@ -342,9 +349,9 @@ function Grid({
               <td className="px-3 py-3">
                 <div className="line-clamp-3 text-slate-700">{tc.userMessage}</div>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {tc.language && <Badge tone="blue">{LANG_LABEL[tc.language as LangCode] ?? tc.language}</Badge>}
+                  {tc.language && <Badge tone="blue">{t(LANG_LABEL[tc.language as LangCode] ?? tc.language)}</Badge>}
                   <span className="text-[11px] text-slate-400" title={checksFor(tc).map(checkLabel).join("\n")}>
-                    {checksFor(tc).length} checks
+                    {plural(t, checksFor(tc).length, "{n} check", "{n} checks")}
                   </span>
                 </div>
               </td>
@@ -360,6 +367,7 @@ function Grid({
 }
 
 function Cell({ r }: { r?: CaseResult }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   if (!r) return <td className="px-3 py-3 text-xs text-slate-300">—</td>;
   const ok = r.passed && !r.error;
@@ -367,7 +375,7 @@ function Cell({ r }: { r?: CaseResult }) {
     <td className={`px-3 py-3 ${ok ? "bg-forge-50/40" : "bg-red-50/40"}`}>
       <button onClick={() => setOpen((o) => !o)} className="w-full text-left">
         <div className="flex items-center gap-2">
-          <Badge tone={ok ? "green" : "red"}>{r.error ? "ERROR" : ok ? "PASS" : "FAIL"}</Badge>
+          <Badge tone={ok ? "green" : "red"}>{r.error ? t("ERROR") : ok ? t("PASS") : t("FAIL")}</Badge>
           <span className="text-xs text-slate-400">{(r.latencyMs / 1000).toFixed(1)}s</span>
         </div>
         <div className={`mt-1.5 whitespace-pre-wrap text-xs text-slate-600 ${open ? "" : "line-clamp-4"}`}>

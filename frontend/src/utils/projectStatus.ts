@@ -3,7 +3,10 @@
  * My projects cards, so both always agree.
  */
 
+import { plural, translate, type T } from "../i18n";
 import type { ProjectState, Step } from "../state/ProjectContext";
+
+const EN: T = (text, vars) => translate("en", text, vars);
 
 export type StageKey = "design" | "build" | "prompt" | "knowledge" | "test" | "secure" | "ship";
 
@@ -23,7 +26,7 @@ export interface StageStatus {
 
 const SLOTS_TOTAL = 8;
 
-export function stages(p: ProjectState): StageStatus[] {
+export function stages(p: ProjectState, t: T = EN): StageStatus[] {
   const built = !!p.blueprint;
   const answered = Object.keys(p.design.answers).filter((k) => k !== "notes").length;
   const tests = p.savedTestCases.length;
@@ -35,110 +38,119 @@ export function stages(p: ProjectState): StageStatus[] {
   return [
     {
       key: "design",
-      label: "Design",
+      label: t("Design"),
       step: "describe",
       steps: ["describe"],
       done: built || answered > 0,
       available: true,
       detail: answered
-        ? `${answered} of ${SLOTS_TOTAL} questions answered`
+        ? t("{n} of {total} questions answered", { n: answered, total: SLOTS_TOTAL })
         : built
-          ? "Described in one sentence"
-          : "Talk your idea through",
+          ? t("Described in one sentence")
+          : t("Talk your idea through"),
     },
     {
       key: "build",
-      label: "Build guide",
+      label: t("Build guide"),
       step: "blueprint",
       steps: ["blueprint"],
       done: built,
       available: built,
-      detail: built ? p.blueprint!.buildPlan?.useCase?.label ?? "Blueprint ready" : "Design your app first",
+      detail: built ? t(p.blueprint!.buildPlan?.useCase?.label ?? "Blueprint ready") : t("Design your app first"),
     },
     {
       key: "prompt",
-      label: "Prompt",
+      label: t("Prompt"),
       step: "prompt",
       steps: ["prompt"],
       done: built && (p.promptVersions?.length ?? 0) > 0,
       available: built,
       detail: !built
-        ? "Design your app first"
+        ? t("Design your app first")
         : p.promptVersions?.length
-          ? `${p.promptVersions.length} saved version${p.promptVersions.length === 1 ? "" : "s"}${p.systemPrompt !== p.promptVersions[0].text ? " · unsaved edits" : ""}`
+          ? plural(t, p.promptVersions.length, "{n} saved version", "{n} saved versions") +
+            (p.systemPrompt !== p.promptVersions[0].text ? " · " + t("unsaved edits") : "")
           : p.systemPrompt !== p.blueprint!.systemPrompt
-            ? "Edited · not saved as a version"
-            : "Check and refine the generated prompt",
+            ? t("Edited · not saved as a version")
+            : t("Check and refine the generated prompt"),
     },
     {
       key: "knowledge",
-      label: "Knowledge",
+      label: t("Knowledge"),
       step: "knowledge",
       steps: ["knowledge"],
       done: (p.knowledge?.length ?? 0) > 0,
       available: built,
       detail: !built
-        ? "Design your app first"
+        ? t("Design your app first")
         : p.knowledge?.length
-          ? `${p.knowledge.length} document${p.knowledge.length === 1 ? "" : "s"} · ${p.knowledge.reduce((s, d) => s + d.chunks.length, 0)} passages`
+          ? plural(t, p.knowledge.length, "{n} document", "{n} documents") +
+            " · " +
+            plural(t, p.knowledge.reduce((s, d) => s + d.chunks.length, 0), "{n} passage", "{n} passages")
           : p.blueprint!.buildPlan?.knowledge?.needed
-            ? "Your app needs facts — add documents"
-            : "Optional: documents to answer from",
+            ? t("Your app needs facts — add documents")
+            : t("Optional: documents to answer from"),
     },
     {
       key: "test",
-      label: "Test",
+      label: t("Test"),
       step: "playground",
       steps: ["playground", "evaluate", "compare"],
       done: tests > 0 && !!lastRun,
       available: built,
       detail: tests
-        ? `${tests} test case${tests === 1 ? "" : "s"}${lastRun ? ` · ${lastRun.summary.passed}/${lastRun.summary.total} passing` : " · not run yet"}`
-        : "Try it and save test cases",
+        ? plural(t, tests, "{n} test case", "{n} test cases") +
+          " · " +
+          (lastRun
+            ? t("{passed}/{total} passing", { passed: lastRun.summary.passed, total: lastRun.summary.total })
+            : t("not run yet"))
+        : t("Try it and save test cases"),
     },
     {
       key: "secure",
-      label: "Secure",
+      label: t("Secure"),
       step: "secure",
       steps: ["secure", "improve"],
       done: !!sec && !sec.partial,
       available: built,
-      detail: sec ? `Security score ${sec.summary.score}${sec.partial ? " (partial)" : ""}` : "Attack it before launch",
+      detail: sec
+        ? t("Security score {score}", { score: sec.summary.score }) + (sec.partial ? " " + t("(partial)") : "")
+        : t("Attack it before launch"),
     },
     {
       key: "ship",
-      label: "Ship",
+      label: t("Ship"),
       step: "export",
       steps: ["export"],
       done: !!p.exportedAt,
       available: built,
-      detail: p.exportedAt ? `Downloaded ${timeAgo(p.exportedAt)}` : "Get your code, tests and CI",
+      detail: p.exportedAt ? t("Downloaded {when}", { when: timeAgo(p.exportedAt, t) }) : t("Get your code, tests and CI"),
     },
   ];
 }
 
 /** The most useful thing to do next, in plain words. */
-export function nextStep(p: ProjectState): { step: Step; text: string } | null {
-  const s = stages(p);
+export function nextStep(p: ProjectState, t: T = EN): { step: Step; text: string } | null {
+  const s = stages(p, t);
   const byKey = Object.fromEntries(s.map((x) => [x.key, x])) as Record<StageKey, StageStatus>;
   if (!byKey.build.done) {
-    return { step: "describe", text: p.design.messages.length ? "Keep talking it through, then press Build it." : "Describe your idea to start." };
+    return { step: "describe", text: p.design.messages.length ? t("Keep talking it through, then press Build it.") : t("Describe your idea to start.") };
   }
-  if (!p.savedTestCases.length) return { step: "playground", text: "Try your app and save a few good and bad answers as test cases." };
-  if (!byKey.test.done) return { step: "evaluate", text: "Run your test cases to get a baseline." };
-  if (!byKey.secure.done) return { step: "secure", text: "Run the security tests before you ship." };
+  if (!p.savedTestCases.length) return { step: "playground", text: t("Try your app and save a few good and bad answers as test cases.") };
+  if (!byKey.test.done) return { step: "evaluate", text: t("Run your test cases to get a baseline.") };
+  if (!byKey.secure.done) return { step: "secure", text: t("Run the security tests before you ship.") };
   if (p.securityResult && p.securityResult.summary.failed > 0 && !p.improvement) {
-    return { step: "improve", text: `Fix ${p.securityResult.summary.failed} security issue(s) with a hardened prompt.` };
+    return { step: "improve", text: t("Fix {n} security issue(s) with a hardened prompt.", { n: p.securityResult.summary.failed }) };
   }
-  if (!byKey.ship.done) return { step: "export", text: "Download your starter project, tests and CI." };
+  if (!byKey.ship.done) return { step: "export", text: t("Download your starter project, tests and CI.") };
   return null;
 }
 
-export function timeAgo(iso: string): string {
+export function timeAgo(iso: string, t: T = EN): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  if (s < 60) return t("just now");
+  if (s < 3600) return t("{n} min ago", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("{n} h ago", { n: Math.floor(s / 3600) });
   const d = Math.floor(s / 86400);
-  return d === 1 ? "yesterday" : `${d} days ago`;
+  return d === 1 ? t("yesterday") : t("{n} days ago", { n: d });
 }

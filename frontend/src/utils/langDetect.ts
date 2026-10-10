@@ -18,7 +18,7 @@ const YORUBA_WORDS = /\b(mo|emi|ti|naa|fun|si|lo|wa|sọ|wọn|àwọn|ọ̀nà|
 
 // Hausa: letters unique to the Hausa alphabet
 const HAUSA_CHARS = /[ɓɗƙ]/u;
-const HAUSA_WORDS = /\b(ya|ba|ne|ce|da|na|shi|ta|mu|su|mai|amma|don|kuma|game|daga|wani|kamar)\b/iu;
+const HAUSA_WORDS = /\b(ya|ba|ne|ce|da|na|shi|ta|mu|su|mai|amma|don|kuma|game|daga|wani|kamar|sannu|zan|za|maka|miki|yaya|wannan|akwai|babu|kana|kina|yanzu|gaba)\b/iu;
 
 // Igbo: dotted vowels
 const IGBO_CHARS = /[ịọụ]/u;
@@ -65,6 +65,8 @@ export function hasYorubaToneMarks(text: string): boolean {
 export function checkLangMismatch(
   requestedCode: string,
   replyText: string,
+  t: (text: string, vars?: Record<string, string>) => string = (s, v) =>
+    v ? s.replace(/\{(\w+)\}/g, (m, k: string) => v[k] ?? m) : s,
 ): string | null {
   if (!replyText.trim() || replyText.length < 30) return null;
 
@@ -81,10 +83,10 @@ export function checkLangMismatch(
   const detected = detectLang(replyText);
 
   if (detected === "en" && requestedCode !== "en") {
-    return `Requested ${expected} but reply looks like English — model may have defaulted to English`;
+    return t("Requested {language} but reply looks like English — model may have defaulted to English", { language: t(expected) });
   }
   if (requestedCode === "yo" && !hasYorubaToneMarks(replyText)) {
-    return "Yoruba reply has few or no tone marks — may be romanised or incorrect Yoruba";
+    return t("Yoruba reply has few or no tone marks — may be romanised or incorrect Yoruba");
   }
   return null;
 }

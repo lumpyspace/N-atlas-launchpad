@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { downloadSdk } from "../utils/sdkDownload";
+import { useT } from "../i18n";
 
 /** Same wording the backend appends for a language hint (HttpNAtlasProvider). */
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -183,6 +184,7 @@ function toPython(value: unknown, indent: number): string {
 }
 
 export function GetCode({ request, onClose }: { request: CodeRequest; onClose: () => void }) {
+  const t = useT();
   const [lang, setLang] = useState<Lang>("sdk-js");
   const isSdk = lang === "sdk-js" || lang === "sdk-py";
   const [copied, setCopied] = useState(false);
@@ -209,19 +211,19 @@ export function GetCode({ request, onClose }: { request: CodeRequest; onClose: (
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Get code"
+      aria-label={t("Get code")}
     >
       <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <div>
-            <h2 className="font-semibold text-slate-800">Call N-ATLAS from your code</h2>
+            <h2 className="font-semibold text-slate-800">{t("Call N-ATLAS from your code")}</h2>
             <p className="text-xs text-slate-500">
               {isSdk
-                ? "Your system prompt, language and settings, through the N-ATLAS SDK."
-                : "The exact request the Playground sends — your system prompt, language and settings."}
+                ? t("Your system prompt, language and settings, through the N-ATLAS SDK.")
+                : t("The exact request the Playground sends — your system prompt, language and settings.")}
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label="Close">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label={t("Close")}>
             ✕
           </button>
         </div>
@@ -241,7 +243,7 @@ export function GetCode({ request, onClose }: { request: CodeRequest; onClose: (
             onClick={copy}
             className="ml-auto rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
-            {copied ? "✓ Copied" : "Copy"}
+            {copied ? "✓ " + t("Copied") : t("Copy")}
           </button>
         </div>
         <pre className="m-5 mt-3 max-h-[60vh] overflow-auto rounded-lg bg-slate-900 p-4 text-[12px] leading-relaxed text-slate-100">
@@ -253,23 +255,22 @@ export function GetCode({ request, onClose }: { request: CodeRequest; onClose: (
               onClick={() => downloadSdk(lang === "sdk-js" ? "natlas.js" : "natlas.py")}
               className="rounded-md bg-forge-600 px-3 py-1.5 font-medium text-white hover:bg-forge-700"
             >
-              ⬇ Download {lang === "sdk-js" ? "natlas.js" : "natlas.py"}
+              ⬇ {t("Download {file}", { file: lang === "sdk-js" ? "natlas.js" : "natlas.py" })}
             </button>
             {lang === "sdk-js" && (
               <button onClick={() => downloadSdk("natlas.d.ts")} className="text-forge-700 hover:underline">
-                TypeScript types
+                {t("TypeScript types")}
               </button>
             )}
             <span>
-              One file, no dependencies. Language hints, answers from your documents, streaming, and errors that say how
-              to fix them.{" "}
+              {t("One file, no dependencies. Language hints, answers from your documents, streaming, and errors that say how to fix them.")}{" "}
               <a
                 href={`https://github.com/lumpyspace/N-atlas-launchpad/tree/master/sdk/${lang === "sdk-js" ? "js" : "python"}`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-forge-700 hover:underline"
               >
-                Docs ↗
+                {t("Docs ↗")}
               </a>
             </span>
           </div>

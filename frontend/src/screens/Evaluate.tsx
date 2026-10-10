@@ -19,17 +19,18 @@ import {
   toCaseInput,
   toSuiteFile,
 } from "../utils/testCases";
+import { N_, plural, useT } from "../i18n";
 
 const CATEGORY_LABEL: Record<string, string> = {
-  custom: "Your Tests",
-  "app-specific": "Your App",
-  quality: "AI Quality",
-  context: "Nigerian Context",
-  language: "Language",
-  reliability: "Reliability",
-  safety: "Safety",
-  translation: "Translation",
-  factual: "Factual",
+  custom: N_("Your Tests"),
+  "app-specific": N_("Your App"),
+  quality: N_("AI Quality"),
+  context: N_("Nigerian Context"),
+  language: N_("Language"),
+  reliability: N_("Reliability"),
+  safety: N_("Safety"),
+  translation: N_("Translation"),
+  factual: N_("Factual"),
 };
 
 function label(cat: string): string {
@@ -43,9 +44,9 @@ function scoreColor(pct: number): string {
 type RunKind = "custom" | "quick" | "full";
 
 const RUN_LABEL: Record<RunKind, string> = {
-  custom: "Running your tests",
-  quick: "Quick evaluation",
-  full: "Full evaluation",
+  custom: N_("Running your tests"),
+  quick: N_("Quick evaluation"),
+  full: N_("Full evaluation"),
 };
 
 /** Summarise results collected so far (used when a run is stopped early). */
@@ -81,6 +82,7 @@ function partialRun(results: CaseResult[], startedAt: number, suite: string): Su
 
 export default function Evaluate({ embedded = false }: { embedded?: boolean }) {
   const { state, dispatch } = useProject();
+  const t = useT();
   const bp = state.blueprint;
   const run = state.evalResult;
   const savedCases = state.savedTestCases;
@@ -138,7 +140,7 @@ export default function Evaluate({ embedded = false }: { embedded?: boolean }) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
         <Card className="p-8 text-center text-slate-500">
-          Describe your app first to generate an evaluation suite.
+          {t("Describe your app first to generate an evaluation suite.")}
         </Card>
       </div>
     );
@@ -155,15 +157,17 @@ export default function Evaluate({ embedded = false }: { embedded?: boolean }) {
     <div className={`mx-auto max-w-4xl px-6 ${embedded ? "py-4" : "py-10"}`}>
       {embedded ? (
         <p className="text-sm text-slate-500">
-          Re-run your test cases after every prompt change, then score the app on AI quality, Nigerian context,
-          language and reliability. Not an official N-ATLAS score.
+          {t(
+            "Re-run your test cases after every prompt change, then score the app on AI quality, Nigerian context, language and reliability. Not an official N-ATLAS score.",
+          )}
         </p>
       ) : (
         <div>
-          <h1 className="text-2xl font-bold text-ink">Evaluate</h1>
+          <h1 className="text-2xl font-bold text-ink">{t("Evaluate")}</h1>
           <p className="mt-1 text-slate-500">
-            Run your own test cases after every prompt change, then score the app on AI quality,
-            Nigerian context, language and reliability. Not an official N-ATLAS score.
+            {t(
+              "Re-run your test cases after every prompt change, then score the app on AI quality, Nigerian context, language and reliability. Not an official N-ATLAS score.",
+            )}
           </p>
         </div>
       )}
@@ -181,19 +185,18 @@ export default function Evaluate({ embedded = false }: { embedded?: boolean }) {
       <Card className="mt-6 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-semibold text-slate-800">Full evaluation</h2>
+            <h2 className="font-semibold text-slate-800">{t("Full evaluation")}</h2>
             <p className="text-sm text-slate-500">
-              Built-in Nigerian test suite for {/^[aeiou]/.test(bp.sector) ? "an" : "a"}{" "}
-              {bp.sector.replace("-", " ")} app
-              {savedCases.length > 0 && `, plus your ${savedCases.length} test${savedCases.length === 1 ? "" : "s"}`}.
+              {t("Built-in Nigerian test suite for this kind of app ({sector})", { sector: t(bp.sector) })}
+              {savedCases.length > 0 && ", " + plural(t, savedCases.length, "plus your {n} test", "plus your {n} tests")}.
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => start("quick")} disabled={!!live} title="About 6 built-in cases across every category">
-              Quick run
+            <Button variant="secondary" onClick={() => start("quick")} disabled={!!live} title={t("About 6 built-in cases across every category")}>
+              {t("Quick run")}
             </Button>
             <Button onClick={() => start("full")} disabled={!!live}>
-              {run && !run.partial ? "Re-run full evaluation" : "Run full evaluation"}
+              {run && !run.partial ? t("Re-run full evaluation") : t("Run full evaluation")}
             </Button>
           </div>
         </div>
@@ -223,10 +226,10 @@ export default function Evaluate({ embedded = false }: { embedded?: boolean }) {
             variant="secondary"
             onClick={() => dispatch({ type: "setStep", step: "playground" })}
           >
-            ← Try it
+            ← {t("Try it")}
           </Button>
           <Button onClick={() => dispatch({ type: "setStep", step: "secure" })}>
-            Continue to Security →
+            {t("Continue to Security →")}
           </Button>
         </div>
       )}
@@ -235,6 +238,7 @@ export default function Evaluate({ embedded = false }: { embedded?: boolean }) {
 }
 
 function Report({ run }: { run: SuiteRunResult }) {
+  const t = useT();
   const pct = Math.round(run.summary.passRate * 100);
   return (
     <div className="mt-6 space-y-4">
@@ -243,18 +247,18 @@ function Report({ run }: { run: SuiteRunResult }) {
           <div>
             <div className={`text-4xl font-bold ${scoreColor(pct)}`}>{pct}</div>
             <div className="text-sm text-slate-500">
-              {run.summary.passed} passed · {run.summary.failed} failed
-              {run.summary.errored > 0 && ` · ${run.summary.errored} errored`}
+              {t("{passed} passed · {failed} failed", { passed: run.summary.passed, failed: run.summary.failed })}
+              {run.summary.errored > 0 && " · " + t("{n} errored", { n: run.summary.errored })}
             </div>
           </div>
           <div className="text-right text-xs text-slate-400">
             {run.partial && (
               <Badge tone="amber" className="mb-1">
-                Stopped early — partial result
+                {t("Stopped early — partial result")}
               </Badge>
             )}
             <div>
-              {run.summary.total} cases · {run.model} · {(run.durationMs / 1000).toFixed(1)}s
+              {t("{n} cases", { n: run.summary.total })} · {run.model} · {(run.durationMs / 1000).toFixed(1)}s
             </div>
           </div>
         </div>
@@ -264,7 +268,7 @@ function Report({ run }: { run: SuiteRunResult }) {
             const cpct = v.total ? Math.round((v.passed / v.total) * 100) : 0;
             return (
               <div key={cat} className="flex items-center gap-3">
-                <div className="w-36 shrink-0 text-sm text-slate-600">{label(cat)}</div>
+                <div className="w-36 shrink-0 text-sm text-slate-600">{t(label(cat))}</div>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full rounded-full bg-forge-500" style={{ width: `${cpct}%` }} />
                 </div>
@@ -287,8 +291,9 @@ function Report({ run }: { run: SuiteRunResult }) {
 }
 
 function CaseRow({ c }: { c: CaseResult }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
-  const status = c.error ? "ERROR" : c.passed ? "PASS" : "FAIL";
+  const status = c.error ? t("ERROR") : c.passed ? t("PASS") : t("FAIL");
   const tone = c.passed && !c.error ? "green" : "red";
   return (
     <Card className="overflow-hidden">
@@ -300,15 +305,15 @@ function CaseRow({ c }: { c: CaseResult }) {
         <span className="min-w-0 flex-1 truncate text-sm text-slate-600">
           {c.description || c.caseId}
         </span>
-        <Badge>{label(c.category)}</Badge>
+        <Badge>{t(label(c.category))}</Badge>
         {c.language && <Badge tone="blue">{c.language}</Badge>}
         <span className="text-xs text-slate-400">{(c.latencyMs / 1000).toFixed(1)}s</span>
         <span className="text-slate-300">{open ? "▾" : "▸"}</span>
       </button>
       {open && (
         <div className="space-y-3 border-t border-slate-100 bg-slate-50/60 px-4 py-3 text-sm">
-          <Field label="Prompt">{c.prompt}</Field>
-          <Field label={c.error ? "Error" : "Response"}>{c.error || c.output}</Field>
+          <Field label={t("Prompt")}>{c.prompt}</Field>
+          <Field label={c.error ? t("Error") : t("Response")}>{c.error || c.output}</Field>
           <CheckList checks={c.checks} />
         </div>
       )}
@@ -317,9 +322,10 @@ function CaseRow({ c }: { c: CaseResult }) {
 }
 
 function CheckList({ checks }: { checks: CaseResult["checks"] }) {
+  const t = useT();
   return (
     <div>
-      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Checks</div>
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("Checks")}</div>
       <ul className="space-y-1">
         {checks.map((ck, i) => (
           <li key={i} className="flex gap-2">
@@ -367,6 +373,7 @@ function TestSuitePanel({
   appName: string;
   dispatch: Dispatch;
 }) {
+  const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const results = cases.map((tc) => latest.get(tc.id)).filter((r): r is CaseResult => !!r);
@@ -386,7 +393,7 @@ function TestSuitePanel({
     try {
       const imported = fromSuiteFile(await file.text());
       dispatch({ type: "importTestCases", cases: imported });
-      setImportMsg(`Imported ${imported.length} test${imported.length === 1 ? "" : "s"}.`);
+      setImportMsg(plural(t, imported.length, "Imported {n} test.", "Imported {n} tests."));
     } catch (e) {
       setImportMsg(e instanceof Error ? e.message : String(e));
     }
@@ -397,27 +404,27 @@ function TestSuitePanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold text-slate-800">
-            Your test cases
+            {t("Your test cases")}
             {cases.length > 0 && (
               <span className="ml-2 text-sm font-normal text-slate-400">
-                {cases.length} saved
-                {results.length > 0 && ` · ${passing}/${results.length} passing on last run`}
+                {t("{n} saved", { n: cases.length })}
+                {results.length > 0 && " · " + t("{passed}/{total} passing on last run", { passed: passing, total: results.length })}
               </span>
             )}
           </h2>
           <p className="text-sm text-slate-500">
-            Re-run these after every prompt change to catch regressions. Each test passes only if all of its checks pass.
+            {t("Re-run these after every prompt change to catch regressions. Each test passes only if all of its checks pass.")}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>
-            Import
+            {t("Import")}
           </Button>
           <Button variant="ghost" size="sm" onClick={exportSuite} disabled={!cases.length}>
-            Export
+            {t("Export")}
           </Button>
           <Button size="sm" onClick={onRun} disabled={running || !cases.length}>
-            ▶ Run my tests
+            ▶ {t("Run my tests")}
           </Button>
           <input
             ref={fileRef}
@@ -437,11 +444,10 @@ function TestSuitePanel({
 
       {cases.length === 0 ? (
         <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-          No test cases yet. In the <b>Try it</b> tab, press 👍 or 👎 on a reply and choose{" "}
-          <b>Save as test case</b>, or import a <code>.tests.json</code> file.
+          {t("No test cases yet. In the Try it tab, rate a reply with 👍 or 👎 to save it as a test case, or import a .tests.json file.")}
           <div className="mt-3">
             <Button variant="secondary" size="sm" onClick={() => dispatch({ type: "setStep", step: "playground" })}>
-              ← Go to Try it
+              ← {t("Go to Try it")}
             </Button>
           </div>
         </div>
@@ -465,6 +471,7 @@ function TestCaseRow({
   result?: CaseResult;
   dispatch: Dispatch;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const checks = checksFor(tc);
   const setChecks = (next: Check[]) => dispatch({ type: "updateTestCase", id: tc.id, patch: { checks: next } });
@@ -477,29 +484,29 @@ function TestCaseRow({
         className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-slate-50"
       >
         {status ? (
-          <Badge tone={status === "PASS" ? "green" : "red"}>{status}</Badge>
+          <Badge tone={status === "PASS" ? "green" : "red"}>{t(status)}</Badge>
         ) : (
-          <Badge>NOT RUN</Badge>
+          <Badge>{t("NOT RUN")}</Badge>
         )}
-        <span className="min-w-0 flex-1 truncate text-slate-700">{tc.userMessage || "(no prompt)"}</span>
+        <span className="min-w-0 flex-1 truncate text-slate-700">{tc.userMessage || t("(no prompt)")}</span>
         {tc.language && <Badge tone="blue">{LANG_LABEL[tc.language as LangCode] ?? tc.language}</Badge>}
         <span className="text-xs text-slate-400">
-          {checks.length} check{checks.length === 1 ? "" : "s"}
+          {plural(t, checks.length, "{n} check", "{n} checks")}
         </span>
         <span className="text-slate-300">{open ? "▾" : "▸"}</span>
       </button>
       {open && (
         <div className="space-y-3 border-t border-slate-100 bg-slate-50/60 px-3 py-3 text-sm">
-          <Field label="Prompt">{tc.userMessage}</Field>
+          <Field label={t("Prompt")}>{tc.userMessage}</Field>
           {(tc.note || tc.expectedBehavior) && (
             <div className="grid gap-2 sm:grid-cols-2">
-              {tc.note && <Field label="Note">{tc.note}</Field>}
-              {tc.expectedBehavior && <Field label="Expected">{tc.expectedBehavior}</Field>}
+              {tc.note && <Field label={t("Note")}>{tc.note}</Field>}
+              {tc.expectedBehavior && <Field label={t("Expected")}>{tc.expectedBehavior}</Field>}
             </div>
           )}
 
           <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Checks</div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("Checks")}</div>
             <div className="flex flex-wrap gap-1.5">
               {checks.map((c, i) => {
                 const outcome = result?.checks[i];
@@ -519,7 +526,7 @@ function TestCaseRow({
                     <button
                       onClick={() => setChecks(checks.filter((_, j) => j !== i))}
                       className="ml-0.5 text-slate-400 hover:text-red-600"
-                      aria-label="Remove check"
+                      aria-label={t("Remove check")}
                     >
                       ×
                     </button>
@@ -531,17 +538,17 @@ function TestCaseRow({
           </div>
 
           {result && (
-            <Field label={`Last reply (${(result.latencyMs / 1000).toFixed(1)}s)`}>
+            <Field label={t("Last reply ({s}s)", { s: (result.latencyMs / 1000).toFixed(1) })}>
               {result.error || result.output}
             </Field>
           )}
-          {!result && tc.assistantReply && <Field label="Reply when saved">{tc.assistantReply}</Field>}
+          {!result && tc.assistantReply && <Field label={t("Reply when saved")}>{tc.assistantReply}</Field>}
 
           <button
             onClick={() => dispatch({ type: "removeTestCase", id: tc.id })}
             className="text-xs text-red-400 hover:text-red-600"
           >
-            Delete test case
+            {t("Delete test case")}
           </button>
         </div>
       )}
@@ -550,6 +557,7 @@ function TestCaseRow({
 }
 
 function AddCheck({ lang, onAdd }: { lang: LangCode; onAdd: (c: Check) => void }) {
+  const t = useT();
   const [type, setType] = useState<Check["type"]>("containsAny");
   const [value, setValue] = useState("");
   const [checkLang, setCheckLang] = useState<LangCode>(lang);
@@ -565,7 +573,7 @@ function AddCheck({ lang, onAdd }: { lang: LangCode; onAdd: (c: Check) => void }
       >
         {CHECK_KINDS.map((k) => (
           <option key={k.type} value={k.type}>
-            {k.label}
+            {t(k.label)}
           </option>
         ))}
       </select>
@@ -577,7 +585,7 @@ function AddCheck({ lang, onAdd }: { lang: LangCode; onAdd: (c: Check) => void }
         >
           {(Object.keys(LANG_LABEL) as LangCode[]).map((l) => (
             <option key={l} value={l}>
-              {LANG_LABEL[l]}
+              {t(LANG_LABEL[l])}
             </option>
           ))}
         </select>
@@ -587,7 +595,7 @@ function AddCheck({ lang, onAdd }: { lang: LangCode; onAdd: (c: Check) => void }
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={
-            kind.needs === "number" ? "e.g. 10" : kind.needs === "pattern" ? "e.g. \\bextension officer\\b" : "e.g. Bt, Spinosad"
+            kind.needs === "number" ? t("e.g. 10") : kind.needs === "pattern" ? t("e.g. \\bextension officer\\b") : t("e.g. Bt, Spinosad")
           }
           className="min-w-40 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs"
         />
@@ -601,9 +609,9 @@ function AddCheck({ lang, onAdd }: { lang: LangCode; onAdd: (c: Check) => void }
           setValue("");
         }}
       >
-        + Add check
+        + {t("Add check")}
       </Button>
-      <span className="w-full text-[11px] text-slate-400">{kind.hint}</span>
+      <span className="w-full text-[11px] text-slate-400">{t(kind.hint)}</span>
     </div>
   );
 }

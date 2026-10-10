@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { projectKind, projectName, useProject, useWorkspace } from "../state/ProjectContext";
 import { nextStep, stages } from "../utils/projectStatus";
+import { useT } from "../i18n";
 
 /**
  * The project workspace: a sidebar with the project's stages (open any of
@@ -9,8 +10,9 @@ import { nextStep, stages } from "../utils/projectStatus";
 export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   const { state, dispatch } = useProject();
   const { setView, renameProject } = useWorkspace();
-  const list = stages(state);
-  const next = nextStep(state);
+  const t = useT();
+  const list = stages(state, t);
+  const next = nextStep(state, t);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const kind = projectKind(state);
@@ -32,7 +34,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
           key={s.key}
           disabled={!s.available}
           onClick={() => s.available && dispatch({ type: "setStep", step: s.step })}
-          title={s.available ? undefined : "Design your app first"}
+          title={s.available ? undefined : t("Design your app first")}
           className={[
             "group flex items-start gap-3 rounded-lg text-left transition-colors",
             compact ? "shrink-0 px-3 py-1.5" : "w-full px-3 py-2",
@@ -61,7 +63,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
       {/* Sidebar (desktop) */}
       <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 flex-col overflow-y-auto py-6 lg:flex">
         <button onClick={() => setView("home")} className="mb-4 text-left text-xs font-medium text-slate-400 hover:text-slate-600">
-          ← My projects
+          ← {t("My projects")}
         </button>
 
         {editing ? (
@@ -79,26 +81,26 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
             />
           </div>
         ) : (
-          <button onClick={startRename} title="Rename project" className="group mb-1 text-left">
+          <button onClick={startRename} title={t("Rename project")} className="group mb-1 text-left">
             <span className="text-base font-bold leading-snug text-ink">{projectName(state)}</span>
             <span className="ml-1 text-xs text-slate-300 opacity-0 group-hover:opacity-100">✎</span>
           </button>
         )}
-        {kind && <span className="mb-4 text-xs text-slate-500">{kind}</span>}
-        {!kind && <span className="mb-4 text-xs text-slate-400">New project</span>}
+        {kind && <span className="mb-4 text-xs text-slate-500">{t(kind)}</span>}
+        {!kind && <span className="mb-4 text-xs text-slate-400">{t("New project")}</span>}
 
         <nav className="space-y-1">{nav(false)}</nav>
 
         {next && (
           <div className="mt-6 rounded-lg border border-forge-200 bg-forge-50/60 p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-forge-700">Next step</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-forge-700">{t("Next step")}</div>
             <p className="mt-1 text-xs leading-relaxed text-slate-600">{next.text}</p>
             {!list.find((s) => s.steps.includes(next.step))?.steps.includes(state.step) && (
               <button
                 onClick={() => dispatch({ type: "setStep", step: next.step })}
                 className="mt-2 text-xs font-semibold text-forge-700 hover:underline"
               >
-                Go →
+                {t("Go →")}
               </button>
             )}
           </div>
