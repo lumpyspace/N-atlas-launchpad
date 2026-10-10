@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "natlas"
+version = "0.1.0"
+description = "Small, zero-dependency client for N-ATLAS, Nigeria's open LLM: language hints, answers from your documents, streaming, and errors that tell you how to fix them."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = []
+keywords = ["n-atlas", "natlas", "llm", "nigeria", "yoruba", "hausa", "igbo", "pidgin", "ollama"]
+
+[project.urls]
+Homepage = "https://github.com/lumpyspace/N-atlas-launchpad"
+
+[tool.setuptools]
+py-modules = ["natlas"]

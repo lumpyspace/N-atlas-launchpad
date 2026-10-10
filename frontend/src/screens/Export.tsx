@@ -3,6 +3,7 @@ import { useProject, useWorkspace } from "../state/ProjectContext";
 import { Badge, Button, Card } from "../ui";
 import { downloadProjectZip, listProjectFiles } from "../export/zip";
 import type { ExportLang, ProjectInput } from "../export/templates";
+import { downloadSdk } from "../utils/sdkDownload";
 
 export default function Export() {
   const { state, dispatch } = useProject();
@@ -51,8 +52,8 @@ export default function Export() {
     <div className="mx-auto max-w-4xl px-6 py-10">
       <h1 className="text-2xl font-bold text-ink">Ship your N-ATLAS app</h1>
       <p className="mt-1 text-slate-500">
-        Download a real, runnable starter project — your system prompt, an N-ATLAS
-        client, your test cases with a scored runner, a GitHub Actions workflow,
+        Download a real, runnable starter project — your system prompt, the N-ATLAS
+        SDK, your test cases with a scored runner, a GitHub Actions workflow,
         security tests and fine-tuning data. Not a screenshot: actual code.
       </p>
 
@@ -116,6 +117,8 @@ export default function Export() {
         )}
       </div>
 
+      <SdkCard lang={lang} />
+
       <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-6">
         <Button
           variant="secondary"
@@ -133,6 +136,76 @@ export default function Export() {
         </div>
       </div>
     </div>
+  );
+}
+
+const SDK_EXAMPLE: Record<ExportLang, string> = {
+  js: `import { Natlas } from "./natlas.js";
+
+const natlas = new Natlas(); // local Ollama, or NATLAS_BASE_URL
+const reply = await natlas.chat("Abeg, how I fit register my business?", {
+  system: "You help small business owners in Nigeria.",
+  language: "pid",
+});
+console.log(reply.text);`,
+  python: `from natlas import Natlas
+
+natlas = Natlas()  # local Ollama, or NATLAS_BASE_URL
+reply = natlas.chat(
+    "Abeg, how I fit register my business?",
+    system="You help small business owners in Nigeria.",
+    language="pid",
+)
+print(reply.text)`,
+};
+
+/** For developers with an existing codebase: the SDK on its own. */
+function SdkCard({ lang }: { lang: ExportLang }) {
+  const file = lang === "js" ? "natlas.js" : "natlas.py";
+  return (
+    <Card className="mt-8 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">Already have a codebase? Use the N-ATLAS SDK</h2>
+          <p className="mt-1 max-w-xl text-sm text-slate-500">
+            The same client your export uses, on its own: one file with no dependencies. It sets N-ATLAS's recommended
+            settings, adds language hints, answers from your documents with sources, keeps chats inside the 8,092-token
+            context, streams, and gives errors that say how to fix them (“is Ollama running?”).
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={() => downloadSdk(file)}>
+            ⬇ {file}
+          </Button>
+          {lang === "js" && (
+            <button onClick={() => downloadSdk("natlas.d.ts")} className="text-xs font-medium text-forge-700 hover:underline">
+              + TypeScript types
+            </button>
+          )}
+        </div>
+      </div>
+      <pre className="mt-3 overflow-auto rounded-lg bg-slate-900 p-4 text-[12px] leading-relaxed text-slate-100">
+        <code>{SDK_EXAMPLE[lang]}</code>
+      </pre>
+      <p className="mt-2 text-xs text-slate-500">
+        {lang === "python" ? (
+          <>
+            Or install it: <code className="rounded bg-slate-100 px-1">pip install "git+https://github.com/lumpyspace/N-atlas-launchpad#subdirectory=sdk/python"</code>
+            .{" "}
+          </>
+        ) : null}
+        Streaming, documents and errors are covered in the{" "}
+        <a
+          href={`https://github.com/lumpyspace/N-atlas-launchpad/tree/master/sdk/${lang === "js" ? "js" : "python"}`}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-forge-700 hover:underline"
+        >
+          SDK docs ↗
+        </a>
+        . Test → Get code writes the call for your exact prompt and settings.
+      </p>
+    </Card>
   );
 }
 

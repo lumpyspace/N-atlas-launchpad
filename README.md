@@ -108,7 +108,11 @@ Open <http://localhost:5173> and walk the workflow.
 - **Improve** — hardens the system prompt against the categories that failed,
   then **re-tests** for a real before/after. `POST /api/improve`.
 - **Export** — a real, runnable **JavaScript or Python** starter project (N-ATLAS
-  client, system prompt, eval + security tests, README) as a downloadable `.zip`.
+  SDK, system prompt, eval + security tests, README) as a downloadable `.zip`.
+- **N-ATLAS SDK** ([`sdk/`](sdk/README.md)) — one-file, zero-dependency clients
+  for JavaScript and Python: N-ATLAS defaults, Yoruba/Hausa/Igbo/Pidgin language
+  hints, answers from your documents with sources, context-window trimming,
+  streaming, and errors that say how to fix them.
 
 ## Evaluation & security methodology
 

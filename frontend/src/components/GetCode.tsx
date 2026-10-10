@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { downloadSdk } from "../utils/sdkDownload";
 
 /** Same wording the backend appends for a language hint (HttpNAtlasProvider). */
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -17,9 +18,19 @@ export interface CodeRequest {
   temperature: number;
   maxTokens: number;
   message: string;
+  /** The project has Knowledge documents (exported as knowledge/passages.json). */
+  hasKnowledge?: boolean;
 }
 
-type Lang = "curl" | "js" | "python";
+type Lang = "sdk-js" | "sdk-py" | "curl" | "js" | "python";
+
+const TABS: Array<[Lang, string]> = [
+  ["sdk-js", "SDK · JavaScript"],
+  ["sdk-py", "SDK · Python"],
+  ["js", "fetch"],
+  ["python", "requests"],
+  ["curl", "curl"],
+];
 
 /** The exact chat-completions body the Playground sends. */
 function requestBody(r: CodeRequest) {
@@ -37,7 +48,89 @@ function requestBody(r: CodeRequest) {
   };
 }
 
+/** The same call through the N-ATLAS SDK (sdk/ in the Launchpad repo). */
+function sdkSnippet(lang: "js" | "python", r: CodeRequest): string {
+  const DEFAULT_URL = "http://localhost:11434/v1";
+  const lit = (s: string) => JSON.stringify(s); // valid in both JS and Python
+  // Multi-line prompts keep their line breaks: a template literal / triple-quoted string.
+  const block = (s: string) =>
+    !s.includes("\n")
+      ? lit(s)
+      : lang === "js"
+        ? "`" + s.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${") + "`"
+        : '"""' + s.replace(/\\/g, "\\\\").replace(/"""/g, '\\"\\"\\"').replace(/"$/, '\\"') + '"""';
+  const opts: string[] = [];
+  const temp = Number(r.temperature.toFixed(2));
+  if (lang === "js") {
+    opts.push("system: SYSTEM_PROMPT");
+    if (LANGUAGE_NAMES[r.language]) opts.push(`language: ${lit(r.language)}`);
+    if (temp !== 0.1) opts.push(`temperature: ${temp}`);
+    if (r.maxTokens !== 512) opts.push(`maxTokens: ${r.maxTokens}`);
+    if (r.hasKnowledge) opts.push("knowledge");
+    const client = [
+      r.endpoint !== DEFAULT_URL ? `baseURL: process.env.NATLAS_BASE_URL ?? ${lit(r.endpoint)}` : "",
+      r.model !== "n-atlas" ? `model: ${lit(r.model)}` : "",
+    ].filter(Boolean);
+    return [
+      `// natlas.js — the N-ATLAS SDK: one file, no dependencies (download it below).`,
+      `// Reads NATLAS_BASE_URL, NATLAS_MODEL and NATLAS_API_KEY; defaults to local Ollama.`,
+      r.hasKnowledge ? `import { readFileSync } from "node:fs";\nimport { Natlas, Knowledge } from "./natlas.js";` : `import { Natlas } from "./natlas.js";`,
+      ``,
+      `const natlas = new Natlas(${client.length ? `{ ${client.join(", ")} }` : ""});`,
+      r.hasKnowledge
+        ? `// Your documents — knowledge/passages.json comes with Ship → Download.\nconst knowledge = Knowledge.fromJSON(readFileSync("knowledge/passages.json", "utf8"));`
+        : null,
+      `const SYSTEM_PROMPT = ${block(r.system.trim())};`,
+      ``,
+      `const reply = await natlas.chat(${lit(r.message || "Hello!")}, {`,
+      ...opts.map((o) => `  ${o},`),
+      `});`,
+      `console.log(reply.text);`,
+      r.hasKnowledge ? `console.log("Sources:", reply.sources.map((s) => s.source + " #" + s.index));` : null,
+      ``,
+      `// Stream instead:  for await (const d of natlas.stream(question, options)) process.stdout.write(d);`,
+    ]
+      .filter((l): l is string => l !== null)
+      .join("\n");
+  }
+  opts.push("system=SYSTEM_PROMPT");
+  if (LANGUAGE_NAMES[r.language]) opts.push(`language=${lit(r.language)}`);
+  if (temp !== 0.1) opts.push(`temperature=${temp}`);
+  if (r.maxTokens !== 512) opts.push(`max_tokens=${r.maxTokens}`);
+  if (r.hasKnowledge) opts.push("knowledge=knowledge");
+  const client = [
+    r.endpoint !== DEFAULT_URL ? `base_url=os.environ.get("NATLAS_BASE_URL", ${lit(r.endpoint)})` : "",
+    r.model !== "n-atlas" ? `model=${lit(r.model)}` : "",
+  ].filter(Boolean);
+  return [
+    `# natlas.py — the N-ATLAS SDK: one file, standard library only (download it below), or:`,
+    `#   pip install "git+https://github.com/lumpyspace/N-atlas-launchpad#subdirectory=sdk/python"`,
+    `# Reads NATLAS_BASE_URL, NATLAS_MODEL and NATLAS_API_KEY; defaults to local Ollama.`,
+    client.some((c) => c.includes("os.environ")) ? "import os\n" : null,
+    r.hasKnowledge ? `from natlas import Knowledge, Natlas` : `from natlas import Natlas`,
+    ``,
+    `natlas = Natlas(${client.join(", ")})`,
+    r.hasKnowledge
+      ? `# Your documents — knowledge/passages.json comes with Ship → Download.\nknowledge = Knowledge.from_json("knowledge/passages.json")`
+      : null,
+    `SYSTEM_PROMPT = ${block(r.system.trim())}`,
+    ``,
+    `reply = natlas.chat(`,
+    `    ${lit(r.message || "Hello!")},`,
+    ...opts.map((o) => `    ${o},`),
+    `)`,
+    `print(reply.text)`,
+    r.hasKnowledge ? `print("Sources:", [f"{s.source} #{s.index}" for s in reply.sources])` : null,
+    ``,
+    `# Stream instead:  for d in natlas.stream(question, **options): print(d, end="", flush=True)`,
+  ]
+    .filter((l): l is string => l !== null)
+    .join("\n");
+}
+
 function snippet(lang: Lang, r: CodeRequest): string {
+  if (lang === "sdk-js") return sdkSnippet("js", r);
+  if (lang === "sdk-py") return sdkSnippet("python", r);
   const body = requestBody(r);
   const json = JSON.stringify(body, null, 2);
   switch (lang) {
@@ -90,8 +183,14 @@ function toPython(value: unknown, indent: number): string {
 }
 
 export function GetCode({ request, onClose }: { request: CodeRequest; onClose: () => void }) {
-  const [lang, setLang] = useState<Lang>("js");
+  const [lang, setLang] = useState<Lang>("sdk-js");
+  const isSdk = lang === "sdk-js" || lang === "sdk-py";
   const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   const code = snippet(lang, request);
 
   async function copy() {
@@ -117,15 +216,17 @@ export function GetCode({ request, onClose }: { request: CodeRequest; onClose: (
           <div>
             <h2 className="font-semibold text-slate-800">Call N-ATLAS from your code</h2>
             <p className="text-xs text-slate-500">
-              The exact request the Playground sends — your system prompt, language and settings.
+              {isSdk
+                ? "Your system prompt, language and settings, through the N-ATLAS SDK."
+                : "The exact request the Playground sends — your system prompt, language and settings."}
             </p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label="Close">
             ✕
           </button>
         </div>
-        <div className="flex items-center gap-1 px-5 pt-3">
-          {(["js", "python", "curl"] as Lang[]).map((l) => (
+        <div className="flex flex-wrap items-center gap-1 px-5 pt-3">
+          {TABS.map(([l, label]) => (
             <button
               key={l}
               onClick={() => setLang(l)}
@@ -133,7 +234,7 @@ export function GetCode({ request, onClose }: { request: CodeRequest; onClose: (
                 lang === l ? "bg-forge-50 text-forge-700" : "text-slate-500 hover:bg-slate-100"
               }`}
             >
-              {l === "js" ? "JavaScript" : l === "python" ? "Python" : "curl"}
+              {label}
             </button>
           ))}
           <button
@@ -146,6 +247,33 @@ export function GetCode({ request, onClose }: { request: CodeRequest; onClose: (
         <pre className="m-5 mt-3 max-h-[60vh] overflow-auto rounded-lg bg-slate-900 p-4 text-[12px] leading-relaxed text-slate-100">
           <code>{code}</code>
         </pre>
+        {isSdk && (
+          <div className="-mt-2 flex flex-wrap items-center gap-2 px-5 pb-4 text-xs text-slate-500">
+            <button
+              onClick={() => downloadSdk(lang === "sdk-js" ? "natlas.js" : "natlas.py")}
+              className="rounded-md bg-forge-600 px-3 py-1.5 font-medium text-white hover:bg-forge-700"
+            >
+              ⬇ Download {lang === "sdk-js" ? "natlas.js" : "natlas.py"}
+            </button>
+            {lang === "sdk-js" && (
+              <button onClick={() => downloadSdk("natlas.d.ts")} className="text-forge-700 hover:underline">
+                TypeScript types
+              </button>
+            )}
+            <span>
+              One file, no dependencies. Language hints, answers from your documents, streaming, and errors that say how
+              to fix them.{" "}
+              <a
+                href={`https://github.com/lumpyspace/N-atlas-launchpad/tree/master/sdk/${lang === "sdk-js" ? "js" : "python"}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-forge-700 hover:underline"
+              >
+                Docs ↗
+              </a>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -920,6 +920,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
                 language,
                 temperature: shortAnswers ? 0.1 : temperature,
                 maxTokens: shortAnswers ? 150 : maxTokens,
+                hasKnowledge: state.knowledge.length > 0,
                 message:
                   input.trim() ||
                   [...messages].reverse().find((m) => m.role === "user")?.text ||

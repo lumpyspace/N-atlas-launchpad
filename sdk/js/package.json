@@ -1,0 +1,24 @@
+{
+  "name": "natlas",
+  "version": "0.1.0",
+  "description": "Small, zero-dependency client for N-ATLAS, Nigeria's open LLM: language hints, answers from your documents, streaming, and errors that tell you how to fix them.",
+  "type": "module",
+  "main": "natlas.js",
+  "types": "natlas.d.ts",
+  "exports": {
+    ".": {
+      "types": "./natlas.d.ts",
+      "default": "./natlas.js"
+    }
+  },
+  "files": ["natlas.js", "natlas.d.ts", "README.md"],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["n-atlas", "natlas", "llm", "nigeria", "yoruba", "hausa", "igbo", "pidgin", "ollama"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lumpyspace/N-atlas-launchpad.git",
+    "directory": "sdk/js"
+  }
+}
