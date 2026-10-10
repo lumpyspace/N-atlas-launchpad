@@ -798,7 +798,15 @@ export default function Playground({ health, embedded = false }: { health: Healt
             {settingsOpen && (
               <div className="mt-3 space-y-4">
                 <div>
-                  <div className="mb-1 text-xs font-medium text-slate-600">System prompt</div>
+                  <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-600">
+                    <span>System prompt</span>
+                    <button
+                      onClick={() => dispatch({ type: "setStep", step: "prompt" })}
+                      className="font-medium text-forge-600 hover:underline"
+                    >
+                      Open Prompt studio →
+                    </button>
+                  </div>
                   <textarea
                     className="h-44 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-2 font-mono text-[11px] leading-relaxed text-slate-700 focus:border-forge-500 focus:outline-none"
                     value={state.systemPrompt}

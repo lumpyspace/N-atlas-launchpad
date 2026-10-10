@@ -5,7 +5,7 @@
 
 import type { ProjectState, Step } from "../state/ProjectContext";
 
-export type StageKey = "design" | "build" | "test" | "secure" | "ship";
+export type StageKey = "design" | "build" | "prompt" | "test" | "secure" | "ship";
 
 export interface StageStatus {
   key: StageKey;
@@ -54,6 +54,21 @@ export function stages(p: ProjectState): StageStatus[] {
       done: built,
       available: built,
       detail: built ? p.blueprint!.buildPlan?.useCase?.label ?? "Blueprint ready" : "Design your app first",
+    },
+    {
+      key: "prompt",
+      label: "Prompt",
+      step: "prompt",
+      steps: ["prompt"],
+      done: built && (p.promptVersions?.length ?? 0) > 0,
+      available: built,
+      detail: !built
+        ? "Design your app first"
+        : p.promptVersions?.length
+          ? `${p.promptVersions.length} saved version${p.promptVersions.length === 1 ? "" : "s"}${p.systemPrompt !== p.promptVersions[0].text ? " · unsaved edits" : ""}`
+          : p.systemPrompt !== p.blueprint!.systemPrompt
+            ? "Edited · not saved as a version"
+            : "Check and refine the generated prompt",
     },
     {
       key: "test",

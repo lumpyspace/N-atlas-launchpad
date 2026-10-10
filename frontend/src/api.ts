@@ -644,3 +644,44 @@ export async function streamDesignTurn(
 ): Promise<void> {
   await streamRun<never, never>("/api/design/turn", body, (e) => onEvent(e as unknown as DesignEvent), signal);
 }
+
+// ── Prompt studio ────────────────────────────────────────────────────────────
+
+export interface PromptFinding {
+  id: string;
+  severity: "fix" | "warn" | "info" | "good";
+  title: string;
+  detail: string;
+  fix?: { label: string; line: string };
+  action?: "secure";
+}
+
+export interface PromptBudget {
+  systemPrompt: number;
+  data: number;
+  message: number;
+  reply: number;
+  total: number;
+  limit: number;
+  share: number;
+}
+
+export interface PromptDiagnosis {
+  findings: PromptFinding[];
+  budget: PromptBudget;
+  words: number;
+}
+
+export async function diagnosePrompt(
+  body: { systemPrompt: string; data?: string; languages?: string[]; needsKnowledge?: boolean; maxTokens?: number },
+  signal?: AbortSignal,
+): Promise<PromptDiagnosis> {
+  const res = await fetch(`${BASE}/api/prompt/doctor`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}

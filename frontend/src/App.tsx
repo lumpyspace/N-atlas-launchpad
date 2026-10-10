@@ -12,6 +12,7 @@ import Secure from "./screens/Secure";
 import Improve from "./screens/Improve";
 import Export from "./screens/Export";
 import Test from "./screens/Test";
+import PromptStudio from "./screens/PromptStudio";
 
 export default function App() {
   return (
@@ -66,6 +67,8 @@ function renderStep(step: string, health: HealthStatus | null) {
       return <Describe />;
     case "blueprint":
       return <Blueprint />;
+    case "prompt":
+      return <PromptStudio />;
     case "playground":
     case "evaluate":
       return <Test health={health} />;

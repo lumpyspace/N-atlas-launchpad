@@ -66,3 +66,9 @@ test("token estimate counts accented Yoruba letters as more expensive", () => {
   assert.ok(estimateTokens("Ẹ káàbọ̀ sí ilé wa") > estimateTokens("Welcome to our home"));
   assert.equal(estimateTokens(""), 0);
 });
+
+test("generated prompts have no doubled full stops", () => {
+  for (const d of ["A WhatsApp bot that answers farmers in Yoruba about planting", "A customer support bot for my shop", "A note-taking app for university students"]) {
+    assert.doesNotMatch(generateBlueprint(d).systemPrompt, /\.\.(?!\.)/, d);
+  }
+});

@@ -31,6 +31,7 @@ export type Step =
   | "landing"
   | "describe"
   | "blueprint"
+  | "prompt"
   | "playground"
   | "evaluate"
   | "compare"
@@ -91,6 +92,15 @@ export interface ProjectState {
   design: DesignState;
   /** When the starter project was last downloaded. */
   exportedAt?: string;
+  /** Saved versions of the system prompt, newest first. */
+  promptVersions: PromptVersion[];
+}
+
+export interface PromptVersion {
+  id: string;
+  savedAt: string;
+  label: string;
+  text: string;
 }
 
 /** A saved project in the workspace. */
@@ -137,6 +147,7 @@ const initialState: ProjectState = {
   compare: null,
   playgroundData: "",
   design: EMPTY_DESIGN,
+  promptVersions: [],
 };
 
 type Action =
@@ -158,6 +169,8 @@ type Action =
   | { type: "setPlaygroundData"; data: string }
   | { type: "setDesign"; design: DesignState }
   | { type: "markExported" }
+  | { type: "savePromptVersion"; label: string }
+  | { type: "deletePromptVersion"; id: string }
   | { type: "reset" };
 
 function reducer(state: ProjectState, action: Action): ProjectState {
@@ -226,6 +239,19 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, playgroundData: action.data };
     case "patchBlueprint":
       return state.blueprint ? { ...state, blueprint: { ...state.blueprint, ...action.patch } } : state;
+    case "savePromptVersion": {
+      const latest = state.promptVersions[0];
+      if (latest && latest.text === state.systemPrompt) return state; // nothing changed
+      const v: PromptVersion = {
+        id: `v-${Date.now()}`,
+        savedAt: new Date().toISOString(),
+        label: action.label.trim() || `Version ${state.promptVersions.length + 1}`,
+        text: state.systemPrompt,
+      };
+      return { ...state, promptVersions: [v, ...state.promptVersions].slice(0, 50) };
+    }
+    case "deletePromptVersion":
+      return { ...state, promptVersions: state.promptVersions.filter((v) => v.id !== action.id) };
     case "markExported":
       return { ...state, exportedAt: new Date().toISOString() };
     case "reset":

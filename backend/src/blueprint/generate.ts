@@ -475,7 +475,7 @@ function buildSystemPrompt(
 ): string {
   return [
     `You are ${name}, ${stripEndPunct(purpose)}.`,
-    `You serve ${targetUsers}.`,
+    `You serve ${stripEndPunct(targetUsers)}.`,
     ``,
     `Your primary tasks:`,
     ...tasks.map((task) => `- ${task}`),
