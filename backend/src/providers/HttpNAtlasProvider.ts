@@ -20,6 +20,8 @@ interface HttpProviderConfig {
   apiKey: string;
   model: string;
   timeoutMs: number;
+  /** Sent as `repetition_penalty` (vLLM); unset for Ollama, whose Modelfile sets repeat_penalty. */
+  repetitionPenalty?: number;
 }
 
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -88,6 +90,7 @@ export class HttpNAtlasProvider implements NAtlasProvider {
       temperature: options.temperature ?? 0.2,
       max_tokens: options.maxTokens ?? 512,
       stop: options.stop,
+      ...(this.cfg.repetitionPenalty ? { repetition_penalty: this.cfg.repetitionPenalty } : {}),
       stream: false,
     };
 
@@ -179,6 +182,7 @@ export class HttpNAtlasProvider implements NAtlasProvider {
       temperature: options.temperature ?? 0.2,
       max_tokens: options.maxTokens ?? 512,
       stop: options.stop,
+      ...(this.cfg.repetitionPenalty ? { repetition_penalty: this.cfg.repetitionPenalty } : {}),
       stream: true,
       // Ask for token usage; OpenAI-compatible servers (incl. Ollama) send it
       // in a final chunk with an empty `choices` array.

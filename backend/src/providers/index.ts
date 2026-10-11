@@ -13,6 +13,7 @@ export function createProvider(config: AppConfig): NAtlasProvider {
     apiKey: config.natlasApiKey,
     model: config.natlasModel,
     timeoutMs: config.requestTimeoutMs,
+    repetitionPenalty: config.repetitionPenalty,
   });
 }
 

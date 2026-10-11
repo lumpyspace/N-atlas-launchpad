@@ -13,6 +13,8 @@ export interface AppConfig {
   natlasModel: string;
   /** Request timeout in ms for calls to N-ATLAS. */
   requestTimeoutMs: number;
+  /** vLLM sampling: repetition_penalty (Ollama sets repeat_penalty in its Modelfile instead). */
+  repetitionPenalty?: number;
   /** Extra OpenAI-compatible models offered in Compare (e.g. base Llama 3). */
   compareModels: CompareModel[];
 }
@@ -61,6 +63,7 @@ export function loadConfig(): AppConfig {
     natlasApiKey: (process.env.NATLAS_API_KEY ?? "").trim(),
     natlasModel: (process.env.NATLAS_MODEL ?? "n-atlas").trim(),
     requestTimeoutMs: Number(process.env.NATLAS_REQUEST_TIMEOUT_MS ?? 120_000),
+    repetitionPenalty: Number(process.env.NATLAS_REPETITION_PENALTY) || undefined,
     compareModels: parseCompareModels(process.env.COMPARE_MODELS),
   };
 }
