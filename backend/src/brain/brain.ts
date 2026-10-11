@@ -19,6 +19,10 @@ export interface BrainProvider {
   baseURL: string;
   model: string;
   apiKey: string;
+  /** Extra request fields (e.g. Gemini's reasoning_effort). */
+  extra?: Record<string, unknown>;
+  /** Tokens added to max_tokens for a model that "thinks" before it answers. */
+  thinkingTokens?: number;
 }
 
 export interface BrainMessage {
@@ -42,12 +46,18 @@ export interface BrainStatus {
 /** Read the providers from the environment, in the order they're tried. */
 export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainProvider[] {
   const out: BrainProvider[] = [];
-  if (env.GEMINI_API_KEY?.trim()) {
+  // GEMINI_MODEL may list several, tried in order: each has its own free quota,
+  // and a busy one is often fine a model over.
+  const geminiModels = (env.GEMINI_MODEL?.trim() || "gemini-3.8-flash,gemini-3.5-flash").split(",").map((m) => m.trim()).filter(Boolean);
+  for (const model of env.GEMINI_API_KEY?.trim() ? geminiModels : []) {
     out.push({
       name: "Gemini",
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
-      model: env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
-      apiKey: env.GEMINI_API_KEY.trim(),
+      model,
+      apiKey: env.GEMINI_API_KEY!.trim(),
+      // Gemini thinks before answering, and the thinking counts against max_tokens.
+      extra: { reasoning_effort: "low" },
+      thinkingTokens: 1024,
     });
   }
   if (env.GROQ_API_KEY?.trim()) {
@@ -56,6 +66,8 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainPro
       baseURL: "https://api.groq.com/openai/v1",
       model: env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b",
       apiKey: env.GROQ_API_KEY.trim(),
+      extra: { reasoning_effort: "low" },
+      thinkingTokens: 1024,
     });
   }
   if (env.BRAIN_BASE_URL?.trim() && env.BRAIN_MODEL?.trim()) {
@@ -68,6 +80,14 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainPro
   }
   return out;
 }
+
+/** The text up to its last complete sentence ("" if there's none). */
+export function completeSentences(text: string): string {
+  const m = text.match(/^[\s\S]*[.!?…](?=["”')\]]*(\s|$))["”')\]]*/);
+  return m ? m[0].trim() : "";
+}
+
+const key = (p: BrainProvider) => `${p.name}/${p.model}`;
 
 export class BrainError extends Error {
   constructor(
@@ -97,6 +117,7 @@ export class Brain {
     private readonly dailyLimit = 500,
     private readonly fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis),
     private readonly now: () => number = Date.now,
+    private readonly retryDelayMs = 2000,
   ) {}
 
   get configured(): boolean {
@@ -116,7 +137,7 @@ export class Brain {
       providers: this.providers.map((p) => ({
         name: p.name,
         model: p.model,
-        ...(this.isCooling(p) ? { coolingDownUntil: new Date(this.cooldown.get(p.name)!).toISOString() } : {}),
+        ...(this.isCooling(p) ? { coolingDownUntil: new Date(this.cooldown.get(key(p))!).toISOString() } : {}),
       })),
       usedToday: this.used,
       dailyLimit: this.dailyLimit,
@@ -133,14 +154,23 @@ export class Brain {
       if (this.isCooling(p)) continue;
       try {
         this.used++;
-        const text = await this.call(p, messages, options);
+        let text: string;
+        try {
+          text = await this.call(p, messages, options);
+        } catch (err) {
+          // Busy (503): one more try after a short pause before moving on.
+          if (!(err instanceof BrainError && err.status === 503) || options.signal?.aborted) throw err;
+          await new Promise((r) => setTimeout(r, this.retryDelayMs));
+          this.used++;
+          text = await this.call(p, messages, options);
+        }
         return { text, provider: p.name, model: p.model };
       } catch (err) {
         if (options.signal?.aborted) throw err;
         last = err instanceof BrainError ? err : new BrainError(String(err), true);
         logger.error("assistant model failed", { provider: p.name, reason: last.message });
         // Out of quota: rest this provider for a minute. Either way, try the next one.
-        if (last.status === 429) this.cooldown.set(p.name, this.now() + 60_000);
+        if (last.status === 429) this.cooldown.set(key(p), this.now() + 60_000);
       }
     }
     throw last ?? new BrainError("Every assistant model is resting after hitting its limit", true);
@@ -155,7 +185,13 @@ export class Brain {
       res = await this.fetchImpl(`${p.baseURL}/chat/completions`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${p.apiKey}` },
-        body: JSON.stringify({ model: p.model, messages, max_tokens: o.maxTokens ?? 600, temperature: o.temperature ?? 0.4 }),
+        body: JSON.stringify({
+          model: p.model,
+          messages,
+          max_tokens: (o.maxTokens ?? 600) + (p.thinkingTokens ?? 0),
+          temperature: o.temperature ?? 0.4,
+          ...p.extra,
+        }),
         signal: ctrl.signal,
       });
     } catch (err) {
@@ -168,14 +204,16 @@ export class Brain {
       const retryable = res.status === 429 || res.status >= 500;
       throw new BrainError(`${p.name} returned HTTP ${res.status}${detail ? `: ${detail}` : ""}`, retryable, res.status);
     }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+    const data = (await res.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
+    let text = data.choices?.[0]?.message?.content?.trim() ?? "";
+    // Cut off by the token limit: keep the complete sentences only.
+    if (data.choices?.[0]?.finish_reason === "length") text = completeSentences(text);
     if (!text) throw new BrainError(`${p.name} returned an empty reply`, true);
     return text;
   }
 
   private isCooling(p: BrainProvider): boolean {
-    return (this.cooldown.get(p.name) ?? 0) > this.now();
+    return (this.cooldown.get(key(p)) ?? 0) > this.now();
   }
 
   private rollDay() {

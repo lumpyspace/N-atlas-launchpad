@@ -157,6 +157,7 @@ export function designRouter(provider: NAtlasProvider, brain?: Brain): Router {
       const latest = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
       // English instructions for the brain; N-ATLAS puts its reply into the project's language.
       const thinking = replyPrompt(snap, history, "en");
+      let thinker: string | undefined;
       try {
         await relay({
           brain,
@@ -170,8 +171,10 @@ export function designRouter(provider: NAtlasProvider, brain?: Brain): Router {
           maxTokens: 300,
           signal: sse.signal,
           onEvent: (e) => {
-            if (e.type === "thought") sse.send({ type: "question", english: e.english });
-            else if (e.type === "voice") sse.send({ type: "via", brain: brain.status().providers[0]?.name, voice: e.voice });
+            if (e.type === "thought") {
+              thinker = e.brain;
+              sse.send({ type: "question", english: e.english });
+            } else if (e.type === "voice") sse.send({ type: "via", brain: thinker, voice: e.voice });
             else sse.send(e);
           },
         });

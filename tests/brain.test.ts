@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Brain, providersFromEnv, type BrainProvider } from "../backend/src/brain/brain.ts";
+import { Brain, completeSentences, providersFromEnv, type BrainProvider } from "../backend/src/brain/brain.ts";
 import { inLanguage, keepsNumbers, relay, type RelayEvent } from "../backend/src/brain/relay.ts";
 
 const gemini: BrainProvider = { name: "Gemini", baseURL: "https://gemini.test/v1beta/openai", model: "gemini-2.5-flash", apiKey: "k1" };
@@ -43,8 +43,8 @@ function fakeNatlas(reply: (prompt: string, system?: string) => string) {
 
 test("brain: providers come from the environment, in order; keys never appear in the status", () => {
   const ps = providersFromEnv({ GEMINI_API_KEY: "secret-g", GROQ_API_KEY: "secret-q" } as any);
-  assert.deepEqual(ps.map((p) => p.name), ["Gemini", "Groq"]);
-  assert.equal(ps[0].model, "gemini-2.5-flash");
+  assert.deepEqual(ps.map((p) => `${p.name}/${p.model}`), ["Gemini/gemini-3.8-flash", "Gemini/gemini-3.5-flash", "Groq/openai/gpt-oss-120b"]);
+  assert.deepEqual(providersFromEnv({ GEMINI_API_KEY: "k", GEMINI_MODEL: "gemini-3.7-flash" } as any).map((p) => p.model), ["gemini-3.7-flash"]);
   assert.equal(ps[0].baseURL, "https://generativelanguage.googleapis.com/v1beta/openai");
   assert.equal(providersFromEnv({} as any).length, 0);
   const status = JSON.stringify(new Brain(ps).status());
@@ -177,4 +177,23 @@ test("design chat: if the brain fails, N-ATLAS answers on its own and says so", 
   });
   assert.ok(events.some((e) => e.type === "warning" && /N-ATLAS answered on its own/.test(e.message)));
   assert.match(text, /Who exactly will use it/);
+});
+
+test("brain: a busy model is retried once; a cut-off reply keeps its complete sentences; thinking gets its own tokens", async () => {
+  assert.equal(completeSentences("Helping farmers is good. It saves money. Who is a"), "Helping farmers is good. It saves money.");
+  assert.equal(completeSentences("No full stop here"), "");
+  const bodies: any[] = [];
+  let n = 0;
+  const fetchImpl = (async (_url: string, init: RequestInit) => {
+    bodies.push(JSON.parse(String(init.body)));
+    if (n++ === 0) return new Response("busy", { status: 503 });
+    return new Response(JSON.stringify({ choices: [{ message: { content: "A good idea. Who will use it? They" }, finish_reason: "length" }] }), { status: 200 });
+  }) as typeof fetch;
+  const [g] = providersFromEnv({ GEMINI_API_KEY: "k" } as any);
+  const brain = new Brain([g], 50, fetchImpl, Date.now, 0);
+  const r = await brain.chat([{ role: "user", content: "hi" }], { maxTokens: 300 });
+  assert.equal(r.text, "A good idea. Who will use it?");
+  assert.equal(bodies.length, 2, "retried after the 503");
+  assert.equal(bodies[0].max_tokens, 300 + 1024);
+  assert.equal(bodies[0].reasoning_effort, "low");
 });
