@@ -21,6 +21,7 @@ export const EXTRA_KEYS = [
   N_("Igbo"),
   // Backend Design chat warnings (routes/design.ts)
   N_("N-ATLAS couldn't reply just now, so here's the next question."),
+  N_("The assistant model isn't available right now, so N-ATLAS answered on its own."),
   N_("N-ATLAS couldn't translate the question just now, so here it is in English."),
   // Design brief fields the engine says are still open (design/interview.ts SLOT_LABEL)
   N_("What the app is"),

@@ -3,14 +3,20 @@
  *
  *   POST /api/design/turn  { answers, history, useCase?, language? }  → SSE
  *     {type:"snapshot", snapshot}   — instant: updated brief + blueprint preview
- *     {type:"question", english}    — the question this turn asks, in English (non-English sessions)
- *     {type:"delta", delta}*        — N-ATLAS's conversational reply, streamed
+ *     {type:"question", english}    — the reply (or question) in English, for "Show in English"
+ *     {type:"understood", english}  — relay: N-ATLAS's English reading of the developer's words
+ *     {type:"via", brain?, voice}   — relay: who thought (e.g. Gemini) and who wrote the words shown
+ *     {type:"delta", delta}*        — the reply, streamed
+ *     {type:"reset"}                — discard the streamed reply: it's being written again
  *     {type:"warning", message}     — N-ATLAS failed; the engine's question is used instead
  *     {type:"done"}
  *
  * The brief and blueprint come from the deterministic engine, so the canvas
- * updates immediately and stays accurate; N-ATLAS only writes the reply. With
- * a `language`, N-ATLAS replies — and asks the engine's questions — in it.
+ * updates immediately and stays accurate. The reply: with an assistant model
+ * (brain) configured, it thinks and N-ATLAS reads the developer's words and
+ * says the reply in their language (brain/relay.ts); otherwise — or if the
+ * brain fails — N-ATLAS writes the reply on its own. With a `language`, the
+ * reply and the engine's questions are in it.
  */
 
 import { Router } from "express";
@@ -25,6 +31,8 @@ import {
   type ChatMessage,
 } from "../design/interview.js";
 import type { LangCode } from "../eval/lang.js";
+import type { Brain } from "../brain/brain.js";
+import { relay } from "../brain/relay.js";
 import { logger } from "../logger.js";
 import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import { openSse } from "./sse.js";
@@ -74,7 +82,7 @@ export function cleanTranslation(text: string): string {
     .trim();
 }
 
-export function designRouter(provider: NAtlasProvider): Router {
+export function designRouter(provider: NAtlasProvider, brain?: Brain): Router {
   const router = Router();
 
   /** Stream the question in `language` (from the cache when we have it). Returns what was sent. */
@@ -144,6 +152,39 @@ export function designRouter(provider: NAtlasProvider): Router {
       return sse.end();
     }
 
+    // The brain thinks and N-ATLAS speaks, when an assistant model is set up.
+    if (brain?.available()) {
+      const latest = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
+      // English instructions for the brain; N-ATLAS puts its reply into the project's language.
+      const thinking = replyPrompt(snap, history, "en");
+      try {
+        await relay({
+          brain,
+          natlas: provider,
+          language: language ?? "en",
+          messages: [
+            { role: "system", content: thinking.system },
+            { role: "user", content: thinking.prompt },
+          ],
+          words: language && language !== "en" ? latest : "",
+          maxTokens: 300,
+          signal: sse.signal,
+          onEvent: (e) => {
+            if (e.type === "thought") sse.send({ type: "question", english: e.english });
+            else if (e.type === "voice") sse.send({ type: "via", brain: brain.status().providers[0]?.name, voice: e.voice });
+            else sse.send(e);
+          },
+        });
+        sse.send({ type: "done" });
+        return sse.end();
+      } catch (err) {
+        if (sse.signal.aborted) return sse.end();
+        logger.error("relay failed; N-ATLAS answers alone", { reason: err instanceof Error ? err.message : String(err) });
+        sse.send({ type: "reset" });
+        sse.send({ type: "warning", message: "The assistant model isn't available right now, so N-ATLAS answered on its own." });
+      }
+    }
+
     const { system, prompt } = replyPrompt(snap, history, language);
     let reply = "";
     // Our own signal too, so we can stop N-ATLAS once the reply is long
@@ -158,14 +199,14 @@ export function designRouter(provider: NAtlasProvider): Router {
         (chunk) => {
           if (chunk.type !== "delta" || ctrl.signal.aborted) return;
           const before = reply.length;
-          reply += chunk.delta;
+          reply += chunk.delta ?? "";
           const end = endOfSentence(reply, MAX_REPLY_SENTENCES);
           if (end >= 0) {
             if (end > before) delta(reply.slice(before, end));
             reply = reply.slice(0, end);
             ctrl.abort();
           } else {
-            delta(chunk.delta);
+            delta(chunk.delta ?? "");
           }
         },
         ctrl.signal,

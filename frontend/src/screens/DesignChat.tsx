@@ -98,6 +98,15 @@ export default function DesignChat({ onQuick }: { onQuick: () => void }) {
             }
             update({ messages: ms });
             requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }));
+          } else if (e.type === "reset" || e.type === "via" || e.type === "understood") {
+            const ms = [...designRef.current.messages];
+            const i = ms.length - 1;
+            if (e.type === "understood") {
+              if (ms[i - 1]?.role === "user") ms[i - 1] = { ...ms[i - 1], understood: e.english };
+            } else if (ms[i]?.role === "assistant") {
+              ms[i] = e.type === "reset" ? { ...ms[i], content: "" } : { ...ms[i], brain: e.brain, voice: e.voice };
+            }
+            update({ messages: ms });
           } else if (e.type === "warning") {
             setWarning(e.message);
           }
@@ -286,16 +295,28 @@ function Bubble({ m, thinking, elapsed }: { m: DesignMessage; thinking: boolean;
         }`}
       >
         {m.role === "assistant" && (
-          <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-forge-600">N-ATLAS</div>
+          <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-forge-600">
+            {m.voice ?? "N-ATLAS"}
+            {m.brain && m.voice === "N-ATLAS" && (
+              <span className="ml-1 font-normal normal-case tracking-normal text-slate-400">
+                · {t("thinking by {brain}", { brain: m.brain })}
+              </span>
+            )}
+          </div>
         )}
         {m.content || (thinking ? <Thinking elapsed={elapsed} /> : "")}
         {m.english && m.content && (
           <div className="mt-1.5 border-t border-slate-100 pt-1">
             <button onClick={() => setShowEnglish((s) => !s)} className="text-[11px] text-slate-400 hover:text-forge-600">
-              {showEnglish ? t("Hide English") : t("Show the question in English")}
+              {showEnglish ? t("Hide English") : t("Show in English")}
             </button>
             {showEnglish && <p className="mt-0.5 text-xs italic text-slate-500">{m.english}</p>}
           </div>
+        )}
+        {m.understood && (
+          <p className="mt-1 border-t border-white/30 pt-1 text-[11px] italic text-white/80">
+            {t("N-ATLAS understood: {text}", { text: m.understood })}
+          </p>
         )}
       </div>
     </div>

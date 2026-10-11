@@ -622,8 +622,14 @@ export interface DesignSnapshot {
 export interface DesignMessage {
   role: "user" | "assistant";
   content: string;
-  /** The engine's question in English, when N-ATLAS asked it in another language. */
+  /** The reply (or question) in English, when it was said in another language. */
   english?: string;
+  /** User messages: N-ATLAS's English reading of them (when an assistant model thought about them). */
+  understood?: string;
+  /** Assistant messages: the model that did the thinking (e.g. Gemini), when one did. */
+  brain?: string;
+  /** Assistant messages: who wrote the words shown ("N-ATLAS", or the assistant model). */
+  voice?: string;
 }
 
 export type DesignEvent =
@@ -632,6 +638,12 @@ export type DesignEvent =
   | { type: "warning"; message: string }
   /** The question this turn asks, in English (sent when replying in another language). */
   | { type: "question"; english: string }
+  /** N-ATLAS's English reading of the developer's words (assistant model on). */
+  | { type: "understood"; english: string }
+  /** Who thought and who wrote the reply (assistant model on). */
+  | { type: "via"; brain?: string; voice: string }
+  /** Discard the streamed reply: it's being written again. */
+  | { type: "reset" }
   | { type: "done" };
 
 /** One Design chat turn: snapshot first (instant), then the streamed reply. */

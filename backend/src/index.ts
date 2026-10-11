@@ -29,9 +29,12 @@ import { designRouter } from "./routes/design.js";
 import { promptRouter } from "./routes/prompt.js";
 import { narrateRouter } from "./routes/narrate.js";
 import { doctorRouter } from "./routes/doctor.js";
+import { Brain, providersFromEnv } from "./brain/brain.js";
 
 const config = loadConfig();
 const provider = new ProviderRef(createProvider(config));
+// Optional assistant model (Gemini, Groq…) for Launchpad's own helper jobs; keys stay on the server.
+const brain = new Brain(providersFromEnv(), Number(process.env.BRAIN_DAILY_LIMIT ?? 500));
 
 const app = express();
 app.use(cors()); // dev convenience; lock this down before any real deployment
@@ -45,7 +48,9 @@ app.use("/api", securityRouter(provider));
 app.use("/api", improveRouter());
 app.use("/api", modeRouter(provider));
 app.use("/api", compareRouter(provider, config));
-app.use("/api", designRouter(provider));
+app.use("/api", designRouter(provider, brain));
+// What the assistant model is (never its keys).
+app.get("/api/brain", (_req, res) => res.json(brain.status()));
 app.use("/api", promptRouter());
 app.use("/api", narrateRouter(provider));
 app.use("/api", doctorRouter(provider));
