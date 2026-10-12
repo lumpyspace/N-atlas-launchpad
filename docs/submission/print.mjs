@@ -10,6 +10,7 @@ const { chromium } = await import(process.env.PLAYWRIGHT_PATH ?? "playwright");
 const docs = [
   ["n-atlas-integration-evidence", "N-ATLAS Integration Evidence"],
   ["technical-documentation", "Technical Documentation"],
+  ["validation-report", "Validation Report"],
 ];
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();

@@ -421,6 +421,94 @@ tests/         179 node:test tests                          docs/        this do
 """,
 )
 
+
+# ── 3. Real-world validation ────────────────────────────────────────────────
+validation = page(
+    "Validation Report",
+    f"""
+<div class="eyebrow">N-ATLAS Launchpad · Submission document</div>
+<h1>Real-world <em>validation</em></h1>
+<p class="lede">How we tested Launchpad with people outside our team, with real data and with live benchmarks
+against the public app, what we found, and what we changed because of it.</p>
+<div class="meta"><b>Live app:</b> {LIVE} &nbsp;·&nbsp; <b>Code:</b> https://github.com/lumpyspace/N-atlas-launchpad<br>
+<b>Final benchmark recorded:</b> {e(bench['ranAt'][:16].replace('T', ' '))} UTC against {e(bench['base'])}</div>
+
+<h2><span class="n">01</span>Three kinds of testing</h2>
+<table>
+<tr><th style="width:28%">Method</th><th>What it shows</th></tr>
+<tr><td><b>External testers</b></td><td>Four people outside our team, three of them developers, used the live app on their own.</td></tr>
+<tr><td><b>Live benchmark</b></td><td>Scripts that use the public app exactly as a browser would, asking real customer questions in Hausa, Yoruba and Igbo and checking every answer against the shop's facts.</td></tr>
+<tr><td><b>Automated tests</b></td><td>181 tests run on every change, covering the translation checks, model fallbacks, publishing, storage and security.</td></tr>
+</table>
+
+<h2><span class="n">02</span>External testers</h2>
+<div class="stats" style="grid-template-columns:repeat(3,1fr)">
+<div><b>4</b><span>external testers</span></div>
+<div><b>3</b><span>of them developers</span></div>
+<div><b>4/4</b><span>said it was easy to use</span></div>
+</div>
+<p>Each tester used the live app at {LIVE} without help from our team. All four said Launchpad was
+<b>easy to use</b> and that going from an idea to a plan and a website was <b>an interesting process</b>.</p>
+<table>
+<tr><th>Tester</th><th>Role</th><th>Feedback</th></tr>
+<tr><td>Tester 1</td><td>Developer</td><td>Easy to use; an interesting process.</td></tr>
+<tr><td>Tester 2</td><td>Developer</td><td>Easy to use; an interesting process.</td></tr>
+<tr><td>Tester 3</td><td>Developer</td><td>Easy to use; an interesting process.</td></tr>
+<tr><td>Tester 4</td><td>Non-developer</td><td>Easy to use; an interesting process.</td></tr>
+</table>
+<div class="note">The testers' feedback was positive but brief, so we did not rely on it alone. The live benchmark below
+measures the part testers can't easily judge: whether the answers in each language are correct.</div>
+
+<h2 class="pb"><span class="n">03</span>Live benchmark: real customer questions</h2>
+<p>We set up a sample shop with real details: a grain seller at Dawanau market, Kano, with rice at ₦82,000 per 50 kg
+bag and beans at ₦95,000 per 100 kg bag, maize with <i>no</i> price set, open 8am to 6pm Monday to Saturday.
+The script (<code>scripts/bench.mjs</code>) asks the questions a customer would actually send, in Hausa, Yoruba and Igbo,
+paced like real visitors. An answer is <b>correct</b> when the reply the customer reads carries the right fact,
+or, for maize, does not invent a price.</p>
+<div class="stats">
+<div><b>{S['correct']}/{S['answers']}</b><span>answers correct</span></div>
+<div><b>{S['translated']}/{S['succeeded']}</b><span>answered in the customer's language</span></div>
+<div><b>{S['spokenByNatlas']}/{S['translated']}</b><span>of those written by N-ATLAS</span></div>
+<div><b>{sec(med)}</b><span>median reply time</span></div>
+</div>
+{lang_table()}
+{misses()}
+<p>No answer invented a price. Every miss was a misreading where the assistant then said it did not have the
+information, which is the safe way to be wrong.</p>
+<h3>Other live checks</h3>
+{live_rows()}
+
+<h2 class="pb"><span class="n">04</span>What testing changed</h2>
+<p>We ran the live tests repeatedly on 12 October 2026, fixing what each run exposed. These are the findings that changed the product:</p>
+<table>
+<tr><th style="width:30%">What we found</th><th style="width:37%">Evidence</th><th>What we changed</th></tr>
+<tr><td><b>N-ATLAS could not produce usable Nigerian Pidgin.</b></td><td>In the first benchmark (20 questions, including 5 in Pidgin) N-ATLAS wrote none of the 5 Pidgin replies; every one had to be rewritten by Groq, and a Pidgin question was once answered in English.</td><td>Dropped Pidgin as an offered language. Launchpad now offers N-ATLAS's four official languages; Pidgin messages are still understood and answered in English.</td></tr>
+<tr><td><b>Smaller AI models write unreadable Yoruba and Igbo.</b></td><td>When Groq's main model was busy, a smaller one replied in Yoruba with text that made no sense, and in Igbo called rice “ụka” (church).</td><td>Only Groq's strongest model may read or write Yoruba, Hausa and Igbo. The smaller models help with English work only.</td></tr>
+<tr><td><b>A busy model led to invented answers.</b></td><td>With every model at its limit, replies fell back to N-ATLAS answering alone, which said the shop opens “Monday to Friday” (it opens to Saturday), invented a 20 kg bag, and made up the rest of the conversation.</td><td>A line no model can help with now stays in English with its facts intact, and N-ATLAS's own answers are cut where they start inventing. Covered by a new automated test.</td></tr>
+<tr><td><b>The free Groq plan runs out under load.</b></td><td>Groq's free plan allows about 8,000 tokens a minute per model; the build guide and the website draft competed for it, and sites fell back to a basic template.</td><td>English work goes to smaller models first; Simple mode writes only the two plan sections owners read. Sites are drafted by Groq again (screenshot in the integration evidence).</td></tr>
+<tr><td><b>N-ATLAS misreads some single words.</b></td><td>“Beans” in Yoruba, Hausa and Igbo; Hausa “nawa ne” (how much) read as “how many”.</td><td>We tested giving N-ATLAS the shop's item list while reading. It fixed some cases and broke others, so we did not ship it. Recorded as a known limit.</td></tr>
+<tr><td><b>Publishing hung on the live site.</b></td><td>Saving a site waited 5 minutes and then failed: a setting had been pasted with quotation marks, and the error was never reported.</td><td>Settings are cleaned automatically, database calls time out after 10 seconds, and failures show a clear message.</td></tr>
+</table>
+
+<h2><span class="n">05</span>Automated tests</h2>
+<p>181 tests run in seconds without a GPU or API keys, using fake models that behave like the real ones, including
+fakes that fail on purpose. Several were added because of the findings above: the safe English fallback when no
+model is free, keeping smaller models away from Yoruba, Hausa and Igbo, naming projects described in Pidgin, and
+publishing when the database fails.</p>
+
+<h2><span class="n">06</span>Evidence you can check</h2>
+<ul>
+<li>The live app: <b>{LIVE}</b>. <code>/api/health</code> sends a real prompt to N-ATLAS and reports the time.</li>
+<li>Raw benchmark results: <code>docs/evidence/bench.json</code> and <code>docs/evidence/live-run.json</code> in the repository.</li>
+<li>The scripts that produced them: <code>scripts/bench.mjs</code> and <code>scripts/evidence.mjs</code>. Anyone can re-run them against the live app.</li>
+<li>Screenshots of a full run: <code>docs/evidence/shots/</code>.</li>
+<li>The automated tests: <code>tests/</code>, run with <code>node --import tsx --test ../tests/*.test.ts</code> from <code>backend/</code>.</li>
+<li>Written confirmation from the external testers is available on request.</li>
+</ul>
+""",
+)
+
 (HERE / "n-atlas-integration-evidence.html").write_text(integration, encoding="utf-8")
+(HERE / "validation-report.html").write_text(validation, encoding="utf-8")
 (HERE / "technical-documentation.html").write_text(tech, encoding="utf-8")
 print("built", S)
