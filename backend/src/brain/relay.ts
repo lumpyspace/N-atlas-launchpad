@@ -267,7 +267,7 @@ export async function relay(opts: {
             { role: "system", content: translateSystem(name) },
             { role: "user", content: `Translate into ${name}:\n${line}` },
           ],
-          { maxTokens: 300, signal },
+          { maxTokens: 300, signal, nigerian: true },
         )
       ).text;
     const done = await translatePieces(natlas, thought.text, language, signal, lineByBrain, opts.keep);
@@ -302,7 +302,7 @@ export async function relay(opts: {
       { role: "system", content: translateSystem(name) },
       { role: "user", content: `Translate into ${name}:\n${thought.text}` },
     ],
-    { maxTokens: opts.maxTokens ?? 600, signal },
+    { maxTokens: opts.maxTokens ?? 600, signal, nigerian: true },
   );
   onEvent({ type: "delta", delta: direct.text });
   return { text: direct.text, english: thought.text, brain: thought.provider, voice: direct.provider };
@@ -333,7 +333,7 @@ export async function speakIn(opts: {
           { role: "system", content: translateSystem(name) },
           { role: "user", content: `Translate into ${name}:\n${text}` },
         ],
-        { maxTokens, signal },
+        { maxTokens, signal, nigerian: true },
       )
     ).text;
   const done = await translatePieces(natlas, english, language, signal, (line) => byBrain(line, 300), keep);

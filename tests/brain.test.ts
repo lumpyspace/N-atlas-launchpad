@@ -205,3 +205,15 @@ test("a rate-limited provider rests as long as it asks, at most a minute", () =>
   assert.equal(retryAfterMs("Please try again in 1m30s"), 60_000);
   assert.equal(retryAfterMs("quota exceeded"), 60_000);
 });
+
+test("Yoruba, Hausa and Igbo go only to models good at them; English work may use any", async () => {
+  const small: BrainProvider = { name: "Groq", baseURL: "https://small.test/v1", model: "small", apiKey: "k3", nigerian: false };
+  const calls: { host: string; body: any }[] = [];
+  const brain = new Brain([groq, small], 50, fakeFetch({ "groq.test": 503, "small.test": "From the small model" }, calls), Date.now, 0);
+  assert.equal((await brain.chat([{ role: "user", content: "Write the page" }])).text, "From the small model");
+  calls.length = 0;
+  await assert.rejects(brain.chat([{ role: "user", content: "Translate into Yoruba: …" }], { nigerian: true }));
+  assert.ok(!calls.some((c) => c.host === "small.test"), "the small model never writes Yoruba");
+  const ps = providersFromEnv({ GROQ_API_KEY: "q" } as any);
+  assert.deepEqual(ps.map((p) => p.nigerian !== false), [true, false, false]);
+});

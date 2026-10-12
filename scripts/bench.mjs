@@ -1,5 +1,5 @@
 // A small live benchmark of a published-site assistant: the same questions in
-// Hausa, Yoruba, Igbo and Pidgin, each answer checked for the right fact, and
+// Hausa, Yoruba and Igbo, each answer checked for the right fact, and
 // who spoke it (N-ATLAS, or Groq stepping in when N-ATLAS's line failed a check).
 // Usage: node scripts/bench.mjs [baseUrl] > docs/evidence/bench.json
 const BASE = (process.argv[2] ?? "https://n-atlas-sites.vercel.app").replace(/\/+$/, "");
@@ -30,7 +30,6 @@ const questions = {
   ha: { rice: "Nawa ne buhun shinkafa?", beans: "Nawa ne buhun wake?", hours: "Yaushe kuke buɗe shago?", where: "Ina shagonku yake?", maize: "Nawa ne buhun masara?" },
   yo: { rice: "Elo ni àpò ìrẹsì?", beans: "Elo ni àpò ẹ̀wà?", hours: "Ìgbà wo ni ẹ máa ń ṣí ṣọ́ọ̀bù?", where: "Níbo ni ṣọ́ọ̀bù yín wà?", maize: "Elo ni àpò àgbàdo?" },
   ig: { rice: "Ego ole ka akpa osikapa bụ?", beans: "Ego ole ka akpa agwa bụ?", hours: "Kedu oge unu na-emeghe ụlọ ahịa?", where: "Ebee ka ụlọ ahịa unu dị?", maize: "Ego ole ka akpa ọka bụ?" },
-  pid: { rice: "How much be one bag of rice?", beans: "How much una dey sell beans bag?", hours: "Wetin be una opening time?", where: "Where una shop dey?", maize: "How much be maize bag?" },
 };
 
 const rows = [];

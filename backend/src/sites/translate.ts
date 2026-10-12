@@ -30,7 +30,7 @@ export async function translateLabel(brain: Brain | undefined, text: string, to:
       },
       { role: "user", content: text },
     ],
-    { maxTokens: 60, temperature: 0.2 },
+    { maxTokens: 60, temperature: 0.2, nigerian: true },
   );
   const v = r.text.trim().replace(/^["“']|["”']$/g, "");
   return v && v.length < text.length * 4 + 20 ? v : null;

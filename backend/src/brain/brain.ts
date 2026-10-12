@@ -25,6 +25,8 @@ export interface BrainProvider {
   extra?: Record<string, unknown>;
   /** Tokens added to max_tokens for a model that "thinks" before it answers. */
   thinkingTokens?: number;
+  /** False for a model that is fine in English but poor in Yoruba, Hausa and Igbo. */
+  nigerian?: boolean;
 }
 
 export interface BrainMessage {
@@ -74,6 +76,8 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainPro
       apiKey: cleanSecret(env.GROQ_API_KEY, "GROQ_API_KEY"),
       // gpt-oss thinks a little (the thinking counts against max_tokens); Qwen answers straight away.
       ...(gptOss ? { extra: { reasoning_effort: "low" }, thinkingTokens: 1024 } : model.startsWith("qwen/") ? { extra: { reasoning_effort: "none" } } : {}),
+      // The smaller models write poor Yoruba, Hausa and Igbo: they help with English work only.
+      ...(model === "openai/gpt-oss-120b" ? {} : { nigerian: false }),
     });
   }
   if (env.BRAIN_BASE_URL?.trim() && env.BRAIN_MODEL?.trim()) {
@@ -125,6 +129,8 @@ export interface BrainOptions {
   maxTokens?: number;
   temperature?: number;
   signal?: AbortSignal;
+  /** The request reads or writes Yoruba, Hausa or Igbo: only models good at them may answer. */
+  nigerian?: boolean;
 }
 
 export class Brain {
@@ -170,7 +176,13 @@ export class Brain {
     if (!this.configured) throw new BrainError("No assistant model is configured", false);
     if (this.used >= this.dailyLimit) throw new BrainError("Today's assistant-model budget is used up", false);
     let last: BrainError | null = null;
-    for (const p of this.providers) {
+    const able = this.providers.filter((p) => !options.nigerian || p.nigerian !== false);
+    // A strong model resting a few seconds (a per-minute limit) is worth the wait.
+    if (options.nigerian && able.length && able.every((p) => this.isCooling(p))) {
+      const wait = Math.min(...able.map((p) => this.cooldown.get(key(p))! - this.now()));
+      if (wait <= 10_000) await new Promise((r) => setTimeout(r, Math.max(0, wait)));
+    }
+    for (const p of able) {
       if (this.isCooling(p)) continue;
       try {
         this.used++;
