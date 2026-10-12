@@ -6,10 +6,10 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: 5174,
     proxy: {
       "/api": {
-        target: "http://localhost:8787",
+        target: "http://localhost:8788",
         changeOrigin: true,
         configure: (proxy) => {
           // Tell the backend not to compress SSE responses — compression

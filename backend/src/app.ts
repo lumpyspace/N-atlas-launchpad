@@ -28,6 +28,9 @@ import { narrateRouter } from "./routes/narrate.js";
 import { doctorRouter } from "./routes/doctor.js";
 import { deployRouter } from "./routes/deploy.js";
 import { helpRouter } from "./routes/help.js";
+import { sitesRouter } from "./routes/sites.js";
+import { storeFromEnv, type SiteStore } from "./sites/store.js";
+import { fileURLToPath } from "node:url";
 import { Brain, providersFromEnv } from "./brain/brain.js";
 
 export function isPublic(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -67,7 +70,10 @@ export function rateLimit(perMinute: number, perHour: number, now: () => number 
   };
 }
 
-export function createApp(config: AppConfig = loadConfig(), env: NodeJS.ProcessEnv = process.env) {
+/** Where this computer keeps published assistants when there's no database (backend/.data). */
+const LOCAL_SITES = fileURLToPath(new URL("../.data/sites.json", import.meta.url));
+
+export function createApp(config: AppConfig = loadConfig(), env: NodeJS.ProcessEnv = process.env, sitesStore?: SiteStore | null) {
   const publicMode = isPublic(env);
   const provider = new ProviderRef(createProvider(config));
   // Optional assistant model (Gemini, Groq…) for Launchpad's own helper jobs; keys stay on the server.
@@ -124,6 +130,12 @@ export function createApp(config: AppConfig = loadConfig(), env: NodeJS.ProcessE
   app.use("/api", doctorRouter(provider));
   app.use("/api", deployRouter(provider, brain, publicMode));
   app.use("/api", helpRouter(provider, brain));
+  // Published assistants: in a database when one is configured, else in a local file (not on a public server).
+  const store = sitesStore !== undefined ? sitesStore : storeFromEnv(env, publicMode, LOCAL_SITES);
+  app.use(
+    "/api",
+    sitesRouter(provider, brain, store, { publicMode, dailyLimit: Number(env.SITE_DAILY_LIMIT ?? 300), publishesPerDay: Number(env.PUBLISHES_PER_DAY ?? 5) }),
+  );
 
   // Root gives a quick sanity response and points at the health check.
   app.get("/api", (_req, res) => {
