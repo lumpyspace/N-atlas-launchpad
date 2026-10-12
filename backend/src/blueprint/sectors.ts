@@ -23,7 +23,8 @@ export interface SectorTemplate {
   keywords: string[];
 }
 
-const LANGS = ["Nigerian English", "Yoruba", "Hausa", "Igbo", "Nigerian Pidgin"];
+// N-ATLAS's four official languages (Pidgin can still be asked for in the description).
+const LANGS = ["Nigerian English", "Yoruba", "Hausa", "Igbo"];
 
 export const SECTORS: Record<Sector, SectorTemplate> = {
   education: {
