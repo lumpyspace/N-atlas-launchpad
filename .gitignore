@@ -39,3 +39,4 @@ backend/.tmp-export/
 
 # Published assistants on your own computer
 backend/.data/
+docs/evidence/state.json

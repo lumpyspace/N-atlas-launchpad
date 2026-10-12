@@ -1,0 +1,174 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Launchpad Technical Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400..600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+@page { size: A4; margin: 18mm 17mm 20mm; }
+:root { --ink:#1c1917; --muted:#6b675d; --line:#e2ddd0; --accent:#0b7f46; --paper:#f8f6f1; }
+* { box-sizing: border-box; }
+body { font: 10.4pt/1.55 Inter, "Segoe UI", system-ui, sans-serif; color: var(--ink); margin: 0; }
+h1, h2, h3 { font-family: Fraunces, Georgia, serif; font-weight: 450; letter-spacing: -0.01em; line-height: 1.15; }
+h1 { font-size: 30pt; margin: 0 0 6pt; }
+h1 em, h2 em { color: var(--accent); }
+h2 { font-size: 17pt; margin: 22pt 0 6pt; padding-top: 10pt; border-top: 1px solid var(--line); break-after: avoid; }
+h2 .n { font: 600 9pt/1 ui-monospace, Consolas, monospace; color: var(--accent); letter-spacing: .1em; display: block; margin-bottom: 6pt; }
+h3 { font-size: 12.5pt; margin: 14pt 0 4pt; break-after: avoid; }
+p { margin: 0 0 7pt; }
+.eyebrow { font: 600 8pt/1 Inter, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-bottom: 14pt; }
+.lede { font-size: 12pt; color: #3d3a33; max-width: 150mm; }
+.meta { margin-top: 16pt; font-size: 9pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8pt; }
+.meta b { color: var(--ink); font-weight: 600; }
+table { width: 100%; border-collapse: collapse; margin: 6pt 0 10pt; font-size: 8.8pt; break-inside: auto; }
+th { text-align: left; font-weight: 600; font-size: 7.6pt; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--ink); padding: 4pt 5pt; }
+td { border-bottom: 1px solid var(--line); padding: 4pt 5pt; vertical-align: top; }
+tr { break-inside: avoid; }
+td.num { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.ok { color: var(--accent); font-weight: 600; } .bad { color: #b42318; font-weight: 600; }
+code, pre { font-family: ui-monospace, Consolas, monospace; font-size: 8.6pt; }
+code { background: #f1eee6; padding: 0 3pt; border-radius: 3pt; }
+pre { background: #f6f4ee; border: 1px solid var(--line); border-radius: 5pt; padding: 7pt 9pt; white-space: pre-wrap; break-inside: avoid; margin: 4pt 0 9pt; }
+figure { margin: 8pt 0 12pt; break-inside: avoid; }
+figure img { width: 100%; border: 1px solid var(--line); border-radius: 4pt; }
+figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 3pt; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8pt; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); margin: 8pt 0 12pt; }
+.stats div { padding: 7pt 6pt; border-right: 1px solid var(--line); } .stats div:last-child { border: 0; }
+.stats b { display: block; font: 450 18pt/1.1 Fraunces, Georgia, serif; } .stats span { font-size: 8pt; color: var(--muted); }
+.note { border-left: 2px solid #d4a72c; padding: 2pt 0 2pt 9pt; margin: 8pt 0 10pt; color: #3d3a33; }
+ul, ol { margin: 0 0 8pt; padding-left: 15pt; } li { margin-bottom: 2pt; }
+.flow { font-family: ui-monospace, Consolas, monospace; font-size: 8.4pt; line-height: 1.5; }
+.pb { break-before: page; }
+h2 { break-inside: avoid; }
+.arch { margin: 8pt 0 12pt; font-size: 8.8pt; break-inside: avoid; }
+.steps td.who { white-space: nowrap; font-weight: 600; width: 26mm; color: var(--accent); }
+.steps { break-inside: avoid; }
+.arch .tier { display: grid; grid-template-columns: 17mm 1fr; gap: 6pt; align-items: stretch; }
+.arch .tag { font: 600 7.4pt/1 Inter, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding-top: 8pt; }
+.arch .box { border: 1px solid var(--line); border-radius: 5pt; padding: 7pt 9pt; background: #fbfaf6; break-inside: avoid; }
+.arch .cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6pt; margin-top: 6pt; }
+.arch .cols > div { border-top: 1px solid var(--line); padding-top: 4pt; font-size: 8.2pt; }
+.arch .cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6pt; margin-left: calc(17mm + 6pt); }
+.arch .cols3 .box { border-color: var(--accent); }
+.arch .arrow { margin: 3pt 0 3pt calc(17mm + 6pt); color: var(--muted); font-size: 8pt; }
+.arch .dim { color: var(--muted); }
+</style></head><body>
+<div class="eyebrow">N-ATLAS Launchpad · Submission document</div>
+<h1>Technical <em>documentation</em></h1>
+<p class="lede">Architecture, setup, deployment and usage of N-ATLAS Launchpad — enough for an independent team
+to run it, host it and build on it.</p>
+<div class="meta"><b>Live app:</b> https://n-atlas-sites.vercel.app &nbsp;·&nbsp; <b>Code:</b> https://github.com/lumpyspace/N-atlas-launchpad (branch: blocks)<br>
+<b>Stack:</b> Node.js + Express + TypeScript (backend) · React + Vite + Tailwind (frontend) · N-ATLAS on vLLM · Groq · Upstash Redis · Vercel</div>
+
+<h2><span class="n">01</span>What it is</h2>
+<p>Launchpad is the shortest path from an idea, described in a Nigerian language, to something real built on N-ATLAS.</p>
+<ul>
+<li><b>Simple mode</b> — for business owners: describe the business → Launchpad plans it → Groq drafts a website (pages, theme,
+plugins: price list, orders, WhatsApp contact, FAQ) → the owner checks every page → one click publishes it to a link, with an
+N-ATLAS assistant on every page that answers customers in English, Pidgin, Yoruba, Hausa or Igbo. Orders land in an inbox.
+Owners can add languages (N-ATLAS translates the whole site), write blog posts, and choose a theme.</li>
+<li><b>Advanced mode</b> — for developers: the same, plus a prompt studio, live playground, test suites per use case,
+a security attack suite with automatic hardening, side-by-side model comparison, and an SDK (JavaScript and Python) for calling N-ATLAS from their own apps.</li>
+<li>A <b>helper</b> on every page answers questions about Launchpad itself; the whole interface is translated into Pidgin, Yoruba, Hausa and Igbo.</li>
+</ul>
+
+<h2><span class="n">02</span>Architecture</h2>
+<div class="arch">
+  <div class="tier"><div class="tag">Browser</div><div class="box"><b>React app</b> (Vite + Tailwind)<br>
+    Landing · Describe · Plan · Your information · Your site (Dashboard, Pages, Posts, Appearance, Plugins, Inbox, Settings) ·
+    Prompt studio · Test · public sites at <code>/a/&lt;slug&gt;</code><br><span class="dim">Projects stay in the browser (localStorage) — no accounts.</span></div></div>
+  <div class="arrow">REST + server-sent events under <code>/api</code> ↓</div>
+  <div class="tier"><div class="tag">Server</div><div class="box"><b>Express backend</b> (TypeScript) — Node locally, one Vercel function in production (<code>api/index.mjs</code>)
+    <div class="cols">
+      <div><b>routes/</b><br>blueprint · narrate · sites · help · generate · evaluate · security · improve · compare · deploy</div>
+      <div><b>brain/</b><br>Brain: Groq models → Gemini, rate-limit aware · relay: N-ATLAS understands and speaks, line checks</div>
+      <div><b>sites/</b><br>draft · translate · runtime (answers, orders, leak check) · sanitize · store</div>
+      <div><b>providers/</b><br>NAtlasProvider → HttpNAtlasProvider (OpenAI-compatible)</div>
+    </div></div></div>
+  <div class="arrow">↓</div>
+  <div class="cols3">
+    <div class="box"><b>N-ATLAS</b><br>vLLM on a Modal L4 GPU<br><span class="dim">understands · speaks · translates</span></div>
+    <div class="box"><b>Groq</b> (+ Gemini backup)<br><span class="dim">plans · drafts sites · decides answers</span></div>
+    <div class="box"><b>Upstash Redis</b><br><span class="dim">published sites · inbox · usage counters</span></div>
+  </div>
+</div>
+<h3>Design choices</h3>
+<ul>
+<li><b>One N-ATLAS interface.</b> Everything reaches the model through <code>NAtlasProvider</code>; hosting changes are an <code>.env</code> change.</li>
+<li><b>Each model where it is strong.</b> Groq plans and decides; N-ATLAS understands and speaks Nigerian languages; every N-ATLAS line is checked, with Groq as a per-line fallback, and each reply records who spoke it.</li>
+<li><b>No invented facts.</b> Draft pages are “Draft by Groq — check it”; the assistant only uses pages the owner has checked, and blanks (…) are left out.</li>
+<li><b>Safe by default.</b> Every assistant's instructions are hardened and carry a hidden reference code; replies that would leak it are replaced. Owners hold a secret edit key (stored hashed) instead of accounts. Public servers rate-limit per IP and per site.</li>
+</ul>
+
+<h2 class="pb"><span class="n">03</span>Run it locally</h2>
+<p>Requirements: Node.js 20 or newer (tested on 24), npm, and an N-ATLAS endpoint (section 05). A Groq key is free at console.groq.com.</p>
+<pre>git clone -b blocks https://github.com/lumpyspace/N-atlas-launchpad.git
+cd N-atlas-launchpad
+npm install --prefix backend && npm install --prefix frontend
+# then fill in NATLAS_* and GROQ_API_KEY:
+cp backend/.env.example backend/.env
+# API on http://localhost:8788
+npm run dev --prefix backend
+# app on http://localhost:5174 (it proxies /api to the backend)
+npm run dev --prefix frontend
+# proves app → N-ATLAS → reply
+cd backend && npm run healthcheck</pre>
+<h3>Configuration (<code>backend/.env</code>)</h3>
+<table><tr><th style="width:34%">Variable</th><th>Meaning</th></tr>
+<tr><td><code>NATLAS_PROVIDER</code></td><td>Always <code>http</code>.</td></tr><tr><td><code>NATLAS_ENDPOINT</code></td><td>Base URL of your OpenAI-compatible N-ATLAS server, e.g. <code>http://localhost:11434/v1</code> (Ollama) or your Modal/vLLM URL ending in <code>/v1</code>.</td></tr><tr><td><code>NATLAS_API_KEY</code></td><td>Bearer key for the endpoint (blank for local Ollama).</td></tr><tr><td><code>NATLAS_MODEL</code></td><td><code>NCAIR1/N-ATLaS</code> for vLLM; your Ollama tag, e.g. <code>n-atlas</code>.</td></tr><tr><td><code>NATLAS_REQUEST_TIMEOUT_MS</code></td><td>How long to wait for N-ATLAS (cold starts): 280000 on Vercel.</td></tr><tr><td><code>NATLAS_REPETITION_PENALTY</code></td><td>1.12 for vLLM; leave empty for Ollama (its Modelfile sets it).</td></tr><tr><td><code>GROQ_API_KEY / GROQ_MODEL</code></td><td>The assistant model. Default models, tried in order: <code>openai/gpt-oss-120b, qwen/qwen3.8-27b, openai/gpt-oss-20b</code>.</td></tr><tr><td><code>GEMINI_API_KEY / GEMINI_MODEL</code></td><td>Optional backup assistant model.</td></tr><tr><td><code>BRAIN_ORDER / BRAIN_DAILY_LIMIT</code></td><td>Which assistant model first (default <code>groq,gemini</code>); calls per day (default 500).</td></tr><tr><td><code>UPSTASH_REDIS_REST_URL / _TOKEN</code></td><td>Where published sites live (Upstash Redis REST). Without them a local server uses <code>backend/.data/sites.json</code>.</td></tr><tr><td><code>SITE_DAILY_LIMIT / PUBLISHES_PER_DAY</code></td><td>Visitor messages per site per day (300); new sites per visitor per day (5).</td></tr><tr><td><code>LAUNCHPAD_PUBLIC</code></td><td>Public mode — automatic on Vercel: N-ATLAS settings locked, per-IP limits (<code>PUBLIC_PER_MINUTE</code> 20, <code>PUBLIC_PER_HOUR</code> 300).</td></tr><tr><td><code>COMPARE_MODELS</code></td><td>Optional extra models for the Compare grid (<code>label|model[|endpoint[|KEY_VAR]]</code>, separated by <code>;</code>).</td></tr>
+</table>
+<h3>Tests</h3>
+<pre># 178 tests
+cd backend && node --import tsx --test ../tests/*.test.ts</pre>
+<p>They cover the relay's line checks, the brain's provider order and rate limits, site drafting, translation, publishing,
+the inbox and owner keys, the Upstash store, language detection, the security suite, exports, and that every interface string is translated into all four Nigerian languages.</p>
+
+<h2><span class="n">04</span>Host it (Vercel + Upstash)</h2>
+<ol>
+<li>Import the repository into Vercel. <code>vercel.json</code> builds the frontend and serves the API from <code>api/index.mjs</code> (one function); routes <code>/a/*</code> to the app.</li>
+<li>Create a free Upstash Redis database and copy its REST URL and token.</li>
+<li>In Vercel → Settings → Environment Variables (Production) add: <code>NATLAS_PROVIDER=http</code>, <code>NATLAS_ENDPOINT</code>, <code>NATLAS_MODEL</code>,
+<code>NATLAS_API_KEY</code>, <code>NATLAS_REPETITION_PENALTY=1.12</code>, <code>NATLAS_REQUEST_TIMEOUT_MS=280000</code>, <code>GROQ_API_KEY</code>,
+<code>UPSTASH_REDIS_REST_URL</code>, <code>UPSTASH_REDIS_REST_TOKEN</code> (and optionally <code>GEMINI_API_KEY</code>). Values are read with quotes or a pasted <code>NAME=</code> forgiven.</li>
+<li>Deploy, then open <code>/api/health</code> and <code>/api/sites/status</code> (should say <code>"canPublish": true</code>).</li>
+</ol>
+
+<h2><span class="n">05</span>Serve N-ATLAS</h2>
+<h3>On a GPU with Modal (what the live app uses)</h3>
+<pre>pip install modal && modal setup
+modal secret create natlas-hf HF_TOKEN=&lt;Hugging Face token that accepted the N-ATLaS licence&gt;
+modal secret create localizekit-natlas NATLAS_API_KEY=&lt;a long random key&gt;
+# MIN_CONTAINERS=1 modal deploy … keeps one GPU warm
+modal deploy inference/modal_natlas.py</pre>
+<p>Then <code>NATLAS_ENDPOINT=https://&lt;workspace&gt;--localizekit-natlas-serve.modal.run/v1</code>, <code>NATLAS_MODEL=NCAIR1/N-ATLaS</code> and the key above.
+The script serves the unmodified weights with vLLM on an L4 (24 GB) in BF16 with an 8k context.</p>
+<h3>On a laptop with Ollama (slow, offline)</h3>
+<p>Convert the gated weights to GGUF and create the model from <code>inference/Modelfile</code> (steps in <code>inference/README.md</code>),
+then <code>NATLAS_ENDPOINT=http://localhost:11434/v1</code>, <code>NATLAS_MODEL=n-atlas</code>. On a CPU expect around a token per second.</p>
+
+<h2 class="pb"><span class="n">06</span>Using it</h2>
+<figure><img src="../evidence/shots/01-landing.png"><figcaption>1. Landing page: pick a language for the whole interface, then Start Building.</figcaption></figure>
+<figure><img src="../evidence/shots/04-dashboard.png"><figcaption>2. After describing the business, Groq drafts the site. The dashboard lists the next steps: check pages, fill in the real details, add WhatsApp, publish.</figcaption></figure>
+<div class="grid2"><figure><img src="../evidence/shots/06-plugins.png"><figcaption>3. Plugins: price list, orders, contact, assistant.</figcaption></figure><figure><img src="../evidence/shots/08-settings.png"><figcaption>4. Settings: site languages (N-ATLAS translates the site), main language.</figcaption></figure></div>
+<figure><img src="../evidence/shots/09-public-site.png"><figcaption>5. The published site at /a/&lt;name&gt;: menu, sections, and “Ask us anything” opens the assistant. Visitors can switch the site language.</figcaption></figure>
+
+<h2><span class="n">07</span>API</h2>
+<table><tr><th style="width:38%">Endpoint</th><th>What it does</th></tr>
+<tr><td><code>GET /api/health</code></td><td>App → N-ATLAS → reply, with latency (cached 60 s on a public server).</td></tr><tr><td><code>POST /api/blueprint</code></td><td>Description (any of the five languages) → plan: name, use case, system prompt.</td></tr><tr><td><code>POST /api/blueprint/narrate</code></td><td>The build guide, written by Groq and put into the developer&#x27;s language by N-ATLAS (streamed).</td></tr><tr><td><code>POST /api/sites/draft</code></td><td>Plan → draft website (pages, theme, plugins) written by Groq.</td></tr><tr><td><code>POST /api/sites/translate</code></td><td>A site&#x27;s words in another language.</td></tr><tr><td><code>POST /api/sites/write-post</code></td><td>A draft blog post from a topic.</td></tr><tr><td><code>POST /api/sites/preview</code></td><td>The site&#x27;s assistant answers, without saving (the admin&#x27;s test chat).</td></tr><tr><td><code>POST /api/sites · PUT/DELETE /api/sites/:slug</code></td><td>Publish, update, unpublish (PUT/DELETE need the owner key).</td></tr><tr><td><code>GET /api/sites/:slug/public · POST /api/sites/:slug/chat</code></td><td>What visitors see; visitors chatting (orders go to the inbox).</td></tr><tr><td><code>GET /api/sites/:slug/inbox</code></td><td>Orders and messages (owner key).</td></tr><tr><td><code>POST /api/help/ask</code></td><td>The helper on every page.</td></tr><tr><td><code>POST /api/generate(/stream) · /api/evaluate · /api/security · /api/improve · /api/compare/stream</code></td><td>Developer tools: playground, test suites, attack suite, hardening, side-by-side models.</td></tr>
+</table>
+
+<h2><span class="n">08</span>Repository layout</h2>
+<pre>backend/src/   app.ts (wiring, public mode, limits) · routes/ · brain/ · sites/ · blueprint/ · eval/ · security/ · improve/ · providers/ · help/
+frontend/src/  screens/ (and screens/site/) · components/ (site/ for the site builder and the public site) · i18n/ (pid, yo, ha, ig) · state/
+api/index.mjs  the backend as one Vercel function          inference/   Modal script, Ollama Modelfiles, serving guide
+sdk/           JavaScript and Python clients for N-ATLAS    scripts/     evidence.mjs, bench.mjs (live evidence)
+tests/         178 node:test tests                          docs/        this documentation, evidence, architecture notes</pre>
+
+<h2><span class="n">09</span>Limits and troubleshooting</h2>
+<ul>
+<li><b>“Waking up N-ATLAS”</b> — the GPU scaled to zero; the first reply waits a few minutes. Keep it warm with <code>MIN_CONTAINERS=1</code> while people are testing.</li>
+<li><b>Groq’s free plan</b> allows about 8,000 tokens a minute per model; Launchpad spreads work over three Groq models and falls back to Gemini. For many simultaneous users, upgrade the Groq plan.</li>
+<li><b>Publishing says it isn't set up</b> — the Upstash variables are missing on a public server; <code>/api/sites/status</code> shows it.</li>
+<li><b>No accounts by design</b> — projects live in the browser; a site is edited with its secret owner key, stored in that browser.</li>
+<li><b>Scope</b> — small websites with an assistant (information, prices, orders, contact, blog); no customer accounts or online payments.</li>
+</ul>
+<p style="margin-top:14pt;color:var(--muted);font-size:8.5pt">Launchpad is powered by N-ATLAS (NCAIR and Awarri) and Groq, with Google Gemini as a backup. It is an independent project, not affiliated with NCAIR, Awarri, Groq or Google.</p>
+</body></html>
