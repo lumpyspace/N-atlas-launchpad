@@ -15,6 +15,8 @@ export interface HealthStatus {
   model: string;
   detail: string;
   checkedAt: string;
+  /** A hosted Launchpad: the host's N-ATLAS server, which visitors can't change. */
+  public?: boolean;
 }
 
 export interface GenerateResult {

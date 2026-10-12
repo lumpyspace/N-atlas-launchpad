@@ -12,8 +12,9 @@ import { Router } from "express";
 import { logger } from "../logger.js";
 import { HttpNAtlasProvider } from "../providers/HttpNAtlasProvider.js";
 import type { ProviderRef } from "../providers/ProviderRef.js";
+import type { AppConfig } from "../config.js";
 
-export function modeRouter(ref: ProviderRef): Router {
+export function modeRouter(ref: ProviderRef, config?: AppConfig): Router {
   const router = Router();
 
   router.post("/mode", async (req, res) => {
@@ -28,12 +29,16 @@ export function modeRouter(ref: ProviderRef): Router {
       return res.status(400).json({ error: "endpoint is required" });
     }
 
+    // Reconnecting to the same server keeps its key (the settings panel has no key field).
+    const current = ref.connection();
+    const sameServer = current && current.endpoint === ep.replace(/\/+$/, "").replace(/\/chat\/completions$/, "");
     ref.swap(
       new HttpNAtlasProvider({
         endpoint: ep,
-        apiKey: typeof apiKey === "string" ? apiKey.trim() : "",
+        apiKey: typeof apiKey === "string" && apiKey.trim() ? apiKey.trim() : sameServer ? current.apiKey : "",
         model: (typeof model === "string" && model.trim()) ? model.trim() : "n-atlas",
-        timeoutMs: 300_000,
+        timeoutMs: Math.max(300_000, config?.requestTimeoutMs ?? 0),
+        repetitionPenalty: sameServer ? config?.repetitionPenalty : undefined,
       }),
     );
     logger.info("Provider reconfigured → http", { endpoint: ep });

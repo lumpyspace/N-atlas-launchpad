@@ -175,6 +175,7 @@ function TopBar({
             🩺 {t("Setup doctor")}
           </button>
           <ModeBadge health={health} />
+          {!health?.public && (
           <button
             onClick={() => {
               // Start from what the backend is actually using, so "Connect" never quietly reverts a custom model.
@@ -192,6 +193,7 @@ function TopBar({
           >
             {isConnected ? t("Settings") : t("Connect to N-ATLAS")}
           </button>
+          )}
         </div>
       </div>
       {open && (
