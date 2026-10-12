@@ -179,7 +179,7 @@ export async function answerVisitor(
       if (reading) {
         turns[turns.length - 1] = { role: "user", content: `${latest}\n\n(N-ATLAS read this as: "${reading}". If they disagree, trust the words as written.)` };
       }
-      const r = await brain.chat([{ role: "system", content: brainSystem(config, language) }, ...turns], { maxTokens: 700, temperature: 0.3, signal, nigerian: language !== "en" });
+      const r = await brain.chat([{ role: "system", content: brainSystem(config, language) }, ...turns], { maxTokens: 700, temperature: 0.3, signal });
       const parsed = parseReply(r.text);
       let english = leaks(config, parsed.reply) ? SAFE_REPLY : parsed.reply;
       let order: InboxItem | undefined;
@@ -206,6 +206,8 @@ export async function answerVisitor(
     maxTokens: 300,
     temperature: 0.2,
   });
-  const text = leaks(config, r.text) ? SAFE_REPLY : r.text.trim();
+  // An 8B model tends to carry on the conversation by itself ("Visitor: …"): keep its answer only.
+  const answer = r.text.split(/\n\s*(?:Visitor|Assistant|Question|Answer|User)\s*:/i)[0].trim();
+  const text = leaks(config, answer) ? SAFE_REPLY : answer;
   return { reply: text, english: text, language, voice: "N-ATLAS" };
 }

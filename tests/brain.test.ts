@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Brain, completeSentences, providersFromEnv, retryAfterMs, type BrainProvider } from "../backend/src/brain/brain.ts";
-import { inLanguage, keepsNumbers, relay, type RelayEvent } from "../backend/src/brain/relay.ts";
+import { inLanguage, keepsNumbers, relay, speakIn, type RelayEvent } from "../backend/src/brain/relay.ts";
 
 const gemini: BrainProvider = { name: "Gemini", baseURL: "https://gemini.test/v1beta/openai", model: "gemini-2.5-flash", apiKey: "k1" };
 const groq: BrainProvider = { name: "Groq", baseURL: "https://groq.test/openai/v1", model: "gpt-oss", apiKey: "k2" };
@@ -216,4 +216,24 @@ test("Yoruba, Hausa and Igbo go only to models good at them; English work may us
   assert.ok(!calls.some((c) => c.host === "small.test"), "the small model never writes Yoruba");
   const ps = providersFromEnv({ GROQ_API_KEY: "q" } as any);
   assert.deepEqual(ps.map((p) => p.nigerian !== false), [true, false, false]);
+});
+
+test("no assistant model free: a reply keeps its facts (English lines) instead of failing", async () => {
+  const busy = new Brain([groq], 50, fakeFetch({ "groq.test": 429 }), Date.now, 0);
+  // N-ATLAS drops the price every time, so each line fails its checks.
+  const natlas = {
+    name: "fake",
+    isMock: true,
+    async generate() {
+      return { text: "", model: "fake", latencyMs: 1 } as any;
+    },
+    async generateStream(_p: string, _o: unknown, onChunk: (c: any) => void) {
+      onChunk({ type: "delta", delta: "Buhun shinkafa yana da tsada sosai a kasuwa yau" });
+    },
+    async health() {
+      return { ok: true } as any;
+    },
+  };
+  const said = await speakIn({ brain: busy, natlas: natlas as any, language: "ha", english: "A 50 kg bag of rice is ₦82,000.", brainName: "Groq" });
+  assert.match(said.text, /₦82,000/);
 });

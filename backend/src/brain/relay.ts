@@ -178,7 +178,15 @@ export async function translatePieces(
     }
     if (!fallback) throw new Error("no faithful translation");
     helped++;
-    return dress((await fallback(body)).replace(/\n+/g, " "));
+    try {
+      return dress((await fallback(body)).replace(/\n+/g, " "));
+    } catch (err) {
+      if (signal?.aborted) throw err;
+      // No model to help right now: the line stays in English — its facts intact —
+      // rather than losing the whole reply.
+      logger.warn("line kept in English: no assistant model could translate it", { language });
+      return line;
+    }
   };
   let out: string[];
   try {
@@ -338,5 +346,12 @@ export async function speakIn(opts: {
     ).text;
   const done = await translatePieces(natlas, english, language, signal, (line) => byBrain(line, 300), keep);
   if (done && done.helped * 3 < Math.max(1, done.lines)) return { text: done.text, voice: "N-ATLAS" };
-  return { text: await byBrain(english, 900), voice: brainName };
+  try {
+    return { text: await byBrain(english, 900), voice: brainName };
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    // No model free to write it: N-ATLAS's checked lines if there are some, else the
+    // English — never an unchecked answer.
+    return done ? { text: done.text, voice: "N-ATLAS" } : { text: english, voice: brainName };
+  }
 }

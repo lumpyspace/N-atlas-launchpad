@@ -53,7 +53,7 @@ for (const [lang, qs] of Object.entries(questions)) {
     const correct = r.status === 200 && checks[topic].test(r.reply ?? "");
     rows.push({ lang, topic, question: q, reply: r.reply, english: r.english, replyLanguage: r.language, voice: r.voice, status: r.status, ms, correct });
     console.error(`${lang} ${topic.padEnd(5)} ${r.status} ${(ms / 1000).toFixed(1)}s ${correct ? "✓" : "✗"} ${r.voice ?? r.error ?? ""}`);
-    await new Promise((s) => setTimeout(s, 2500));
+    await new Promise((s) => setTimeout(s, 6000)); // about ten questions a minute: within Groq's free per-minute limit
   }
 }
 
