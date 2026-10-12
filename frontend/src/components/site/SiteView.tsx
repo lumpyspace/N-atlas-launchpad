@@ -91,7 +91,11 @@ export function SiteView({
   const accent = site.theme.accent;
   const lang: LangCode = isLangCode(site.language) ? site.language : "en";
   const t = (text: string, vars?: Record<string, string | number>) => translate(lang, text, vars);
+  // "blog/<slug>" is a post; anything else is a page.
+  const postSlug = pageSlug.startsWith("blog/") ? pageSlug.slice(5) : null;
+  const post = postSlug ? site.posts.find((p) => p.slug === postSlug) : undefined;
   const page = site.pages.find((p) => p.slug === pageSlug) ?? site.pages[0];
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(lang === "en" ? "en-NG" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
   const [chatOpen, setChatOpen] = useState(false);
   const [opener, setOpener] = useState<string | null>(null);
   const wa = site.contact?.whatsapp.replace(/[^\d]/g, "");
@@ -194,6 +198,38 @@ export function SiteView({
             </div>
           </section>
         );
+      case "posts": {
+        const latest = site.posts.slice(0, s.count);
+        if (!latest.length) return showBlanks ? (
+          <section key={i} className="mx-auto max-w-3xl px-6 py-10 text-sm" style={{ color: "var(--s-muted)" }}>
+            {translate("en", "Your published posts will appear here.")}
+          </section>
+        ) : null;
+        return (
+          <section key={i} className="mx-auto max-w-5xl px-6 py-10">
+            {s.heading && <h2 className="text-2xl font-bold tracking-tight">{s.heading}</h2>}
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {latest.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onNavigate(`blog/${p.slug}`)}
+                  className="overflow-hidden border text-left transition-transform hover:-translate-y-0.5"
+                  style={{ background: "var(--s-surface)", borderColor: "var(--s-line)", borderRadius: "var(--s-radius)" }}
+                >
+                  {p.cover && <img src={p.cover} alt="" className="h-40 w-full object-cover" />}
+                  <div className="p-4">
+                    <div className="text-xs" style={{ color: "var(--s-muted)" }}>{fmtDate(p.date)}</div>
+                    <div className="mt-1 font-bold leading-snug">{p.title}</div>
+                    <p className="mt-1.5 line-clamp-3 text-sm" style={{ color: "var(--s-muted)" }}>
+                      {p.body.split(/\n\s*\n/)[0]}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        );
+      }
       case "contact":
         if (!site.contact) return null;
         return (
@@ -249,7 +285,36 @@ export function SiteView({
         </div>
       </header>
 
-      <main>{page.sections.map(sectionView)}</main>
+      <main>
+        {postSlug ? (
+          post ? (
+            <article className="mx-auto max-w-2xl px-6 py-10">
+              <button onClick={() => onNavigate("")} className="text-sm font-medium" style={{ color: "var(--s-accent)" }}>
+                ← {site.name}
+              </button>
+              <div className="mt-4 text-sm" style={{ color: "var(--s-muted)" }}>
+                {fmtDate(post.date)}
+                {post.author ? ` · ${post.author}` : ""}
+              </div>
+              <h1 className="mt-1 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{post.title}</h1>
+              {post.cover && <img src={post.cover} alt="" className="mt-6 w-full object-cover" style={{ borderRadius: "var(--s-radius)", maxHeight: "24rem" }} />}
+              <div className="mt-6 space-y-4 text-[17px] leading-relaxed">
+                {post.body.split(/\n\s*\n/).map((para, j) => (
+                  <p key={j} className="whitespace-pre-wrap">
+                    <Blanks text={para} show={showBlanks} />
+                  </p>
+                ))}
+              </div>
+            </article>
+          ) : (
+            <section className="mx-auto max-w-2xl px-6 py-16 text-center" style={{ color: "var(--s-muted)" }}>
+              {t("This post isn't here any more.")}
+            </section>
+          )
+        ) : (
+          page.sections.map(sectionView)
+        )}
+      </main>
 
       <footer className="mt-10 border-t px-6 py-8 text-center text-sm" style={{ borderColor: "var(--s-line)", color: "var(--s-muted)" }}>
         <div className="font-semibold" style={{ color: "var(--s-text)" }}>

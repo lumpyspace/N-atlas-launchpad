@@ -1,13 +1,13 @@
 import { useT } from "../i18n";
 import { useWorkspace, type Mode } from "../state/ProjectContext";
 
-/** Simple (plain words, only what a first-timer needs) or Developer (every tool). */
+/** Simple (plain words, only what a first-timer needs) or Advanced (every tool). */
 export function ModeSwitch({ className = "" }: { className?: string }) {
   const { mode, setMode } = useWorkspace();
   const t = useT();
   const options: [Mode, string, string][] = [
     ["simple", t("Simple"), t("Plain words and only the steps a first-timer needs")],
-    ["developer", t("Developer"), t("Every tool: instructions, test scores, security runs, comparisons, code and SDK")],
+    ["developer", t("Advanced"), t("Everything: blog posts, the assistant's instructions, test scores and security runs")],
   ];
   return (
     <div className={`inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs ${className}`} role="radiogroup" aria-label={t("Mode")}>

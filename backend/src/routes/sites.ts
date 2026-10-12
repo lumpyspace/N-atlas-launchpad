@@ -5,6 +5,7 @@
  *   GET    /api/sites/status                 → { canPublish, store, reason? }
  *   POST   /api/sites/draft   { blueprint, language, knowledge? } → { config, by }
  *   POST   /api/sites/preview { config, history, sent? }          → SiteAnswer (nothing saved)
+ *   POST   /api/sites/write-post { config, idea }                 → { title, body, by } (a draft post)
  *   POST   /api/sites         { config }                          → { slug, ownerKey }
  *   PUT    /api/sites/:slug   { config }        x-owner-key       → { slug }
  *   DELETE /api/sites/:slug                     x-owner-key
@@ -27,6 +28,7 @@ import { draftConfig } from "../sites/draft.js";
 import { answerVisitor, type Turn } from "../sites/runtime.js";
 import { publicView, sanitizeConfig } from "../sites/sanitize.js";
 import type { SiteStore } from "../sites/store.js";
+import { writePost } from "../sites/writePost.js";
 
 const LANGS: LangCode[] = ["en", "pid", "yo", "ha", "ig"];
 const hash = (key: string) => createHash("sha256").update(key).digest("hex");
@@ -82,6 +84,20 @@ export function sitesRouter(
     } catch (err) {
       logger.error("site draft failed", { reason: err instanceof Error ? err.message : String(err) });
       res.status(500).json({ error: "Couldn't set up the assistant just now — please try again." });
+    }
+  });
+
+  // A draft blog post from a topic (the owner reviews and publishes it).
+  router.post("/sites/write-post", async (req, res) => {
+    const config = sanitizeConfig(req.body?.config);
+    const idea = typeof req.body?.idea === "string" ? req.body.idea.trim().slice(0, 300) : "";
+    if (!config || !idea) return res.status(400).json({ error: "Send { config, idea }" });
+    if (!brain?.available()) return res.status(503).json({ error: "Writing posts needs the assistant model (Groq), which isn't available right now." });
+    try {
+      res.json(await writePost(config, idea, { brain, natlas: provider }));
+    } catch (err) {
+      logger.error("write post failed", { reason: err instanceof Error ? err.message : String(err) });
+      res.status(502).json({ error: "Couldn't write the post just now — please try again." });
     }
   });
 

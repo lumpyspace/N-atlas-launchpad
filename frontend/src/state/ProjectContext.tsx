@@ -47,6 +47,7 @@ export type Step =
   // The site's admin (WordPress-style)
   | "site"
   | "pages"
+  | "posts"
   | "appearance"
   | "plugins"
   | "inbox"

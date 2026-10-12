@@ -64,6 +64,11 @@ export function pagesText(config: AssistantConfig): string {
     const facts = own.filter((l) => !BLANK.test(l));
     if (facts.length) lines.push(`[${p.title}]\n${facts.join("\n")}`);
   }
+  // Published blog posts are public facts too (newest first).
+  const posts = (config.posts ?? []).filter((x) => x.status === "published").sort((a, b) => b.date.localeCompare(a.date));
+  for (const post of posts.slice(0, 10)) {
+    if (!BLANK.test(post.body)) lines.push(`[Blog post, ${post.date.slice(0, 10)}: ${post.title}]\n${post.body.slice(0, 1500)}`);
+  }
   return lines.join("\n\n").slice(0, 12000);
 }
 

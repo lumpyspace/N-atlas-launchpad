@@ -25,15 +25,16 @@ export default function PublicAssistant({ slug, page: firstPage }: { slug: strin
 
   // Back/forward between the site's pages.
   useEffect(() => {
-    const onPop = () => setPage(window.location.pathname.split("/")[3] ?? "");
+    const onPop = () => setPage(window.location.pathname.split("/").slice(3).filter(Boolean).join("/"));
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   useEffect(() => {
     if (!site) return;
+    const post = page.startsWith("blog/") ? site.posts.find((x) => x.slug === page.slice(5)) : undefined;
     const p = site.pages.find((x) => x.slug === page) ?? site.pages[0];
-    document.title = p.slug ? `${p.title} · ${site.name}` : site.name;
+    document.title = post ? `${post.title} · ${site.name}` : p.slug ? `${p.title} · ${site.name}` : site.name;
   }, [site, page]);
 
   if (missing) {

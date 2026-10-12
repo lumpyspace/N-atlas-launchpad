@@ -11,7 +11,7 @@ const EN: T = (text, vars) => translate("en", text, vars);
 export type StageKey = "design" | "build" | "prompt" | "knowledge" | "site" | "test";
 
 /** The site's admin screens, WordPress-style (shown under "Your site"). */
-export const SITE_STEPS: Step[] = ["site", "pages", "appearance", "plugins", "inbox", "settings"];
+export const SITE_STEPS: Step[] = ["site", "pages", "posts", "appearance", "plugins", "inbox", "settings"];
 
 export interface StageStatus {
   key: StageKey;

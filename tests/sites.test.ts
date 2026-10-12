@@ -210,3 +210,23 @@ test("a site's pages teach the assistant — but only pages the owner has checke
   assert.ok(view.pages.every((p: any) => !("reviewed" in p)), "visitors don't see the owner's checks");
   assert.equal(view.assistant, true);
 });
+
+test("blog posts: drafts stay private; published ones show on the site and teach the assistant", async () => {
+  const { pagesText } = await import("../backend/src/sites/runtime.ts");
+  const c = sanitizeConfig({
+    name: "Kano Grains",
+    posts: [
+      { title: "New maize prices", body: "Maize is now cheaper at our shop.", status: "published", date: "2026-10-01" },
+      { title: "Secret sale", body: "Not ready yet.", status: "draft" },
+      { title: "Old news", slug: "new-maize-prices", body: "Older.", status: "published", date: "2026-09-01" },
+    ],
+  })!;
+  assert.equal(c.posts[0].slug, "new-maize-prices");
+  assert.notEqual(c.posts[2].slug, "new-maize-prices", "addresses stay unique");
+  const view = publicView("kano-grains-abc123", c);
+  assert.deepEqual(view.posts.map((p: any) => p.title), ["New maize prices", "Old news"], "published only, newest first");
+  const text = pagesText(c);
+  assert.match(text, /Maize is now cheaper/);
+  assert.doesNotMatch(text, /Secret sale/);
+  assert.equal(sanitizeConfig({ name: "X", pages: [{ title: "Blog", sections: [{ type: "posts", heading: "News", count: 99 }] }] })!.pages[0].sections[0].type, "posts");
+});

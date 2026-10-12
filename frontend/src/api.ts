@@ -841,7 +841,21 @@ export type Section =
   | { type: "text"; heading: string; text: string }
   | { type: "faq"; heading: string; items: { q: string; a: string }[] }
   | { type: "prices"; heading: string }
-  | { type: "contact"; heading: string };
+  | { type: "contact"; heading: string }
+  | { type: "posts"; heading: string; count: number };
+
+/** A blog post (advanced). */
+export interface Post {
+  id: string;
+  title: string;
+  /** Its address: /a/<site>/blog/<slug>. */
+  slug: string;
+  date: string;
+  body: string;
+  cover?: string;
+  author?: string;
+  status: "draft" | "published";
+}
 
 export interface Page {
   id: string;
@@ -866,6 +880,7 @@ export interface AssistantConfig {
   blocks: Blocks;
   theme: { id: ThemeId; accent: string };
   pages: Page[];
+  posts: Post[];
 }
 
 export interface SiteTurn {
@@ -901,6 +916,8 @@ export interface PublicSite {
   language: string;
   theme: { id: ThemeId; accent: string };
   pages: Page[];
+  /** Published posts, newest first. */
+  posts: Post[];
   assistant: boolean;
   orders: { kind: string } | null;
   prices: PriceItem[] | null;
@@ -917,6 +934,7 @@ export function viewOf(c: AssistantConfig, slug = ""): PublicSite {
     language: c.language,
     theme: c.theme,
     pages: c.pages,
+    posts: (c.posts ?? []).filter((p) => p.status === "published").sort((a, b) => b.date.localeCompare(a.date)),
     assistant: c.blocks.assistant.on,
     orders: c.blocks.orders.on ? { kind: c.blocks.orders.kind } : null,
     prices: c.blocks.prices.on ? c.blocks.prices.items : null,
@@ -950,3 +968,7 @@ export const siteInbox = (slug: string, key: string) =>
 export const publicSite = (slug: string) => fetch(`${BASE}/api/sites/${slug}/public`).then((r) => json<PublicSite>(r));
 export const chatSite = (slug: string, history: SiteTurn[], sent: string[]) =>
   post(`/api/sites/${slug}/chat`, { history, sent }).then((r) => json<SiteAnswer>(r));
+
+/** "Write with Groq": a draft post from a topic, in the site's language. */
+export const writeSitePost = (config: AssistantConfig, idea: string) =>
+  post("/api/sites/write-post", { config, idea }).then((r) => json<{ title: string; body: string; by: string }>(r));

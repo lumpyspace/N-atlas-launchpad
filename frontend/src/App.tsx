@@ -12,6 +12,7 @@ import Blueprint from "./screens/Blueprint";
 import Compare from "./screens/Compare";
 import SiteDashboard from "./screens/site/Dashboard";
 import SitePages from "./screens/site/Pages";
+import SitePosts from "./screens/site/Posts";
 import SiteAppearance from "./screens/site/Appearance";
 import SitePlugins from "./screens/site/Plugins";
 import SiteInbox from "./screens/site/Inbox";
@@ -223,6 +224,8 @@ function renderStep(step: string, health: HealthStatus | null) {
       return <SiteDashboard />;
     case "pages":
       return <SitePages />;
+    case "posts":
+      return <SitePosts />;
     case "appearance":
       return <SiteAppearance />;
     case "plugins":

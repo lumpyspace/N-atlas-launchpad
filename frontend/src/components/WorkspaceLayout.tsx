@@ -20,9 +20,10 @@ import {
 } from "../ui/icons";
 
 /** The site's admin menu, WordPress-style. */
-const SITE_MENU: { step: Step; label: string; icon: typeof ChatIcon }[] = [
+const SITE_MENU: { step: Step; label: string; icon: typeof ChatIcon; advanced?: boolean }[] = [
   { step: "site", label: N_("Dashboard"), icon: GlobeIcon },
   { step: "pages", label: N_("Pages"), icon: LayersIcon },
+  { step: "posts", label: N_("Posts"), icon: PenIcon, advanced: true },
   { step: "appearance", label: N_("Appearance"), icon: PenIcon },
   { step: "plugins", label: N_("Plugins"), icon: SlidersIcon },
   { step: "inbox", label: N_("Inbox"), icon: PackageIcon },
@@ -62,6 +63,8 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   }
 
   const doneCount = list.filter((s) => s.done).length;
+  // Advanced mode adds Posts (and more) to the site's menu.
+  const siteMenu = SITE_MENU.filter((m) => !m.advanced || mode === "developer");
   const live = state.site?.slug ? `/a/${state.site.slug}` : null;
 
   const nav = (compact: boolean) =>
@@ -101,7 +104,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
         // Narrow screens: the site's menu follows in the tab row.
         return [
           button,
-          ...SITE_MENU.map((m) => (
+          ...siteMenu.map((m) => (
             <button
               key={`menu-${m.step}`}
               onClick={() => dispatch({ type: "setStep", step: m.step })}
@@ -116,7 +119,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
         <div key={s.key}>
           {button}
           <div className="ml-6 mt-0.5 space-y-0.5 border-l border-slate-200 pl-3">
-            {SITE_MENU.map((m) => (
+            {siteMenu.map((m) => (
               <button
                 key={m.step}
                 onClick={() => dispatch({ type: "setStep", step: m.step })}

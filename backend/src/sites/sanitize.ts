@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import type { LangCode } from "../eval/lang.js";
 import { hardenSystemPrompt } from "../improve/harden.js";
 import { makeCanary } from "../shared/prompt.js";
-import { EMPTY_BLOCKS, THEMES, type AssistantConfig, type Page, type Section, type ThemeId } from "./types.js";
+import { EMPTY_BLOCKS, THEMES, type AssistantConfig, type Page, type Post, type Section, type ThemeId } from "./types.js";
 
 const LANGS: LangCode[] = ["en", "pid", "yo", "ha", "ig"];
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -39,6 +39,8 @@ function section(raw: any): Section | null {
       return { type: "prices", heading };
     case "contact":
       return { type: "contact", heading };
+    case "posts":
+      return { type: "posts", heading, count: Math.max(1, Math.min(20, Math.round(Number(raw.count) || 6))) };
     default:
       return null;
   }
@@ -62,6 +64,26 @@ export function sanitizePages(raw: unknown, name: string): Page[] {
   return pages.length ? pages : [{ id: "home", title: "Home", slug: "", inMenu: true, sections: [{ type: "hero", heading: name, text: "", button: "chat" }] }];
 }
 
+export function sanitizePosts(raw: unknown): Post[] {
+  const used = new Set<string>();
+  return (Array.isArray(raw) ? raw : []).slice(0, 200).map((p: any, i: number) => {
+    let slug = slugify(str(p?.slug, 60) || str(p?.title, 60)) || `post-${i + 1}`;
+    while (used.has(slug)) slug = `${slug}-${i + 1}`;
+    used.add(slug);
+    const date = str(p?.date, 40);
+    return {
+      id: str(p?.id, 40) || randomUUID().slice(0, 8),
+      title: str(p?.title, 160) || "Untitled",
+      slug,
+      date: date && !Number.isNaN(Date.parse(date)) ? new Date(date).toISOString() : new Date().toISOString(),
+      body: str(p?.body, 20000),
+      ...(/^(https?:\/\/|\/|data:image\/)/.test(str(p?.cover, 200000)) ? { cover: str(p.cover, 200000) } : {}),
+      ...(str(p?.author, 60) ? { author: str(p.author, 60) } : {}),
+      status: p?.status === "published" ? "published" : "draft",
+    } as Post;
+  });
+}
+
 export function sanitizeConfig(raw: unknown): AssistantConfig | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, any>;
@@ -82,6 +104,7 @@ export function sanitizeConfig(raw: unknown): AssistantConfig | null {
     instructions,
     theme: { id: themeId, accent },
     pages: sanitizePages(r.pages, name),
+    posts: sanitizePosts(r.posts),
     blocks: {
       assistant: { on: b.assistant?.on !== false },
       info: { on: b.info?.on === true, text: str(b.info?.text, 15000) },
@@ -122,6 +145,8 @@ export function publicView(slug: string, c: AssistantConfig) {
     language: c.language,
     theme: c.theme,
     pages: (c.pages ?? []).map(({ reviewed: _r, ...p }) => p),
+    // Only published posts, newest first.
+    posts: (c.posts ?? []).filter((p) => p.status === "published").sort((a, b) => b.date.localeCompare(a.date)),
     assistant: c.blocks.assistant.on,
     orders: c.blocks.orders.on ? { kind: c.blocks.orders.kind } : null,
     prices: c.blocks.prices.on ? c.blocks.prices.items : null,

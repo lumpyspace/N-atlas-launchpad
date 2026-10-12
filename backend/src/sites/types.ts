@@ -39,7 +39,9 @@ export type Section =
   /** The price list plugin's table. */
   | { type: "prices"; heading: string }
   /** The contact plugin's details (WhatsApp, phone, hours). */
-  | { type: "contact"; heading: string };
+  | { type: "contact"; heading: string }
+  /** The latest published blog posts. */
+  | { type: "posts"; heading: string; count: number };
 
 export interface Page {
   id: string;
@@ -50,6 +52,22 @@ export interface Page {
   sections: Section[];
   /** The owner has checked it. A page Groq drafted isn't a source of facts for the assistant until then. */
   reviewed?: boolean;
+}
+
+/** A blog post (WordPress's Posts): news, tips, offers — listed by a "posts" section. */
+export interface Post {
+  id: string;
+  title: string;
+  /** Its address: /a/<site>/blog/<slug>. */
+  slug: string;
+  /** ISO date shown on the post. */
+  date: string;
+  /** Plain text; blank lines separate paragraphs. */
+  body: string;
+  /** A picture from the media library (its URL). */
+  cover?: string;
+  author?: string;
+  status: "draft" | "published";
 }
 
 export const THEMES = ["market", "clean", "warm", "night"] as const;
@@ -77,6 +95,8 @@ export interface AssistantConfig {
   theme: Theme;
   /** The site's pages, in menu order; the first is the home page. */
   pages: Page[];
+  /** Blog posts (advanced). */
+  posts: Post[];
 }
 
 export interface Site {

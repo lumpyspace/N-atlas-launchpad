@@ -14,6 +14,7 @@ const SECTION_LABEL: Record<Section["type"], string> = {
   faq: "Questions & answers",
   prices: "Price list",
   contact: "Contact",
+  posts: "Latest posts",
 };
 
 const NEW_SECTION: Record<Section["type"], Section> = {
@@ -22,6 +23,7 @@ const NEW_SECTION: Record<Section["type"], Section> = {
   faq: { type: "faq", heading: "Questions", items: [{ q: "", a: "" }] },
   prices: { type: "prices", heading: "Our prices" },
   contact: { type: "contact", heading: "Talk to us" },
+  posts: { type: "posts", heading: "Latest news", count: 6 },
 };
 
 const slugify = (s: string) =>
@@ -306,6 +308,17 @@ function SectionEditor({ section: s, onChange }: { section: Section; onChange: (
         <>
           {heading}
           <p className="mt-2 text-xs text-slate-500">{t("Shows your WhatsApp, phone and hours. Edit them in Plugins → WhatsApp & contact.")}</p>
+        </>
+      );
+    case "posts":
+      return (
+        <>
+          {heading}
+          <label className="mt-2 block text-xs font-medium text-slate-600">
+            {t("How many posts to show")}
+            <input type="number" min={1} max={20} value={s.count} onChange={(e) => onChange({ ...s, count: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })} className={`${input} mt-1 w-24`} />
+          </label>
+          <p className="mt-2 text-xs text-slate-500">{t("Shows your latest published posts. Write them in Posts.")}</p>
         </>
       );
   }
