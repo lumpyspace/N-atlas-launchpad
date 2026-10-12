@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getBlueprint } from "../api";
+import { getBlueprint, type NarrationSection } from "../api";
 import { BuildGuide, ByNatlas, Narrated } from "../components/BuildGuide";
 import { useNarration } from "../components/useNarration";
 import { useProject, useWorkspace } from "../state/ProjectContext";
@@ -8,13 +8,16 @@ import { N_, useT } from "../i18n";
 
 type Tab = "guide" | "blueprint";
 
+/** What Simple mode has the assistant model write: the headline and "What you're building". */
+const SIMPLE_SECTIONS: NarrationSection[] = ["purpose", "summary"];
+
 export default function Blueprint() {
   const { state, dispatch } = useProject();
   const { mode } = useWorkspace();
   const t = useT();
   const bp = state.blueprint;
   // N-ATLAS writes the guide's words in the project's language (the engine keeps the facts).
-  const narr = useNarration(bp?.buildPlan?.useCase ? bp : null);
+  const narr = useNarration(bp?.buildPlan?.useCase ? bp : null, mode === "simple" ? SIMPLE_SECTIONS : undefined);
   // N-ATLAS's feature names double as the primary tasks (the features are built from them, in order).
   const written = narr.value<{ task: string; how: string }[]>("features");
   const taskNames = written && bp && written.length === bp.primaryTasks.length ? written.map((f) => f.task) : undefined;

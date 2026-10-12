@@ -32,13 +32,14 @@ export interface NarrationView {
  * by itself for anything not written yet; results are saved with the project
  * per language, so they're written once.
  */
-export function useNarration(bp: Blueprint | null): NarrationView {
+/** `only`: the sections to write (Simple mode writes just the headline and summary, sparing the assistant model's free per-minute budget for the site). */
+export function useNarration(bp: Blueprint | null, only?: NarrationSection[]): NarrationView {
   const { state, dispatch } = useProject();
   const language = state.language;
   const key = bp ? narrationKey(bp) : "";
   const entries: Partial<Record<NarrationSection, NarrationEntry>> =
     (state.narration?.key === key ? state.narration.byLanguage[language] : undefined) ?? {};
-  const applicable = NARRATION_SECTIONS.filter((s) => s !== "features" || (bp?.buildPlan?.features.length ?? 0) > 0);
+  const applicable = NARRATION_SECTIONS.filter((s) => (s !== "features" || (bp?.buildPlan?.features.length ?? 0) > 0) && (!only || only.includes(s)));
   const missing = applicable.filter((s) => !entries[s]);
 
   const [writing, setWriting] = useState<NarrationView["writing"]>(null);
@@ -95,7 +96,7 @@ export function useNarration(bp: Blueprint | null): NarrationView {
       abortRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, language, state.id]);
+  }, [key, language, state.id, only?.join()]);
 
   return {
     value: <T extends NarrationValue>(s: NarrationSection) => entries[s]?.value as T | undefined,
