@@ -222,8 +222,6 @@ const dict: Record<string, string> = {
   "Picking one rebuilds the blueprint, features and system prompt for that kind of app. Your saved test cases are kept.":
     "Zaɓar ɗaya zai sake gina blueprint, fasaloli da system prompt don irin wannan manhaja. Za a riƙe test cases ɗin da ka ajiye.",
   "Potential risks": "Haɗarin da ka iya faruwa",
-  "Powered by N-ATLAS": "N-ATLAS ne ke ƙarfafa shi",
-  "Powered by N-ATLAS · Nigeria's open multilingual LLM": "N-ATLAS ne ke ƙarfafa shi · LLM na Najeriya a buɗe mai harsuna da yawa",
   "Primary tasks": "Manyan ayyuka",
   "Project actions": "Ayyukan aiki",
   "Prompt": "Prompt",
@@ -788,7 +786,6 @@ const dict: Record<string, string> = {
   "Publish it: you'll get a link anyone can open.": "Wallafa shi: za ka sami hanyar haɗi da kowa zai iya buɗewa.",
   "Answers": "Amsoshi",
   "Prices": "Farashi",
-  "A person": "Mutum",
   "No blocks switched on": "Babu wani sashe da aka kunna",
   "Open Your site": "Buɗe Shafinka",
   "Describe your idea in a sentence or two, in any language you like. We'll turn it into a plan — and then a website with an N-ATLAS assistant on it.": "Bayyana ra'ayinka cikin jumla ɗaya ko biyu, da kowane harshe da kake so. Za mu mayar da shi tsari — sannan gidan yanar gizo mai mataimakin N-ATLAS.",
@@ -837,6 +834,11 @@ const dict: Record<string, string> = {
   "Translate now": "Fassara yanzu",
   "Editing in:": "Kana gyara a cikin:",
   "Fix the translation here. “Translate again” in Settings would replace your fixes.": "Gyara fassarar a nan. “Sake fassarawa” a cikin Saituna zai maye gurbin gyaran da ka yi.",
+  "Powered by N-ATLAS and Groq": "N-ATLAS da Groq ne ke ba da ƙarfi",
+  "Answers are written by AI (N-ATLAS and Groq) — check prices and details with the business.": "AI (N-ATLAS da Groq) ne ke rubuta amsoshin — tabbatar da farashi da bayanai tare da kasuwancin.",
+  "Launchpad is powered by N-ATLAS, Nigeria's open multilingual model by NCAIR and Awarri, and by Groq. If Groq is unavailable, Google's Gemini may answer instead.": "N-ATLAS — buɗaɗɗen samfurin harsuna da yawa na Najeriya, wanda NCAIR da Awarri suka gina — da Groq ne ke ba Launchpad ƙarfi. Idan Groq ba ya samuwa, Gemini na Google na iya amsawa a madadinsa.",
+  "Launchpad is an independent project, not affiliated with NCAIR, Awarri, Groq or Google.": "Launchpad aiki ne mai zaman kansa, ba shi da alaƙa da NCAIR, Awarri, Groq ko Google.",
+  "Contact": "Tuntuɓa",
 };
 
 export default dict;

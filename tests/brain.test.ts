@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Brain, completeSentences, providersFromEnv, type BrainProvider } from "../backend/src/brain/brain.ts";
+import { Brain, completeSentences, providersFromEnv, retryAfterMs, type BrainProvider } from "../backend/src/brain/brain.ts";
 import { inLanguage, keepsNumbers, relay, type RelayEvent } from "../backend/src/brain/relay.ts";
 
 const gemini: BrainProvider = { name: "Gemini", baseURL: "https://gemini.test/v1beta/openai", model: "gemini-2.5-flash", apiKey: "k1" };
@@ -43,11 +43,11 @@ function fakeNatlas(reply: (prompt: string, system?: string) => string) {
 
 test("brain: providers come from the environment, in order; keys never appear in the status", () => {
   const ps = providersFromEnv({ GEMINI_API_KEY: "secret-g", GROQ_API_KEY: "secret-q" } as any);
-  assert.deepEqual(ps.map((p) => `${p.name}/${p.model}`), ["Groq/openai/gpt-oss-120b", "Gemini/gemini-3.8-flash", "Gemini/gemini-3.5-flash"]);
+  assert.deepEqual(ps.map((p) => `${p.name}/${p.model}`), ["Groq/openai/gpt-oss-120b", "Groq/qwen/qwen3.8-27b", "Groq/openai/gpt-oss-20b", "Gemini/gemini-3.8-flash", "Gemini/gemini-3.5-flash"]);
   const geminiFirst = providersFromEnv({ GEMINI_API_KEY: "g", GROQ_API_KEY: "q", BRAIN_ORDER: "gemini,groq" } as any);
-  assert.deepEqual(geminiFirst.map((p) => p.name), ["Gemini", "Gemini", "Groq"]);
+  assert.deepEqual(geminiFirst.map((p) => p.name), ["Gemini", "Gemini", "Groq", "Groq", "Groq"]);
   assert.deepEqual(providersFromEnv({ GEMINI_API_KEY: "k", GEMINI_MODEL: "gemini-3.7-flash" } as any).map((p) => p.model), ["gemini-3.7-flash"]);
-  assert.equal(ps[1].baseURL, "https://generativelanguage.googleapis.com/v1beta/openai");
+  assert.equal(ps[3].baseURL, "https://generativelanguage.googleapis.com/v1beta/openai");
   assert.equal(providersFromEnv({} as any).length, 0);
   const status = JSON.stringify(new Brain(ps).status());
   assert.ok(!status.includes("secret"), "no keys in the status");
@@ -198,4 +198,10 @@ test("brain: a busy model is retried once; a cut-off reply keeps its complete se
   assert.equal(bodies.length, 2, "retried after the 503");
   assert.equal(bodies[0].max_tokens, 300 + 1024);
   assert.equal(bodies[0].reasoning_effort, "low");
+});
+
+test("a rate-limited provider rests as long as it asks, at most a minute", () => {
+  assert.equal(retryAfterMs("Rate limit reached … Please try again in 3.9375s. Need more tokens?"), 4438);
+  assert.equal(retryAfterMs("Please try again in 1m30s"), 60_000);
+  assert.equal(retryAfterMs("quota exceeded"), 60_000);
 });

@@ -12,8 +12,32 @@ import { detectLanguage, LANG_NAMES, type LangCode } from "../eval/lang.js";
 import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import type { AssistantConfig, SiteTranslation } from "./types.js";
 
+/**
+ * A menu item or heading of a few words, translated by the assistant model, told
+ * what it is. With no context N-ATLAS guesses ("Contact" became "emergency
+ * numbers", or an answer in the wrong language). null when it can't be done this way.
+ */
+export async function translateLabel(brain: Brain | undefined, text: string, to: LangCode, keep: string[]): Promise<string | null> {
+  if (to === "en" || text.trim().split(/\s+/).length > 4) return null;
+  // Pidgin websites keep their menus and headings in English ("Home", "Prices").
+  if (to === "pid" && detectLanguage(text).lang === "en") return text;
+  if (!brain?.available()) return null;
+  const r = await brain.chat(
+    [
+      {
+        role: "system",
+        content: `Translate this label from a small business's website (a menu item or a heading) into natural, everyday ${LANG_NAMES[to]}, as a native speaker would write it on a website. Keep names (${keep.join(", ")}) as they are. Reply with only the translation.`,
+      },
+      { role: "user", content: text },
+    ],
+    { maxTokens: 60, temperature: 0.2 },
+  );
+  const v = r.text.trim().replace(/^["“']|["”']$/g, "");
+  return v && v.length < text.length * 4 + 20 ? v : null;
+}
+
 /** Run `fn` over `items`, a few at a time. */
-async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+export async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;
   await Promise.all(
@@ -36,22 +60,9 @@ export async function translateSiteTo(
   const say = async (text: string, label = false): Promise<string> => {
     if (!text.trim()) return text;
     try {
-      // A menu item or heading of a few words has no context to go on (N-ATLAS turned
-      // "Contact" into "emergency numbers"): the assistant model translates labels,
-      // told what they are.
-      if (label && to !== "en" && deps.brain?.available() && text.trim().split(/\s+/).length <= 4) {
-        const r = await deps.brain.chat(
-          [
-            {
-              role: "system",
-              content: `Translate this label from a small business's website (a menu item or a heading) into natural, everyday ${LANG_NAMES[to]}, as a native speaker would write it on a website. Keep names (${keep.join(", ")}) as they are. Reply with only the translation.`,
-            },
-            { role: "user", content: text },
-          ],
-          { maxTokens: 60, temperature: 0.2 },
-        );
-        const v = r.text.trim().replace(/^["“']|["”']$/g, "");
-        if (v && v.length < text.length * 4 + 20) return v;
+      if (label) {
+        const v = await translateLabel(deps.brain, text, to, keep);
+        if (v) return v;
       }
       if (to === "en") {
         if (detectLanguage(text).lang === "en") return text;

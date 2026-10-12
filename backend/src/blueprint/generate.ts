@@ -71,7 +71,7 @@ export function generateBlueprint(description: string, opts: BlueprintOptions = 
 // ── Normalisation ─────────────────────────────────────────────────────────────
 
 const LEAD_INS =
-  /^(i\s+want\s+to\s+build|i'?d\s+like\s+to\s+build|i\s+wanna\s+build|i\s+need\s+a|i\s+want\s+a|build\s+me|please\s+build|let'?s\s+build|build|create|make|develop|design)\s+/i;
+  /^(i\s+wan[nt]?\s+(?:to\s+)?(?:build|make|create|get|start)|i\s+want\s+to\s+(?:make|create|start)|i\s+need\s+to\s+build|i\s+want\s+to\s+build|i'?d\s+like\s+to\s+build|i\s+wanna\s+build|i\s+need\s+a|i\s+want\s+a|build\s+me|please\s+build|let'?s\s+build|build|create|make|develop|design)\s+/i;
 
 function stripLeadIn(s: string): string {
   return s
@@ -531,7 +531,7 @@ function clean(s: string): string {
 }
 
 const LEAD_INS_NAME =
-  /^(i\s+want\s+to\s+build|i'?d\s+like\s+to\s+build|i\s+wanna\s+build|i\s+need\s+a|i\s+want\s+a|build\s+me|please\s+build|let'?s\s+build|build|create|make|develop|design)\s+/;
+  /^(i\s+wan[nt]?\s+(?:to\s+)?(?:build|make|create|get|start)|i\s+want\s+to\s+(?:make|create|start)|i\s+need\s+to\s+build|i\s+want\s+to\s+build|i'?d\s+like\s+to\s+build|i\s+wanna\s+build|i\s+need\s+a|i\s+want\s+a|build\s+me|please\s+build|let'?s\s+build|build|create|make|develop|design)\s+/;
 
 /** Words whose casing can't be recovered by simple title-casing (input is lower-cased). */
 const BRAND_CASE: Record<string, string> = {
@@ -550,6 +550,9 @@ function deriveName(description: string, fallback: string, useCase?: { id: strin
   if (!description) return fallback;
   let s = description.toLowerCase().trim();
   s = s.replace(LEAD_INS_NAME, "");
+  // "a website for my grain shop…" → name it after the business, not the website.
+  const business = s.match(/^(?:(?:an?|the|one)\s+)?(?:website|site|web\s*app|app|assistant|chatbot|bot|platform)\s+for\s+(?:my|our)\s+(.+)$/);
+  if (business) s = business[1].split(/\s+(?:in|at|on|near|around)\s+/)[0];
   // An instruction ("transcribe yoruba meetings…") has no product noun to name
   // the app after, so use the kind of app instead.
   if (startsWithVerb(s)) return useCaseName(useCase) ?? fallback;
@@ -567,7 +570,7 @@ function deriveName(description: string, fallback: string, useCase?: { id: strin
   const words = s.split(/\s+/).filter(Boolean).slice(0, 6);
   // Nothing to name it after ("an app that helps…" → "app"): name it after
   // the kind of app rather than the sector default, which may be unrelated.
-  if (words.length < 2) return useCaseName(useCase) ?? fallback;
+  if (words.length < (business ? 1 : 2)) return useCaseName(useCase) ?? fallback;
 
   let name = words.map((w) => BRAND_CASE[w] ?? w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   if (!/(assistant|bot|helper|advisor|guide|tool|app|chatbot)\b/i.test(name)) {

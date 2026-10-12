@@ -382,7 +382,7 @@ export function SiteView({
             )}
           </div>
           <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: "var(--s-muted)" }}>
-            {t("Powered by N-ATLAS")} · <a href="/" className="hover:underline">N-ATLAS Launchpad</a>
+            {t("Powered by N-ATLAS and Groq")} · <a href="/" className="hover:underline">N-ATLAS Launchpad</a>
           </div>
         </div>
       </footer>
@@ -557,6 +557,9 @@ function ChatBubble({
           <SendIcon size={15} />
         </button>
       </form>
+      <p className="px-3 pb-2 text-center text-[10px]" style={{ color: "var(--s-muted)" }}>
+        {t("Answers are written by AI (N-ATLAS and Groq) — check prices and details with the business.")}
+      </p>
     </div>
   );
 }

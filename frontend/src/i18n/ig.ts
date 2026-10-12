@@ -222,8 +222,6 @@ const dict: Record<string, string> = {
   "Picking one rebuilds the blueprint, features and system prompt for that kind of app. Your saved test cases are kept.":
     "Ịhọrọ otu ga-ewughachi blueprint, njirimara na system prompt maka ụdị ngwa ahụ. A ga-edobe test cases ị chekwara.",
   "Potential risks": "Ihe egwu nwere ike ime",
-  "Powered by N-ATLAS": "N-ATLAS na-akwado ya",
-  "Powered by N-ATLAS · Nigeria's open multilingual LLM": "N-ATLAS na-akwado ya · LLM mepere emepe nke Naịjirịa nwere ọtụtụ asụsụ",
   "Primary tasks": "Ọrụ ndị bụ isi",
   "Project actions": "Omume ọrụ",
   "Prompt": "Prompt",
@@ -788,7 +786,6 @@ const dict: Record<string, string> = {
   "Publish it: you'll get a link anyone can open.": "Bipụta ya: ị ga-enweta njikọ onye ọ bụla nwere ike imeghe.",
   "Answers": "Azịza",
   "Prices": "Ọnụahịa",
-  "A person": "Mmadụ",
   "No blocks switched on": "Ọ dịghị ngalaba gbanyere",
   "Open Your site": "Mepee Saịtị gị",
   "Describe your idea in a sentence or two, in any language you like. We'll turn it into a plan — and then a website with an N-ATLAS assistant on it.": "Kọwaa echiche gị n'otu ahịrịokwu ma ọ bụ abụọ, n'asụsụ ọ bụla masịrị gị. Anyị ga-eme ya atụmatụ — wee mee weebụsaịtị nwere onye enyemaka N-ATLAS.",
@@ -837,6 +834,11 @@ const dict: Record<string, string> = {
   "Translate now": "Tụgharịa ugbu a",
   "Editing in:": "Ị na-edezi n'asụsụ:",
   "Fix the translation here. “Translate again” in Settings would replace your fixes.": "Dozie ntụgharị ahụ ebe a. “Tụgharịa ọzọ” na Ntọala ga-edochi ndozi gị.",
+  "Powered by N-ATLAS and Groq": "Ọ bụ N-ATLAS na Groq na-akwado ya",
+  "Answers are written by AI (N-ATLAS and Groq) — check prices and details with the business.": "Ọ bụ AI (N-ATLAS na Groq) na-ede azịza ndị a — kwado ọnụahịa na nkọwa ya na azụmahịa ahụ.",
+  "Launchpad is powered by N-ATLAS, Nigeria's open multilingual model by NCAIR and Awarri, and by Groq. If Groq is unavailable, Google's Gemini may answer instead.": "Ọ bụ N-ATLAS — ihe nlereanya asụsụ dị iche iche nke Naịjirịa mepere emepe, nke NCAIR na Awarri wuru — na Groq na-akwado Launchpad. Ọ bụrụ na Groq adịghị, Gemini nke Google nwere ike ịza kama ya.",
+  "Launchpad is an independent project, not affiliated with NCAIR, Awarri, Groq or Google.": "Launchpad bụ ọrụ nọọrọ onwe ya, o nweghị njikọ na NCAIR, Awarri, Groq ma ọ bụ Google.",
+  "Contact": "Kpọtụrụ",
 };
 
 export default dict;

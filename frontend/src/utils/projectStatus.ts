@@ -183,7 +183,7 @@ export function nextStep(p: ProjectState, t: T = EN, mode: Mode = "developer"): 
 /** "Answers · Prices · Orders" — the blocks that are on. */
 function blockSummary(p: ProjectState, t: T): string {
   const b = p.site!.config.blocks;
-  const on = [b.info.on && t("Answers"), b.prices.on && t("Prices"), b.orders.on && t("Orders"), b.contact.on && t("A person")].filter(Boolean);
+  const on = [b.info.on && t("Answers"), b.prices.on && t("Prices"), b.orders.on && t("Orders"), b.contact.on && t("Contact")].filter(Boolean);
   return on.length ? on.join(" · ") : t("No blocks switched on");
 }
 

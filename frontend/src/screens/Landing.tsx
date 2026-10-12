@@ -114,7 +114,7 @@ export default function Landing({ publicSite = false }: { publicSite?: boolean }
         <div>
           <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-stone-500">
             <span className="h-px w-8 bg-forge-500" />
-            {t("Powered by N-ATLAS · Nigeria's open multilingual LLM")}
+            {t("Powered by N-ATLAS and Groq")}
           </div>
           <h1 className="mt-8 font-serif text-[2.6rem] leading-[1.04] tracking-tight sm:text-6xl lg:text-[4.1rem]">
             {lead} <em className="italic text-forge-600">{tail}</em>
@@ -228,6 +228,18 @@ export default function Landing({ publicSite = false }: { publicSite?: boolean }
           </button>
         </div>
       </section>
+
+      {/* Credits: which AI services do the work */}
+      <footer className="border-t border-stone-300">
+        <div className="mx-auto max-w-6xl space-y-1.5 px-6 py-8 text-xs leading-relaxed text-stone-500">
+          <p>
+            {t(
+              "Launchpad is powered by N-ATLAS, Nigeria's open multilingual model by NCAIR and Awarri, and by Groq. If Groq is unavailable, Google's Gemini may answer instead.",
+            )}
+          </p>
+          <p>{t("Launchpad is an independent project, not affiliated with NCAIR, Awarri, Groq or Google.")}</p>
+        </div>
+      </footer>
     </div>
   );
 }

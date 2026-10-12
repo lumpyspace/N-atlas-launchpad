@@ -62,14 +62,18 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainPro
       thinkingTokens: 1024,
     });
   }
-  if (env.GROQ_API_KEY?.trim()) {
+  // GROQ_MODEL may list several too: on Groq's free plan each model has its own
+  // per-minute token limit, so a second and third model triple the room.
+  const groqModels = (env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b,qwen/qwen3.8-27b,openai/gpt-oss-20b").split(",").map((m) => m.trim()).filter(Boolean);
+  for (const model of env.GROQ_API_KEY?.trim() ? groqModels : []) {
+    const gptOss = model.startsWith("openai/gpt-oss");
     out.push({
       name: "Groq",
       baseURL: "https://api.groq.com/openai/v1",
-      model: env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b",
+      model,
       apiKey: cleanSecret(env.GROQ_API_KEY, "GROQ_API_KEY"),
-      extra: { reasoning_effort: "low" },
-      thinkingTokens: 1024,
+      // gpt-oss thinks a little (the thinking counts against max_tokens); Qwen answers straight away.
+      ...(gptOss ? { extra: { reasoning_effort: "low" }, thinkingTokens: 1024 } : model.startsWith("qwen/") ? { extra: { reasoning_effort: "none" } } : {}),
     });
   }
   if (env.BRAIN_BASE_URL?.trim() && env.BRAIN_MODEL?.trim()) {
@@ -87,6 +91,14 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainPro
     return i < 0 ? order.length : i;
   };
   return out.map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i).map(({ p }) => p);
+}
+
+/** How long a rate-limited provider asks us to wait ("Please try again in 13.7s"), capped at a minute. */
+export function retryAfterMs(message: string): number {
+  const m = message.match(/try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s/i);
+  if (!m) return 60_000;
+  const ms = (Number(m[1] ?? 0) * 60 + Number(m[2])) * 1000;
+  return Math.min(60_000, Math.ceil(ms) + 500);
 }
 
 /** The text up to its last complete sentence ("" if there's none). */
@@ -177,8 +189,9 @@ export class Brain {
         if (options.signal?.aborted) throw err;
         last = err instanceof BrainError ? err : new BrainError(String(err), true);
         logger.error("assistant model failed", { provider: p.name, reason: last.message });
-        // Out of quota: rest this provider for a minute. Either way, try the next one.
-        if (last.status === 429) this.cooldown.set(key(p), this.now() + 60_000);
+        // Out of quota: rest this provider as long as it asks ("try again in 4.2s"), at most
+        // a minute — a per-minute limit frees up in seconds. Either way, try the next one.
+        if (last.status === 429) this.cooldown.set(key(p), this.now() + retryAfterMs(last.message));
       }
     }
     throw last ?? new BrainError("Every assistant model is resting after hitting its limit", true);

@@ -15,6 +15,7 @@ import type { LangCode } from "../eval/lang.js";
 import { logger } from "../logger.js";
 import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import { sanitizeConfig } from "./sanitize.js";
+import { translateLabel } from "./translate.js";
 import { EMPTY_BLOCKS, THEMES, type AssistantConfig, type Page, type Section } from "./types.js";
 
 const ACCENTS: Record<string, string> = { market: "#0f9d58", clean: "#2563eb", warm: "#ea580c", night: "#22c55e" };
@@ -91,9 +92,12 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
 
 /** Put every visible word of the site into its language (names kept as they are). */
 async function translateSite(site: ReturnType<typeof defaultSite>, name: string, language: LangCode, deps: { brain?: Brain; natlas: NAtlasProvider }, by: string) {
-  const say = async (english: string): Promise<string> => {
+  const say = async (english: string, label = false): Promise<string> => {
     if (!english.trim()) return english;
     try {
+      // Titles and headings are labels: the assistant model, told what they are.
+      const v = label ? await translateLabel(deps.brain, english, language, [name]) : null;
+      if (v) return v;
       if (deps.brain?.available()) return (await speakIn({ brain: deps.brain, natlas: deps.natlas, language, english, brainName: by, keep: [name] })).text;
       return (await translatePieces(deps.natlas, english, language, undefined, undefined, [name]))?.text ?? english;
     } catch {
@@ -101,19 +105,19 @@ async function translateSite(site: ReturnType<typeof defaultSite>, name: string,
     }
   };
   // Collect every string, translate them a few at a time, and put them back.
-  const slots: { get: () => string; set: (v: string) => void }[] = [];
-  const add = (obj: any, key: string) => slots.push({ get: () => obj[key], set: (v) => (obj[key] = v) });
+  const slots: { get: () => string; set: (v: string) => void; label: boolean }[] = [];
+  const add = (obj: any, key: string, label = false) => slots.push({ get: () => obj[key], set: (v) => (obj[key] = v), label });
   add(site, "tagline");
   add(site, "greeting");
   for (const p of site.pages) {
-    add(p, "title");
+    add(p, "title", true);
     for (const s of p.sections as any[]) {
-      if ("heading" in s) add(s, "heading");
+      if ("heading" in s) add(s, "heading", true);
       if ("text" in s) add(s, "text");
       if (s.type === "faq") for (const i of s.items) (add(i, "q"), add(i, "a"));
     }
   }
-  const done = await pool(slots, 6, (s) => say(s.get()));
+  const done = await pool(slots, 6, (s) => say(s.get(), s.label));
   done.forEach((v, i) => slots[i].set(v));
 }
 

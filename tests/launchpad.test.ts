@@ -97,3 +97,11 @@ test("scripted demo provider: naive app fails, hardened app passes (computed)", 
   assert.ok(after.summary.score > before.summary.score + 40, "hardening should raise the score a lot");
   assert.equal(before.isMock, true);
 });
+
+test("a site described in Pidgin or English is named after the business, not the opening words", () => {
+  assert.equal(
+    generateBlueprint("I wan build website for my grain shop for Dawanau market for Kano. Rice 50kg na ₦82,000.").name,
+    "Grain Shop Assistant",
+  );
+  assert.equal(generateBlueprint("I want to build a website for our pharmacy in Yaba that lists drugs.").name, "Pharmacy Assistant");
+});

@@ -222,8 +222,6 @@ const dict: Record<string, string> = {
   "Picking one rebuilds the blueprint, features and system prompt for that kind of app. Your saved test cases are kept.":
     "Yíyan ọ̀kan á tún blueprint, àwọn ẹ̀yà àti system prompt kọ́ fún irú ohun èlò náà. Àwọn test case tí o fi pamọ́ á wà síbẹ̀.",
   "Potential risks": "Àwọn ewu tó lè ṣẹlẹ̀",
-  "Powered by N-ATLAS": "N-ATLAS ló ń ṣiṣẹ́ rẹ̀",
-  "Powered by N-ATLAS · Nigeria's open multilingual LLM": "N-ATLAS ló ń ṣiṣẹ́ rẹ̀ · LLM ọlọ́pọ̀ èdè tó ṣí sílẹ̀ ti Nàìjíríà",
   "Primary tasks": "Àwọn iṣẹ́ pàtàkì",
   "Project actions": "Àwọn ìṣe iṣẹ́ akanṣe",
   "Prompt": "Prompt",
@@ -788,7 +786,6 @@ const dict: Record<string, string> = {
   "Publish it: you'll get a link anyone can open.": "Tẹ̀ ẹ́ jáde: wàá gba ìjápọ̀ tí ẹnikẹ́ni lè ṣí.",
   "Answers": "Àwọn ìdáhùn",
   "Prices": "Iye owó",
-  "A person": "Ènìyàn kan",
   "No blocks switched on": "Kò sí apá tí a tan",
   "Open Your site": "Ṣí Ojú-òpó rẹ",
   "Describe your idea in a sentence or two, in any language you like. We'll turn it into a plan — and then a website with an N-ATLAS assistant on it.": "Ṣàpèjúwe èrò rẹ ní gbólóhùn kan tàbí méjì, ní èdè èyíkéyìí tí o fẹ́. A ó sọ ọ́ di ètò — lẹ́yìn náà ojú-òpó tí ó ní olùrànlọ́wọ́ N-ATLAS.",
@@ -837,6 +834,11 @@ const dict: Record<string, string> = {
   "Translate now": "Túmọ̀ báyìí",
   "Editing in:": "Ò ń ṣàtúnṣe ní:",
   "Fix the translation here. “Translate again” in Settings would replace your fixes.": "Ṣàtúnṣe ìtúmọ̀ níbí. “Túmọ̀ lẹ́ẹ̀kan sí i” nínú Ètò yóò rọ́pò àwọn àtúnṣe rẹ.",
+  "Powered by N-ATLAS and Groq": "Agbára láti ọ̀dọ̀ N-ATLAS àti Groq",
+  "Answers are written by AI (N-ATLAS and Groq) — check prices and details with the business.": "AI (N-ATLAS àti Groq) ló ń kọ àwọn ìdáhùn — jẹ́rìí sí iye owó àti àlàyé pẹ̀lú ilé-iṣẹ́ náà.",
+  "Launchpad is powered by N-ATLAS, Nigeria's open multilingual model by NCAIR and Awarri, and by Groq. If Groq is unavailable, Google's Gemini may answer instead.": "N-ATLAS — àwòṣe èdè púpọ̀ tí ó ṣí sílẹ̀ ti Nàìjíríà, tí NCAIR àti Awarri ṣe — àti Groq ló ń fún Launchpad lágbára. Tí Groq kò bá sí, Gemini ti Google lè dáhùn dípò rẹ̀.",
+  "Launchpad is an independent project, not affiliated with NCAIR, Awarri, Groq or Google.": "Launchpad jẹ́ iṣẹ́ àdáni, kò ní àjọṣe pẹ̀lú NCAIR, Awarri, Groq tàbí Google.",
+  "Contact": "Ìbánisọ̀rọ̀",
 };
 
 export default dict;

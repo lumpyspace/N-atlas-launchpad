@@ -221,8 +221,6 @@ const dict: Record<string, string> = {
   "Picking one rebuilds the blueprint, features and system prompt for that kind of app. Your saved test cases are kept.":
     "If you pick one, e go rebuild the blueprint, features and system prompt for that kind app. Your saved test cases go still dey.",
   "Potential risks": "Wahala wey fit happen",
-  "Powered by N-ATLAS": "Na N-ATLAS dey power am",
-  "Powered by N-ATLAS · Nigeria's open multilingual LLM": "Na N-ATLAS dey power am · Nigeria open LLM wey sabi plenty languages",
   "Primary tasks": "Main work",
   "Project actions": "Project actions",
   "Prompt": "Prompt",
@@ -787,7 +785,6 @@ const dict: Record<string, string> = {
   "Publish it: you'll get a link anyone can open.": "Publish am: you go get link wey anybody fit open.",
   "Answers": "Answers",
   "Prices": "Prices",
-  "A person": "Human being",
   "No blocks switched on": "No block dey on",
   "Open Your site": "Open Your site",
   "Describe your idea in a sentence or two, in any language you like. We'll turn it into a plan — and then a website with an N-ATLAS assistant on it.": "Describe your idea for one or two sentences, for any language wey you like. We go turn am to plan — then website wey get N-ATLAS assistant inside.",
@@ -836,6 +833,11 @@ const dict: Record<string, string> = {
   "Translate now": "Translate now",
   "Editing in:": "You dey edit for:",
   "Fix the translation here. “Translate again” in Settings would replace your fixes.": "Correct the translation here. “Translate again” for Settings go replace wetin you correct.",
+  "Powered by N-ATLAS and Groq": "Na N-ATLAS and Groq dey power am",
+  "Answers are written by AI (N-ATLAS and Groq) — check prices and details with the business.": "Na AI (N-ATLAS and Groq) dey write the answers — confirm price and details with the business.",
+  "Launchpad is powered by N-ATLAS, Nigeria's open multilingual model by NCAIR and Awarri, and by Groq. If Groq is unavailable, Google's Gemini may answer instead.": "Na N-ATLAS — Nigeria open model wey sabi many languages, wey NCAIR and Awarri build — and Groq dey power Launchpad. If Groq no dey available, Google Gemini fit answer instead.",
+  "Launchpad is an independent project, not affiliated with NCAIR, Awarri, Groq or Google.": "Launchpad na independent project — e no join body with NCAIR, Awarri, Groq or Google.",
+  "Contact": "Contact",
 };
 
 export default dict;
