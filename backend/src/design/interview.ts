@@ -89,7 +89,7 @@ function questionFor(slot: Slot, bp: Blueprint): string {
   const plan = bp.buildPlan;
   switch (slot) {
     case "idea":
-      return "What would you like to build? Describe it in your own words — English, Pidgin, Yoruba, Hausa or Igbo is fine.";
+      return "What would you like to build? Describe it in your own words — English, Yoruba, Hausa or Igbo is fine.";
     case "users":
       return "Who exactly will use it, and where are they? (For example: first-year students at one university, or market traders in Kano.)";
     case "problem":

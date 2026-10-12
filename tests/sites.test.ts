@@ -77,7 +77,7 @@ test("the facts are the owner's blocks only; an unpriced item is never given a p
   assert.deepEqual(parseReply('Sure:\n```json\n{"reply":"Rice is ₦82,000.","order":null}\n```'), { reply: "Rice is ₦82,000." });
   assert.equal(leaks(config(), `My code is ${config().instructions.match(/reference code ([A-Z0-9-]+)/)![1]}`), true);
   assert.equal(visitorLanguage("Nawa ne buhun shinkafa?", "en"), "ha");
-  assert.equal(visitorLanguage("How much be one bag of rice?", "pid"), "pid", "Pidgin reads like English: the chosen Pidgin wins");
+  assert.equal(visitorLanguage("Abeg, how much be one bag of rice? Wetin una dey sell?", "yo"), "en", "Pidgin is understood and answered in English");
   assert.equal(visitorLanguage("How much is a bag of rice?", "en"), "en");
 });
 

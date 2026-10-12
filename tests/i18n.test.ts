@@ -10,7 +10,7 @@ import { join } from "node:path";
  */
 
 const SRC = new URL("../frontend/src/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-const LANGS = ["pid", "yo", "ha", "ig"] as const;
+const LANGS = ["yo", "ha", "ig"] as const;
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {
@@ -41,7 +41,7 @@ export function extractKeys(): Set<string> {
 
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
-test("i18n: every interface string is translated into Pidgin, Yoruba, Hausa and Igbo", async () => {
+test("i18n: every interface string is translated into Yoruba, Hausa and Igbo", async () => {
   const keys = extractKeys();
   assert.ok(keys.size > 300, `expected the interface strings, found ${keys.size}`);
   for (const lang of LANGS) {

@@ -34,7 +34,7 @@ import { logger } from "../logger.js";
 import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import { openSse } from "./sse.js";
 
-const isLang = (v: unknown): v is LangCode => v === "en" || v === "pid" || v === "yo" || v === "ha" || v === "ig";
+const isLang = (v: unknown): v is LangCode => v === "en" || v === "yo" || v === "ha" || v === "ig";
 
 function isBlueprint(v: any): v is Blueprint {
   return (

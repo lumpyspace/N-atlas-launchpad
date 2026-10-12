@@ -507,7 +507,7 @@ function ChatBubble({
             {site.name}
           </div>
           <div className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "var(--s-muted)" }}>
-            {t("Replies in English, Pidgin, Yoruba, Hausa or Igbo")}
+            {t("Replies in English, Yoruba, Hausa or Igbo")}
           </div>
         </div>
         <button onClick={onClose} aria-label={t("Close")} className="rounded p-1 opacity-60 hover:opacity-100">

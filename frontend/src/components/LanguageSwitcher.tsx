@@ -12,7 +12,7 @@ export default function LanguageSwitcher({ compact = false }: { compact?: boolea
   const t = useT();
 
   useEffect(() => {
-    document.documentElement.lang = language === "pid" ? "pcm" : language;
+    document.documentElement.lang = language;
   }, [language]);
 
   const title =

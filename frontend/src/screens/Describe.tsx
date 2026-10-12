@@ -88,7 +88,7 @@ export default function Describe() {
             {t("who is it for, what should it do, and any specific features or languages?")}
             <br />
             <span className="text-amber-500">
-              {t("e.g. “A note-taking app for first-year university students that summarises lectures and makes flashcards, in English and Pidgin”")}
+              {t("e.g. “A note-taking app for first-year university students that summarises lectures and makes flashcards, in English and Yoruba”")}
             </span>
           </div>
         )}

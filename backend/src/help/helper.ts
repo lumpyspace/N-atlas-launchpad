@@ -39,7 +39,7 @@ export function parseHelpContext(raw: unknown): HelpContext {
 }
 
 const MAP = `LAUNCHPAD, PAGE BY PAGE (Simple-mode name → Developer-mode name)
-- Language: English, Pidgin, Yoruba, Hausa or Igbo, from the menu at the top. Pages and replies use it; it can be changed any time.
+- Language: English, Yoruba, Hausa or Igbo (N-ATLAS's four official languages), from the menu at the top. Pages and replies use it; it can be changed any time.
 - Describe it → Describe: write the idea in a sentence or two (or pick an example: Education, Agriculture, Finance…), then "Generate blueprint".
 - Your plan → Build guide: what you're building, an example conversation, what the first version should do, the facts it needs, mistakes to avoid. Developer mode adds architecture, techniques, build steps, N-ATLAS limits, the licence, and a "Blueprint & system prompt" tab.
 - Prompt (Developer mode only): edit the assistant's instructions (its "system prompt") and save versions.
@@ -57,7 +57,7 @@ WHAT LAUNCHPAD BUILDS
 
 WHO DOES WHAT
 - Groq (a fast service running an open model, gpt-oss-120b) does the thinking: the design questions, the plan, setting up the blocks, this helper — and, in a published assistant, deciding each answer from the owner's facts only.
-- N-ATLAS understands Pidgin, Yoruba, Hausa and Igbo and puts everything into the person's language — including every answer a published assistant gives its visitors.
+- N-ATLAS understands Yoruba, Hausa and Igbo and puts everything into the person's language — including every answer a published assistant gives its visitors.
 
 N-ATLAS
 - An open model from NCAIR (Nigeria): Llama 3 with 8 billion parameters, tuned for Nigerian English, Yoruba, Hausa and Igbo; 8,192-token context.

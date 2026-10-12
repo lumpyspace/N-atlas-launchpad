@@ -59,7 +59,7 @@ function parseHistory(raw: unknown): ChatMessage[] {
 }
 
 function parseLanguage(raw: unknown): LangCode | undefined {
-  return raw === "en" || raw === "pid" || raw === "yo" || raw === "ha" || raw === "ig" ? raw : undefined;
+  return raw === "en" || raw === "yo" || raw === "ha" || raw === "ig" ? raw : undefined;
 }
 
 /** Does the reply already end with (roughly) the question we asked for? */

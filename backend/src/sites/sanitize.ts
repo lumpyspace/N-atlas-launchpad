@@ -10,7 +10,7 @@ import { hardenSystemPrompt } from "../improve/harden.js";
 import { makeCanary } from "../shared/prompt.js";
 import { EMPTY_BLOCKS, THEMES, type AssistantConfig, type Page, type Post, type Section, type ThemeId } from "./types.js";
 
-const LANGS: LangCode[] = ["en", "pid", "yo", "ha", "ig"];
+const LANGS: LangCode[] = ["en", "yo", "ha", "ig"];
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const slugify = (s: string) =>
   s

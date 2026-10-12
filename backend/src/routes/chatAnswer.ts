@@ -15,7 +15,7 @@ import { logger } from "../logger.js";
 import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import type { SseStream } from "./sse.js";
 
-const LANGS = ["en", "pid", "yo", "ha", "ig"];
+const LANGS = ["en", "yo", "ha", "ig"];
 
 export function parseLanguage(raw: unknown): LangCode {
   return (LANGS.includes(raw as string) ? raw : "en") as LangCode;

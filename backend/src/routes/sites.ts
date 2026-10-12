@@ -32,7 +32,7 @@ import type { SiteStore } from "../sites/store.js";
 import { writePost } from "../sites/writePost.js";
 import { translateSiteTo } from "../sites/translate.js";
 
-const LANGS: LangCode[] = ["en", "pid", "yo", "ha", "ig"];
+const LANGS: LangCode[] = ["en", "yo", "ha", "ig"];
 const hash = (key: string) => createHash("sha256").update(key).digest("hex");
 const today = () => new Date().toISOString().slice(0, 10);
 

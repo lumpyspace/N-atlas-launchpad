@@ -150,10 +150,8 @@ export function leaks(config: AssistantConfig, reply: string): boolean {
 export function visitorLanguage(words: string, fallback: LangCode): LangCode {
   const g = detectLanguage(words);
   if (g.confidence === 0) return fallback;
-  // Pidgin shares most of its words with English, so it often reads as English:
-  // a visitor who picked Pidgin (or a Pidgin site) gets Pidgin.
-  if (g.lang === "en" && fallback === "pid") return "pid";
-  return g.lang;
+  // Sites speak N-ATLAS's four official languages; Pidgin is understood, answered in English.
+  return g.lang === "pid" ? "en" : g.lang;
 }
 
 const fingerprint = (fields: Record<string, string>) =>

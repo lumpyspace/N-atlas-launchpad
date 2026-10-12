@@ -23,7 +23,7 @@ export default function SitePlugins() {
           <Plugin
             icon={<SparklesIcon size={16} />}
             name={t("N-ATLAS assistant")}
-            what={t("A chat bubble on every page. It answers from your pages and plugins, in English, Pidgin, Yoruba, Hausa or Igbo. Groq thinks; N-ATLAS speaks the visitor's language.")}
+            what={t("A chat bubble on every page. It answers from your pages and plugins, in English, Yoruba, Hausa or Igbo. Groq thinks; N-ATLAS speaks the visitor's language.")}
             on={c.blocks.assistant.on}
             onToggle={(on) => setBlocks({ assistant: { on } })}
           >

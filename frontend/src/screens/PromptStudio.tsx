@@ -135,7 +135,7 @@ export default function PromptStudio() {
                     setLabel("");
                   }
                 }}
-                placeholder={t("Version name (optional), e.g. “added Pidgin rule”")}
+                placeholder={t("Version name (optional), e.g. “added Yoruba rule”")}
                 className="min-w-56 flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-forge-500 focus:outline-none"
               />
               <Button

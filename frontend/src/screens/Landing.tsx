@@ -27,7 +27,7 @@ const FLOW: { icon: Icon; label: string; blurb: string }[] = [
 /** The kinds of assistant Launchpad builds (the export's channels). */
 const KINDS: { icon: Icon; title: string; body: string }[] = [
   { icon: LayersIcon, title: N_("A website"), body: N_("Pages for your business — home, prices, questions, contact — in a theme you pick.") },
-  { icon: ChatIcon, title: N_("An assistant on every page"), body: N_("It answers from your own pages, in English, Pidgin, Yoruba, Hausa or Igbo.") },
+  { icon: ChatIcon, title: N_("An assistant on every page"), body: N_("It answers from your own pages, in English, Yoruba, Hausa or Igbo.") },
   { icon: ZapIcon, title: N_("Orders & bookings"), body: N_("Visitors order in conversation; confirmed ones land in your inbox. Plus a WhatsApp button.") },
   { icon: RocketIcon, title: N_("Publish in one click"), body: N_("A link anyone can open on a phone — no code, no server, no hosting to set up.") },
 ];
@@ -37,7 +37,7 @@ const DEV_FEATURES: { icon: Icon; title: string; body: string }[] = [
     icon: GlobeIcon,
     title: N_("Built for Nigerian languages"),
     body: N_(
-      "Use Launchpad in English, Pidgin, Yoruba, Hausa or Igbo. Test messages in every language, language detection that catches a reply drifting into the wrong language, and accent-insensitive matching.",
+      "Use Launchpad in English, Yoruba, Hausa or Igbo. Test messages in every language, language detection that catches a reply drifting into the wrong language, and accent-insensitive matching.",
     ),
   },
   {
@@ -69,11 +69,6 @@ const SAMPLE: Record<LangCode, { you: string; natlas: string; tag: string }> = {
     you: "How much is a bag of rice?",
     natlas: "A 50kg bag of rice is ₦82,000. Would you like to place an order?",
     tag: "English",
-  },
-  pid: {
-    you: "How much be one bag of rice?",
-    natlas: "One 50kg bag of rice na ₦82,000. You wan order?",
-    tag: "Naijá",
   },
   yo: {
     you: "Èló ni àpò ìrẹsì kan?",
@@ -121,7 +116,7 @@ export default function Landing({ publicSite = false }: { publicSite?: boolean }
           </h1>
           <p className="mt-8 max-w-xl text-lg leading-relaxed text-stone-600">
             {t(
-              "Describe it in English, Pidgin, Yoruba, Hausa or Igbo. Groq builds your website — pages, a theme, and plugins like a price list, orders and WhatsApp — with an N-ATLAS assistant on every page. Check it, then publish it to a link anyone can open.",
+              "Describe it in English, Yoruba, Hausa or Igbo. Groq builds your website — pages, a theme, and plugins like a price list, orders and WhatsApp — with an N-ATLAS assistant on every page. Check it, then publish it to a link anyone can open.",
             )}
           </p>
           <div className="mt-8">
@@ -196,7 +191,7 @@ export default function Landing({ publicSite = false }: { publicSite?: boolean }
           </div>
           <div className="border-t border-stone-300 pt-5">
             <div className="font-serif text-xl">{t("N-ATLAS speaks your language")}</div>
-            <p className="mt-1.5 text-[15px] leading-relaxed text-stone-600">{t("It understands you in Pidgin, Yoruba, Hausa or Igbo, puts everything into your language — and it's the model your assistant runs on.")}</p>
+            <p className="mt-1.5 text-[15px] leading-relaxed text-stone-600">{t("It understands you in Yoruba, Hausa or Igbo, puts everything into your language — and it's the model your assistant runs on.")}</p>
           </div>
         </div>
       </Chapter>
