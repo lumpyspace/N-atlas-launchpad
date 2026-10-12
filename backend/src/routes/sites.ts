@@ -18,7 +18,7 @@
  */
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { Router, type Request } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { clientIp } from "../app.js";
 import type { Brain } from "../brain/brain.js";
 import { exportSlug } from "../deploy/kit.js";
@@ -56,7 +56,7 @@ export function sitesRouter(
   store: SiteStore | null,
   opts: { publicMode: boolean; dailyLimit?: number; publishesPerDay?: number },
 ): Router {
-  const router = Router();
+  const router = catchAsync(Router());
   const dailyLimit = opts.dailyLimit ?? 300;
 
   const owns = async (req: Request) => {
@@ -194,5 +194,29 @@ export function sitesRouter(
     }
   });
 
+  return router;
+}
+
+type Handler = (req: Request, res: Response, next: NextFunction) => unknown;
+
+/**
+ * Express 4 doesn't catch errors thrown by async handlers: a failed database
+ * call would leave the request (and the Publish button) waiting forever.
+ * This answers with an error instead.
+ */
+function catchAsync(router: Router): Router {
+  for (const method of ["get", "post", "put", "delete"] as const) {
+    const original = router[method].bind(router) as (path: string, ...handlers: Handler[]) => Router;
+    (router as unknown as Record<string, unknown>)[method] = (path: string, ...handlers: Handler[]) =>
+      original(
+        path,
+        ...handlers.map((h): Handler => (req, res, next) => {
+          Promise.resolve(h(req, res, next)).catch((err) => {
+            logger.error("sites request failed", { path, reason: err instanceof Error ? err.message : String(err) });
+            if (!res.headersSent) res.status(503).json({ error: "Couldn't reach the site database just now — please try again in a moment." });
+          });
+        }),
+      );
+  }
   return router;
 }

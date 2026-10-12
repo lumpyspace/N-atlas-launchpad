@@ -11,6 +11,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { cleanSecret } from "../config.js";
 import type { InboxItem, Site } from "./types.js";
 
 export interface SiteStore {
@@ -88,6 +89,8 @@ export class UpstashStore implements SiteStore {
       method: "POST",
       headers: { authorization: `Bearer ${this.token}`, "content-type": "application/json" },
       body: JSON.stringify(args.map(String)),
+      // A database that doesn't answer shouldn't keep the person waiting.
+      signal: AbortSignal.timeout(10_000),
     });
     const data = (await res.json().catch(() => ({}))) as { result?: T; error?: string };
     if (!res.ok || data.error) throw new Error(`database: ${data.error ?? `HTTP ${res.status}`}`);
@@ -121,8 +124,11 @@ export class UpstashStore implements SiteStore {
 
 /** The store for this environment, or null when publishing can't work here. */
 export function storeFromEnv(env: NodeJS.ProcessEnv, publicMode: boolean, filePath: string): SiteStore | null {
-  const url = env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL;
-  const token = env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN;
+  // Forgive quotes or a pasted `NAME=` around the values, as for the API keys.
+  const url =
+    cleanSecret(env.UPSTASH_REDIS_REST_URL, "UPSTASH_REDIS_REST_URL") || cleanSecret(env.KV_REST_API_URL, "KV_REST_API_URL");
+  const token =
+    cleanSecret(env.UPSTASH_REDIS_REST_TOKEN, "UPSTASH_REDIS_REST_TOKEN") || cleanSecret(env.KV_REST_API_TOKEN, "KV_REST_API_TOKEN");
   if (url && token) return new UpstashStore(url, token);
   if (publicMode) return null;
   return new FileStore(filePath);

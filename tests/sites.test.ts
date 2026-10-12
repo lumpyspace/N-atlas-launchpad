@@ -8,7 +8,7 @@ import type { AddressInfo } from "node:net";
 import { test } from "node:test";
 import { Brain, type BrainProvider } from "../backend/src/brain/brain.ts";
 import { generateBlueprint } from "../backend/src/blueprint/generate.ts";
-import { MemoryStore, UpstashStore } from "../backend/src/sites/store.ts";
+import { MemoryStore, UpstashStore, storeFromEnv } from "../backend/src/sites/store.ts";
 import { factsFor, leaks, parseReply, visitorLanguage } from "../backend/src/sites/runtime.ts";
 import { publicView, sanitizeConfig } from "../backend/src/sites/sanitize.ts";
 
@@ -248,4 +248,31 @@ test("a site in several languages: extra languages and their translations reach 
   assert.equal(view.translations.en.pages[0].title, "Home");
   assert.equal(view.translations.en.posts.length, 0, "draft posts stay private in every language");
   assert.ok(!("source" in view.translations.en));
+});
+
+test("database settings pasted with quotes still work; a database failure answers instead of hanging", async () => {
+  const seen: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    seen.push(`${url} ${(init.headers as Record<string, string>).authorization}`);
+    return new Response(JSON.stringify({ result: null }));
+  }) as typeof fetch;
+  try {
+    const s = storeFromEnv({ UPSTASH_REDIS_REST_URL: '"https://db.test"', UPSTASH_REDIS_REST_TOKEN: "UPSTASH_REDIS_REST_TOKEN='t'" }, true, "");
+    assert.equal(await s?.getSite("a"), null);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.deepEqual(seen, ["https://db.test Bearer t"]);
+
+  class DownStore extends MemoryStore {
+    override async putSite(): Promise<void> {
+      throw new Error("database: unreachable");
+    }
+  }
+  await withApp(new DownStore(), () => "{}", async (call) => {
+    const r = await call("POST", "/sites", { config: config() });
+    assert.equal(r.status, 503);
+    assert.match(r.body.error, /database/);
+  });
 });
