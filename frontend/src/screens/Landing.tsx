@@ -164,7 +164,7 @@ export default function Landing({ publicSite = false }: { publicSite?: boolean }
         <p className="mt-10 max-w-2xl border-l-2 border-amber-400 pl-4 text-sm leading-relaxed text-stone-600">
           <b className="font-semibold text-stone-800">{t("Good to know:")}</b>{" "}
           {t(
-            "Launchpad builds small websites with an assistant, WordPress-style — not every kind of app: there are no customer accounts or payments. Publishing puts your site online here, on N-ATLAS.",
+            "Launchpad builds small websites with an assistant — not every kind of app: there are no customer accounts or payments. Publishing puts your site online here, on N-ATLAS.",
           )}
         </p>
       </Chapter>

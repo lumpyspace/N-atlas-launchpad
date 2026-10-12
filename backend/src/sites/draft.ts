@@ -54,7 +54,7 @@ export function draftRequest(bp: Blueprint): string {
   return `Facts about the business and its assistant:
 ${planFacts(bp)}
 
-Create a small website for it, WordPress-style, with an AI assistant on every page. Reply in JSON only:
+Create a small website for it, with an AI assistant on every page. Reply in JSON only:
 {"title": "<the site's name: the business's own name if the facts give one, else a short, plain name for it>",
  "tagline": "<one short sentence>",
  "greeting": "<the assistant's first message: friendly, one or two sentences; it can ONLY answer questions about this business, quote the price list, take orders/bookings/enquiries and pass people to a staff member — never mention tracking, returns, refunds, payments or accounts>",

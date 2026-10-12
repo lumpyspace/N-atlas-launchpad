@@ -59,7 +59,7 @@ export default function SiteDashboard() {
     : [];
 
   return (
-    <SiteFrame title={t("Dashboard")} subtitle={t("Your website, with the N-ATLAS assistant on every page. Manage it here, WordPress-style.")}>
+    <SiteFrame title={t("Dashboard")} subtitle={t("Your website, with the N-ATLAS assistant on every page. Manage it all here.")}>
       {c && (
         <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
           <Card className="p-5">
