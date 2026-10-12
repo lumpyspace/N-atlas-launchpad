@@ -14,3 +14,6 @@ screenshots
 pw-*.mjs
 backend/.tmp-export
 remind-me
+
+# Sites published on this computer (local test data)
+backend/.data
