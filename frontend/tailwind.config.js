@@ -21,6 +21,7 @@ export default {
         pop: "0 8px 30px rgba(16, 24, 40, 0.10)",
       },
       fontFamily: {
+        serif: ["Fraunces", "Iowan Old Style", "Georgia", "serif"],
         sans: [
           "Inter",
           "ui-sans-serif",

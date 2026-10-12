@@ -1,61 +1,22 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PublicSite, Section, SiteAnswer, SiteTurn, ThemeId } from "../../api";
 import { isLangCode, LANGUAGES, translate, type LangCode } from "../../i18n";
-import { ChatIcon, SendIcon, XIcon } from "../../ui/icons";
+import { SendIcon, XIcon } from "../../ui/icons";
 import { Spinner } from "../../ui";
 import { RichText } from "../RichText";
 
-/** A theme: the site's colours and shape (the accent is the owner's choice). */
-const THEMES: Record<ThemeId, { bg: string; surface: string; text: string; muted: string; line: string; heroText: string; radius: string; heroStyle: (accent: string) => CSSProperties }> = {
-  market: {
-    bg: "#f6faf7",
-    surface: "#ffffff",
-    text: "#10231a",
-    muted: "#5b6b63",
-    line: "#e3ebe6",
-    heroText: "#ffffff",
-    radius: "16px",
-    heroStyle: (a) => ({ background: `linear-gradient(135deg, ${a}, ${shade(a, -35)})` }),
-  },
-  clean: {
-    bg: "#ffffff",
-    surface: "#f8fafc",
-    text: "#0f172a",
-    muted: "#64748b",
-    line: "#e2e8f0",
-    heroText: "#0f172a",
-    radius: "10px",
-    heroStyle: (a) => ({ background: `linear-gradient(180deg, ${shade(a, 88)}, #ffffff)`, borderBottom: `1px solid #e2e8f0` }),
-  },
-  warm: {
-    bg: "#fffaf3",
-    surface: "#ffffff",
-    text: "#2b1d0e",
-    muted: "#7a6650",
-    line: "#f1e4d3",
-    heroText: "#ffffff",
-    radius: "22px",
-    heroStyle: (a) => ({ background: `radial-gradient(circle at 20% 10%, ${shade(a, 25)}, ${a} 55%, ${shade(a, -30)})` }),
-  },
-  night: {
-    bg: "#0b1220",
-    surface: "#111a2e",
-    text: "#e5e7eb",
-    muted: "#94a3b8",
-    line: "#1f2a44",
-    heroText: "#ffffff",
-    radius: "14px",
-    heroStyle: (a) => ({ background: `linear-gradient(135deg, #0b1220, ${shade(a, -55)} 60%, ${shade(a, -25)})` }),
-  },
+/**
+ * The site's palette. Every theme is editorial — serif headlines, white space,
+ * hairline rules, the accent used sparingly; they differ in paper and ink.
+ */
+const THEMES: Record<ThemeId, { bg: string; surface: string; text: string; muted: string; line: string }> = {
+  market: { bg: "#f7f5ef", surface: "#fffdf8", text: "#1b1a17", muted: "#6b675d", line: "#e2ddd0" },
+  clean: { bg: "#ffffff", surface: "#fafafa", text: "#111111", muted: "#6b6b6b", line: "#e7e7e7" },
+  warm: { bg: "#fbf3e8", surface: "#fffaf3", text: "#2a1d12", muted: "#806b55", line: "#eadbc6" },
+  night: { bg: "#111110", surface: "#1a1a18", text: "#f2eee6", muted: "#a49f94", line: "#2d2c29" },
 };
 
-/** Lighten (+) or darken (−) a #rrggbb colour by a percentage. */
-function shade(hex: string, pct: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const f = (c: number) => Math.round(pct >= 0 ? c + (255 - c) * (pct / 100) : c * (1 + pct / 100));
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(f);
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
-}
+const SERIF = '"Fraunces", "Iowan Old Style", Georgia, serif';
 
 const naira = (n: number) => `₦${n.toLocaleString("en-US")}`;
 
@@ -133,176 +94,222 @@ export function SiteView({
     "--s-muted": theme.muted,
     "--s-line": theme.line,
     "--s-accent": accent,
-    "--s-radius": theme.radius,
+    "--s-serif": SERIF,
   } as CSSProperties;
+  const serif: CSSProperties = { fontFamily: "var(--s-serif)" };
 
   const openChat = (first?: string) => {
     setOpener(first ?? null);
     setChatOpen(true);
   };
 
+  /** A headline whose last words are set in italic accent — the editorial touch. */
+  const Headline = ({ text }: { text: string }) => {
+    const words = text.split(/\s+/);
+    if (showBlanks || words.length < 3) return <Blanks text={text} show={showBlanks} />;
+    const cut = words.length - Math.min(2, Math.floor(words.length / 3) || 1);
+    return (
+      <>
+        {words.slice(0, cut).join(" ")}{" "}
+        <em className="italic" style={{ color: "var(--s-accent)" }}>
+          {words.slice(cut).join(" ")}
+        </em>
+      </>
+    );
+  };
+
+  /** A numbered section (01, 02… — banners aren't counted): number and heading on the left, content on the right. */
+  const block = (i: number, heading: string, children: ReactNode) => {
+    const num = String(page.sections.slice(0, i).filter((x) => x.type !== "hero").length + 1).padStart(2, "0");
+    return (
+      <section key={i} className="border-t" style={{ borderColor: "var(--s-line)" }}>
+        <div className="mx-auto grid max-w-6xl gap-6 px-6 py-14 md:grid-cols-[15rem_1fr] md:gap-12 md:py-20">
+          <div>
+            <div className="font-mono text-xs tracking-widest" style={{ color: "var(--s-accent)" }}>
+              {num}
+            </div>
+            {heading && (
+              <h2 className="mt-3 text-3xl leading-tight tracking-tight" style={serif}>
+                <Blanks text={heading} show={showBlanks} />
+              </h2>
+            )}
+          </div>
+          <div className="min-w-0">{children}</div>
+        </div>
+      </section>
+    );
+  };
+
+  const button = (s: Extract<Section, { type: "hero" }>) =>
+    s.button !== "none" &&
+    (s.button !== "whatsapp" || wa) &&
+    (s.button === "whatsapp" || site.assistant) && (
+      <button
+        onClick={() => (s.button === "whatsapp" ? window.open(`https://wa.me/${wa}`, "_blank") : openChat(s.button === "order" ? t("I'd like to place an order.") : undefined))}
+        className="group inline-flex items-center gap-3 rounded-full px-6 py-3 text-sm font-medium tracking-wide transition-opacity hover:opacity-90"
+        style={{ background: "var(--s-text)", color: "var(--s-bg)" }}
+      >
+        {s.button === "order" ? t("Order now") : s.button === "whatsapp" ? t("Chat on WhatsApp") : t("Ask us anything")}
+        <span className="transition-transform group-hover:translate-x-1">→</span>
+      </button>
+    );
+
   const sectionView = (s: Section, i: number) => {
     switch (s.type) {
       case "hero":
         return (
-          <section key={i} style={theme.heroStyle(accent)} className="px-6 py-14 sm:py-20">
-            <div className="mx-auto max-w-3xl text-center" style={{ color: theme.heroText }}>
-              <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">
-                <Blanks text={s.heading} show={showBlanks} />
-              </h1>
-              {s.text && (
-                <p className="mx-auto mt-4 max-w-xl whitespace-pre-wrap text-base opacity-90 sm:text-lg">
-                  <Blanks text={s.text} show={showBlanks} />
-                </p>
-              )}
-              {s.button !== "none" && (s.button !== "whatsapp" || wa) && (s.button === "whatsapp" || site.assistant) && (
-                <button
-                  onClick={() =>
-                    s.button === "whatsapp" ? window.open(`https://wa.me/${wa}`, "_blank") : openChat(s.button === "order" ? t("I'd like to place an order.") : undefined)
-                  }
-                  className="mt-7 inline-flex items-center gap-2 px-6 py-3 text-base font-semibold shadow-lg transition-transform hover:-translate-y-0.5"
-                  style={{ background: theme.heroText === "#ffffff" ? "#ffffff" : accent, color: theme.heroText === "#ffffff" ? accent : "#ffffff", borderRadius: "999px" }}
-                >
-                  <ChatIcon size={16} />
-                  {s.button === "order" ? t("Order now") : s.button === "whatsapp" ? t("Chat on WhatsApp") : t("Ask us anything")}
-                </button>
-              )}
-            </div>
+          <section key={i} className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:pb-24 sm:pt-24">
+            {site.tagline && i === 0 && (
+              <div className="mb-8 flex items-center gap-3 text-xs uppercase tracking-[0.2em]" style={{ color: "var(--s-muted)" }}>
+                <span className="h-px w-8" style={{ background: "var(--s-accent)" }} />
+                {site.tagline}
+              </div>
+            )}
+            <h1 className="max-w-4xl text-5xl leading-[1.02] tracking-tight sm:text-7xl" style={{ ...serif, fontWeight: 400 }}>
+              <Headline text={s.heading} />
+            </h1>
+            {s.text && (
+              <p className="mt-8 max-w-xl whitespace-pre-wrap text-lg leading-relaxed" style={{ color: "var(--s-muted)" }}>
+                <Blanks text={s.text} show={showBlanks} />
+              </p>
+            )}
+            <div className="mt-10">{button(s)}</div>
           </section>
         );
       case "text":
         return (
-          <section key={i} className="mx-auto max-w-3xl px-6 py-10">
-            {s.heading && (
-              <h2 className="text-2xl font-bold tracking-tight">
-                <Blanks text={s.heading} show={showBlanks} />
-              </h2>
-            )}
-            <p className="mt-3 whitespace-pre-wrap leading-relaxed" style={{ color: "var(--s-muted)" }}>
+          block(i, s.heading, <>
+            <p className="max-w-2xl whitespace-pre-wrap text-lg leading-relaxed">
               <Blanks text={s.text} show={showBlanks} />
             </p>
-          </section>
+          </>)
         );
       case "faq":
         return (
-          <section key={i} className="mx-auto max-w-3xl px-6 py-10">
-            {s.heading && <h2 className="text-2xl font-bold tracking-tight">{s.heading}</h2>}
-            <div className="mt-4 space-y-2">
+          block(i, s.heading, <>
+            <div className="border-b" style={{ borderColor: "var(--s-line)" }}>
               {s.items.map((it, j) => (
-                <details key={j} className="group border px-4 py-3" style={{ background: "var(--s-surface)", borderColor: "var(--s-line)", borderRadius: "var(--s-radius)" }}>
-                  <summary className="cursor-pointer list-none font-semibold">
-                    <Blanks text={it.q} show={showBlanks} />
+                <details key={j} className="group border-t py-5" style={{ borderColor: "var(--s-line)" }}>
+                  <summary className="flex cursor-pointer list-none items-baseline justify-between gap-6 text-xl" style={serif}>
+                    <span>
+                      <Blanks text={it.q} show={showBlanks} />
+                    </span>
+                    <span className="shrink-0 font-sans text-lg transition-transform group-open:rotate-45" style={{ color: "var(--s-accent)" }}>
+                      +
+                    </span>
                   </summary>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed" style={{ color: "var(--s-muted)" }}>
+                  <p className="mt-3 max-w-2xl whitespace-pre-wrap leading-relaxed" style={{ color: "var(--s-muted)" }}>
                     <Blanks text={it.a} show={showBlanks} />
                   </p>
                 </details>
               ))}
             </div>
-          </section>
+          </>)
         );
       case "prices":
         if (!site.prices) return null;
         return (
-          <section key={i} className="mx-auto max-w-3xl px-6 py-10">
-            {s.heading && <h2 className="text-2xl font-bold tracking-tight">{s.heading}</h2>}
-            <div className="mt-4 overflow-hidden border" style={{ background: "var(--s-surface)", borderColor: "var(--s-line)", borderRadius: "var(--s-radius)" }}>
-              {site.prices.length === 0 && <p className="px-4 py-3 text-sm" style={{ color: "var(--s-muted)" }}>{t("Prices coming soon.")}</p>}
+          block(i, s.heading, <>
+            {site.prices.length === 0 && <p style={{ color: "var(--s-muted)" }}>{t("Prices coming soon.")}</p>}
+            <ul className="max-w-2xl space-y-5">
               {site.prices.map((it, j) => (
-                <div key={j} className="flex items-baseline justify-between gap-4 border-t px-4 py-3 first:border-t-0" style={{ borderColor: "var(--s-line)" }}>
-                  <div>
-                    <div className="font-semibold">{it.name}</div>
-                    <div className="text-xs" style={{ color: "var(--s-muted)" }}>
+                <li key={j}>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-xl" style={serif}>
+                      {it.name}
+                    </span>
+                    <span className="mb-1 flex-1 border-b border-dotted" style={{ borderColor: "var(--s-muted)", opacity: 0.5 }} />
+                    <span className="font-medium tabular-nums" style={{ color: it.price == null ? "var(--s-muted)" : "var(--s-accent)" }}>
+                      {it.price == null ? t("Ask us") : naira(it.price)}
+                    </span>
+                  </div>
+                  {(it.unit || it.note) && (
+                    <div className="mt-0.5 text-sm" style={{ color: "var(--s-muted)" }}>
                       {[it.unit, it.note].filter(Boolean).join(" · ")}
                     </div>
-                  </div>
-                  <div className="shrink-0 font-bold" style={{ color: it.price == null ? "var(--s-muted)" : "var(--s-accent)" }}>
-                    {it.price == null ? t("Ask us") : naira(it.price)}
-                  </div>
-                </div>
+                  )}
+                </li>
               ))}
-            </div>
-          </section>
+            </ul>
+          </>)
         );
       case "posts": {
         const latest = site.posts.slice(0, s.count);
-        if (!latest.length) return showBlanks ? (
-          <section key={i} className="mx-auto max-w-3xl px-6 py-10 text-sm" style={{ color: "var(--s-muted)" }}>
-            {translate("en", "Your published posts will appear here.")}
-          </section>
-        ) : null;
+        if (!latest.length)
+          return showBlanks ? (
+            block(i, s.heading, <>
+              <p style={{ color: "var(--s-muted)" }}>{translate("en", "Your published posts will appear here.")}</p>
+            </>)
+          ) : null;
         return (
-          <section key={i} className="mx-auto max-w-5xl px-6 py-10">
-            {s.heading && <h2 className="text-2xl font-bold tracking-tight">{s.heading}</h2>}
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          block(i, s.heading, <>
+            <div className="border-b" style={{ borderColor: "var(--s-line)" }}>
               {latest.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => onNavigate(`blog/${p.slug}`)}
-                  className="overflow-hidden border text-left transition-transform hover:-translate-y-0.5"
-                  style={{ background: "var(--s-surface)", borderColor: "var(--s-line)", borderRadius: "var(--s-radius)" }}
-                >
-                  {p.cover && <img src={p.cover} alt="" className="h-40 w-full object-cover" />}
-                  <div className="p-4">
-                    <div className="text-xs" style={{ color: "var(--s-muted)" }}>{fmtDate(p.date)}</div>
-                    <div className="mt-1 font-bold leading-snug">{p.title}</div>
-                    <p className="mt-1.5 line-clamp-3 text-sm" style={{ color: "var(--s-muted)" }}>
+                <button key={p.id} onClick={() => onNavigate(`blog/${p.slug}`)} className="group grid w-full gap-4 border-t py-6 text-left sm:grid-cols-[1fr_8rem]" style={{ borderColor: "var(--s-line)" }}>
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.18em]" style={{ color: "var(--s-muted)" }}>
+                      {fmtDate(p.date)}
+                    </div>
+                    <div className="mt-2 text-2xl leading-snug decoration-1 underline-offset-4 group-hover:underline" style={serif}>
+                      {p.title}
+                    </div>
+                    <p className="mt-2 line-clamp-2 max-w-2xl" style={{ color: "var(--s-muted)" }}>
                       {p.body.split(/\n\s*\n/)[0]}
                     </p>
                   </div>
+                  {p.cover && <img src={p.cover} alt="" className="hidden h-24 w-32 object-cover sm:block" />}
                 </button>
               ))}
             </div>
-          </section>
+          </>)
         );
       }
       case "contact":
         if (!site.contact) return null;
         return (
-          <section key={i} className="mx-auto max-w-3xl px-6 py-10">
-            {s.heading && <h2 className="text-2xl font-bold tracking-tight">{s.heading}</h2>}
-            <div className="mt-4 flex flex-wrap gap-3">
+          block(i, s.heading, <>
+            <div className="space-y-3 text-2xl sm:text-3xl" style={serif}>
               {wa && (
-                <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-3 font-semibold text-white" style={{ background: "#25D366", borderRadius: "999px" }}>
-                  <ChatIcon size={16} /> WhatsApp
+                <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" className="block decoration-1 underline-offset-8 hover:underline">
+                  WhatsApp <span style={{ color: "var(--s-accent)" }}>→</span> {site.contact.whatsapp}
                 </a>
               )}
               {site.contact.phone && (
-                <a href={`tel:${site.contact.phone}`} className="inline-flex items-center gap-2 border px-5 py-3 font-semibold" style={{ borderColor: "var(--s-line)", borderRadius: "999px" }}>
+                <a href={`tel:${site.contact.phone}`} className="block decoration-1 underline-offset-8 hover:underline">
                   {site.contact.phone}
                 </a>
               )}
-              {!wa && !site.contact.phone && showBlanks && <span className="rounded bg-amber-100 px-2 py-1 text-sm text-amber-800">{translate("en", "Add your WhatsApp or phone number in Plugins.")}</span>}
             </div>
+            {!wa && !site.contact.phone && showBlanks && <span className="rounded bg-amber-100 px-2 py-1 text-sm text-amber-800">{translate("en", "Add your WhatsApp or phone number in Plugins.")}</span>}
             {site.contact.hours && (
-              <p className="mt-3 text-sm" style={{ color: "var(--s-muted)" }}>
+              <p className="mt-4 text-sm uppercase tracking-[0.18em]" style={{ color: "var(--s-muted)" }}>
                 {site.contact.hours}
               </p>
             )}
-          </section>
+          </>)
         );
     }
   };
 
   return (
-    <div style={{ ...vars, background: "var(--s-bg)", color: "var(--s-text)" }} className={`${contained ? "relative min-h-full" : "min-h-screen"} font-sans`}>
-      <header className="sticky top-0 z-10 border-b backdrop-blur" style={{ borderColor: "var(--s-line)", background: `${theme.bg}e6` }}>
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-3">
-          <button onClick={() => onNavigate("")} className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-bold text-white" style={{ background: accent }}>
-              {site.name.charAt(0).toUpperCase()}
+    <div style={{ ...vars, background: "var(--s-bg)", color: "var(--s-text)" }} className={`${contained ? "relative min-h-full" : "min-h-screen"} font-sans antialiased`}>
+      <header className="sticky top-0 z-10 border-b backdrop-blur" style={{ borderColor: "var(--s-line)", background: `${theme.bg}eb` }}>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
+          <button onClick={() => onNavigate("")} className="flex min-w-0 items-center gap-2">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: accent }} />
+            <span className="truncate text-xl tracking-tight" style={serif}>
+              {site.name}
             </span>
-            <span className="truncate font-bold">{site.name}</span>
           </button>
-          <nav className="flex items-center gap-1 overflow-x-auto text-sm">
+          <nav className="flex items-center gap-5 overflow-x-auto text-[11px] uppercase tracking-[0.18em]">
             {site.pages
               .filter((p) => p.inMenu)
               .map((p) => (
                 <button
                   key={p.id}
                   onClick={() => onNavigate(p.slug)}
-                  className="whitespace-nowrap rounded-full px-3 py-1.5 font-medium transition-colors"
-                  style={p.id === page.id ? { background: accent, color: "#fff" } : { color: "var(--s-muted)" }}
+                  className="whitespace-nowrap border-b pb-0.5 transition-colors"
+                  style={p.id === page.id && !postSlug ? { borderColor: accent, color: "var(--s-text)" } : { borderColor: "transparent", color: "var(--s-muted)" }}
                 >
                   {p.title}
                 </button>
@@ -312,11 +319,11 @@ export function SiteView({
                 value={chosen}
                 onChange={(e) => pick(e.target.value)}
                 aria-label="Language"
-                className="ml-1 rounded-full border bg-transparent px-2 py-1 text-xs font-medium focus:outline-none"
+                className="cursor-pointer border-0 border-b bg-transparent pb-0.5 text-[11px] uppercase tracking-[0.18em] focus:outline-none"
                 style={{ borderColor: "var(--s-line)", color: "var(--s-text)" }}
               >
                 {offered.map((l) => (
-                  <option key={l} value={l} style={{ color: "#0f172a" }}>
+                  <option key={l} value={l} style={{ color: "#111", textTransform: "none" }}>
                     {LANGUAGES.find((x) => x.code === l)?.native ?? l}
                   </option>
                 ))}
@@ -329,26 +336,31 @@ export function SiteView({
       <main>
         {postSlug ? (
           post ? (
-            <article className="mx-auto max-w-2xl px-6 py-10">
-              <button onClick={() => onNavigate("")} className="text-sm font-medium" style={{ color: "var(--s-accent)" }}>
+            <article className="mx-auto max-w-2xl px-6 py-16 sm:py-24">
+              <button onClick={() => onNavigate("")} className="text-xs uppercase tracking-[0.18em]" style={{ color: "var(--s-muted)" }}>
                 ← {site.name}
               </button>
-              <div className="mt-4 text-sm" style={{ color: "var(--s-muted)" }}>
+              <div className="mt-10 text-xs uppercase tracking-[0.18em]" style={{ color: "var(--s-accent)" }}>
                 {fmtDate(post.date)}
                 {post.author ? ` · ${post.author}` : ""}
               </div>
-              <h1 className="mt-1 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{post.title}</h1>
-              {post.cover && <img src={post.cover} alt="" className="mt-6 w-full object-cover" style={{ borderRadius: "var(--s-radius)", maxHeight: "24rem" }} />}
-              <div className="mt-6 space-y-4 text-[17px] leading-relaxed">
+              <h1 className="mt-4 text-4xl leading-[1.08] tracking-tight sm:text-6xl" style={{ ...serif, fontWeight: 400 }}>
+                {post.title}
+              </h1>
+              {post.cover && <img src={post.cover} alt="" className="mt-10 w-full object-cover" style={{ maxHeight: "28rem" }} />}
+              <div className="mt-10 space-y-6 text-lg leading-relaxed">
                 {post.body.split(/\n\s*\n/).map((para, j) => (
-                  <p key={j} className="whitespace-pre-wrap">
+                  <p
+                    key={j}
+                    className={`whitespace-pre-wrap ${j === 0 ? "text-xl first-letter:float-left first-letter:mr-3 first-letter:mt-1 first-letter:font-serif first-letter:text-7xl first-letter:leading-[0.8]" : ""}`}
+                  >
                     <Blanks text={para} show={showBlanks} />
                   </p>
                 ))}
               </div>
             </article>
           ) : (
-            <section className="mx-auto max-w-2xl px-6 py-16 text-center" style={{ color: "var(--s-muted)" }}>
+            <section className="mx-auto max-w-2xl px-6 py-24 text-center" style={{ color: "var(--s-muted)" }}>
               {t("This post isn't here any more.")}
             </section>
           )
@@ -357,13 +369,21 @@ export function SiteView({
         )}
       </main>
 
-      <footer className="mt-10 border-t px-6 py-8 text-center text-sm" style={{ borderColor: "var(--s-line)", color: "var(--s-muted)" }}>
-        <div className="font-semibold" style={{ color: "var(--s-text)" }}>
-          {site.name}
-        </div>
-        {site.tagline && <div className="mt-1">{site.tagline}</div>}
-        <div className="mt-3 text-xs opacity-70">
-          {t("Powered by N-ATLAS")} · <a href="/" className="hover:underline">N-ATLAS Launchpad</a>
+      <footer className="border-t" style={{ borderColor: "var(--s-line)" }}>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-6 px-6 py-12">
+          <div>
+            <div className="text-2xl tracking-tight" style={serif}>
+              {site.name}
+            </div>
+            {site.tagline && (
+              <div className="mt-1 max-w-sm text-sm" style={{ color: "var(--s-muted)" }}>
+                {site.tagline}
+              </div>
+            )}
+          </div>
+          <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: "var(--s-muted)" }}>
+            {t("Powered by N-ATLAS")} · <a href="/" className="hover:underline">N-ATLAS Launchpad</a>
+          </div>
         </div>
       </footer>
 
@@ -469,24 +489,28 @@ function ChatBubble({
     return (
       <button
         onClick={onOpen}
-        className={`${pos} bottom-5 right-5 z-20 inline-flex items-center gap-2 px-4 py-3 font-semibold text-white shadow-xl transition-transform hover:-translate-y-0.5`}
-        style={{ background: "var(--s-accent)", borderRadius: "999px" }}
+        className={`${pos} bottom-5 right-5 z-20 inline-flex items-center gap-2.5 rounded-full px-5 py-3 text-sm font-medium shadow-xl transition-transform hover:-translate-y-0.5`}
+        style={{ background: "var(--s-text)", color: "var(--s-bg)" }}
       >
-        <ChatIcon size={18} /> {t("Ask us anything")}
+        <span className="h-2 w-2 rounded-full" style={{ background: "var(--s-accent)" }} /> {t("Ask us anything")}
       </button>
     );
   }
   return (
     <div
       className={`${pos} bottom-4 right-4 z-20 flex w-[min(24rem,calc(100%-2rem))] flex-col overflow-hidden border shadow-2xl`}
-      style={{ background: "var(--s-surface)", borderColor: "var(--s-line)", borderRadius: "var(--s-radius)", height: contained ? "min(30rem, calc(100% - 2rem))" : "min(34rem, calc(100dvh - 2rem))" }}
+      style={{ background: "var(--s-surface)", borderColor: "var(--s-line)", borderRadius: "14px", height: contained ? "min(30rem, calc(100% - 2rem))" : "min(34rem, calc(100dvh - 2rem))" }}
     >
-      <div className="flex items-center justify-between px-4 py-3 text-white" style={{ background: "var(--s-accent)" }}>
+      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--s-line)" }}>
         <div className="min-w-0">
-          <div className="truncate font-semibold">{site.name}</div>
-          <div className="text-[11px] opacity-80">{t("Replies in English, Pidgin, Yoruba, Hausa or Igbo")}</div>
+          <div className="truncate text-lg" style={{ fontFamily: "var(--s-serif)" }}>
+            {site.name}
+          </div>
+          <div className="text-[10px] uppercase tracking-[0.16em]" style={{ color: "var(--s-muted)" }}>
+            {t("Replies in English, Pidgin, Yoruba, Hausa or Igbo")}
+          </div>
         </div>
-        <button onClick={onClose} aria-label={t("Close")} className="rounded p-1 hover:bg-white/15">
+        <button onClick={onClose} aria-label={t("Close")} className="rounded p-1 opacity-60 hover:opacity-100">
           <XIcon size={16} />
         </button>
       </div>
