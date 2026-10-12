@@ -230,3 +230,22 @@ test("blog posts: drafts stay private; published ones show on the site and teach
   assert.doesNotMatch(text, /Secret sale/);
   assert.equal(sanitizeConfig({ name: "X", pages: [{ title: "Blog", sections: [{ type: "posts", heading: "News", count: 99 }] }] })!.pages[0].sections[0].type, "posts");
 });
+
+test("a site in several languages: extra languages and their translations reach visitors", () => {
+  const c = sanitizeConfig({
+    name: "Kano Grains",
+    language: "ha",
+    languages: ["en", "ha", "yo", "xx", "en"],
+    pages: [{ title: "Gida", sections: [{ type: "text", heading: "Barka", text: "Shagon hatsi." }] }],
+    translations: {
+      en: { source: "abc", tagline: "Grain shop", greeting: "Hello!", pages: [{ title: "Home", sections: [{ type: "text", heading: "Welcome", text: "A grain shop." }] }], posts: [{ title: "Secret", body: "x", status: "draft" }] },
+      ig: { source: "zzz", tagline: "not offered", greeting: "", pages: [] },
+    },
+  })!;
+  assert.deepEqual(c.languages, ["en", "yo"], "the main language isn't an extra one; unknown and repeated ones dropped");
+  assert.deepEqual(Object.keys(c.translations), ["en"], "only offered languages keep a translation");
+  const view = publicView("kano-grains-abc123", c);
+  assert.equal(view.translations.en.pages[0].title, "Home");
+  assert.equal(view.translations.en.posts.length, 0, "draft posts stay private in every language");
+  assert.ok(!("source" in view.translations.en));
+});

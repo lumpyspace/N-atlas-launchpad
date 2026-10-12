@@ -775,8 +775,6 @@ const dict: Record<string, string> = {
   "General": "Gabaɗaya",
   "Site title": "Taken shafi",
   "Tagline": "Ƙaramin take",
-  "Site language": "Harshen shafi",
-  "The language of the site's buttons. The assistant answers each visitor in the language they write in.": "Harshen maɓallan shafin. Mataimakin yana amsa kowane baƙo da harshen da ya rubuta da shi.",
   "Address & edit key": "Adireshi da maɓallin gyara",
   "There's no account: your edit key is what lets you update your site, read its inbox or take it offline. It's saved in this browser — copy it somewhere safe in case you clear your browser.": "Babu asusu: maɓallin gyaranka shine ke ba ka damar sabunta shafinka, karanta akwatin saƙonsa ko cire shi daga intanet. An adana shi a wannan burauzar — kwafi shi zuwa wuri mai aminci idan ka share burauzarka.",
   "Start over or take it down": "Fara sabo ko cire shi",
@@ -826,6 +824,18 @@ const dict: Record<string, string> = {
   "No posts yet.": "Babu rubutu tukuna.",
   "No page on your site shows posts yet.": "Babu wani shafi a shafinka da ke nuna rubutu tukuna.",
   "Add a Blog page to the menu": "Ƙara shafin Blog a menu",
+  "Translate your site": "Fassara shafinka",
+  "{n} languages need translating (new, or your pages changed).": "Harsuna {n} suna buƙatar fassara (sababbi ne, ko shafukanka sun canza).",
+  "Every language is up to date.": "Kowane harshe ya zamo na zamani.",
+  "Main language": "Babban harshe",
+  "The language you write your pages in. The assistant answers each visitor in the language they write in.": "Harshen da kake rubuta shafukanka da shi. Mataimakin yana amsa kowane baƙo da harshen da ya rubuta da shi.",
+  "Languages visitors can choose": "Harsunan da baƙi za su iya zaɓa",
+  "Visitors get a language menu at the top of your site. Your pages, posts and the assistant's greeting are translated by N-ATLAS (Groq helps with tricky lines) — check them if you can, then publish.": "Baƙi za su sami menu na harshe a saman shafinka. N-ATLAS yana fassara shafukanka, rubutu da gaisuwar mataimaki (Groq yana taimakawa da layuka masu wahala) — duba su idan za ka iya, sannan ka wallafa.",
+  "Translated": "An fassara",
+  "Needs updating: your pages changed": "Yana buƙatar sabuntawa: shafukanka sun canza",
+  "Not translated yet": "Ba a fassara ba tukuna",
+  "Translate again": "Sake fassarawa",
+  "Translate now": "Fassara yanzu",
 };
 
 export default dict;

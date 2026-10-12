@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PublicSite, Section, SiteAnswer, SiteTurn, ThemeId } from "../../api";
-import { isLangCode, translate, type LangCode } from "../../i18n";
+import { isLangCode, LANGUAGES, translate, type LangCode } from "../../i18n";
 import { ChatIcon, SendIcon, XIcon } from "../../ui/icons";
 import { Spinner } from "../../ui";
 import { RichText } from "../RichText";
@@ -73,23 +73,49 @@ interface Msg {
  * `showBlanks`: highlight … the owner still has to fill in.
  */
 export function SiteView({
-  site,
+  site: base,
   page: pageSlug,
   onNavigate,
   chat,
   contained = false,
   showBlanks = false,
+  language,
 }: {
   site: PublicSite;
   page: string;
   onNavigate: (slug: string) => void;
-  chat: (history: SiteTurn[], sent: string[]) => Promise<SiteAnswer>;
+  chat: (history: SiteTurn[], sent: string[], lang: string) => Promise<SiteAnswer>;
   contained?: boolean;
   showBlanks?: boolean;
+  /** Show this language (the admin previewing a translation); otherwise the visitor picks. */
+  language?: string;
 }) {
+  // The visitor's language: the site's own, or one of its extra languages (remembered per site).
+  const memoryKey = `natlas-site-lang:${base.slug || base.name}`;
+  const offered = [base.language, ...(base.languages ?? [])];
+  const [picked, setChosen] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(memoryKey);
+      if (saved && offered.includes(saved)) return saved;
+    } catch {
+      /* storage unavailable */
+    }
+    return base.language;
+  });
+  const pick = (l: string) => {
+    setChosen(l);
+    try {
+      localStorage.setItem(memoryKey, l);
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  const chosen = language ?? picked;
+  const tr = chosen !== base.language ? base.translations?.[chosen] : undefined;
+  const site = tr ? { ...base, tagline: tr.tagline, greeting: tr.greeting, pages: tr.pages, posts: tr.posts } : base;
   const theme = THEMES[site.theme.id] ?? THEMES.market;
   const accent = site.theme.accent;
-  const lang: LangCode = isLangCode(site.language) ? site.language : "en";
+  const lang: LangCode = isLangCode(tr ? chosen : site.language) ? ((tr ? chosen : site.language) as LangCode) : "en";
   const t = (text: string, vars?: Record<string, string | number>) => translate(lang, text, vars);
   // "blog/<slug>" is a post; anything else is a page.
   const postSlug = pageSlug.startsWith("blog/") ? pageSlug.slice(5) : null;
@@ -281,6 +307,21 @@ export function SiteView({
                   {p.title}
                 </button>
               ))}
+            {offered.length > 1 && (
+              <select
+                value={chosen}
+                onChange={(e) => pick(e.target.value)}
+                aria-label="Language"
+                className="ml-1 rounded-full border bg-transparent px-2 py-1 text-xs font-medium focus:outline-none"
+                style={{ borderColor: "var(--s-line)", color: "var(--s-text)" }}
+              >
+                {offered.map((l) => (
+                  <option key={l} value={l} style={{ color: "#0f172a" }}>
+                    {LANGUAGES.find((x) => x.code === l)?.native ?? l}
+                  </option>
+                ))}
+              </select>
+            )}
           </nav>
         </div>
       </header>
@@ -334,7 +375,7 @@ export function SiteView({
           onOpen={() => openChat()}
           onClose={() => setChatOpen(false)}
           onOpenerUsed={() => setOpener(null)}
-          chat={chat}
+          chat={(h, sent) => chat(h, sent, chosen)}
           contained={contained}
           t={t}
         />

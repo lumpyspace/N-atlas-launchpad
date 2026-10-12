@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { LANGUAGES, useT } from "../../i18n";
-import { Button, Card } from "../../ui";
+import { Badge, Button, Card, Spinner } from "../../ui";
 import { CopyIcon, ExternalIcon } from "../../ui/icons";
 import { SiteFrame } from "../../components/site/SiteFrame";
 import { input } from "../../components/site/editors";
-import { useSite } from "../../components/site/useSite";
+import { translationState, useSite } from "../../components/site/useSite";
 
 /** Settings — General (title, tagline, language), the site's address and edit key, and taking it offline. */
 export default function SiteSettings() {
@@ -37,16 +37,71 @@ export default function SiteSettings() {
               <input value={c.tagline} maxLength={200} onChange={(e) => s.setConfig((cfg) => ({ ...cfg, tagline: e.target.value }))} className={`${input} mt-1`} />
             </label>
             <label className="block text-xs font-medium text-slate-600">
-              {t("Site language")}
-              <select value={c.language} onChange={(e) => s.setConfig((cfg) => ({ ...cfg, language: e.target.value }))} className={`${input} mt-1`}>
+              {t("Main language")}
+              <select
+                value={c.language}
+                onChange={(e) => s.setConfig((cfg) => ({ ...cfg, language: e.target.value, languages: (cfg.languages ?? []).filter((l) => l !== e.target.value) }))}
+                className={`${input} mt-1`}
+              >
                 {LANGUAGES.map((l) => (
                   <option key={l.code} value={l.code}>
                     {l.native}
                   </option>
                 ))}
               </select>
-              <span className="mt-1 block font-normal text-slate-400">{t("The language of the site's buttons. The assistant answers each visitor in the language they write in.")}</span>
+              <span className="mt-1 block font-normal text-slate-400">{t("The language you write your pages in. The assistant answers each visitor in the language they write in.")}</span>
             </label>
+          </Card>
+
+          <Card className="space-y-3 p-5">
+            <h2 className="font-semibold text-slate-900">{t("Languages visitors can choose")}</h2>
+            <p className="text-xs text-slate-500">
+              {t("Visitors get a language menu at the top of your site. Your pages, posts and the assistant's greeting are translated by N-ATLAS (Groq helps with tricky lines) — check them if you can, then publish.")}
+            </p>
+            <ul className="divide-y divide-slate-100">
+              {LANGUAGES.filter((l) => l.code !== c.language).map((l) => {
+                const on = (c.languages ?? []).includes(l.code);
+                const state = translationState(c, l.code);
+                const busy = s.translating.includes(l.code);
+                return (
+                  <li key={l.code} className="flex flex-wrap items-center gap-3 py-2.5">
+                    <label className="flex min-w-[10rem] items-center gap-2 text-sm font-medium text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={(e) =>
+                          s.setConfig((cfg) => ({
+                            ...cfg,
+                            languages: e.target.checked ? [...(cfg.languages ?? []), l.code] : (cfg.languages ?? []).filter((x) => x !== l.code),
+                          }))
+                        }
+                      />
+                      {l.native}
+                    </label>
+                    {on && (
+                      <>
+                        {busy ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                            <Spinner className="h-3 w-3" /> {t("Translating…")}
+                          </span>
+                        ) : state === "ready" ? (
+                          <Badge tone="green">{t("Translated")}</Badge>
+                        ) : state === "stale" ? (
+                          <Badge tone="amber">{t("Needs updating: your pages changed")}</Badge>
+                        ) : (
+                          <Badge>{t("Not translated yet")}</Badge>
+                        )}
+                        {!busy && (
+                          <button onClick={() => s.translate(l.code)} className="text-xs font-semibold text-forge-700 hover:underline">
+                            {state === "ready" ? t("Translate again") : t("Translate now")}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </Card>
 
           {s.live && s.site?.ownerKey && (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { previewSite, viewOf, type Page, type Section } from "../../api";
-import { useT } from "../../i18n";
+import { LANGUAGES, useT } from "../../i18n";
 import { Badge, Button, Card } from "../../ui";
 import { ArrowRightIcon, CheckIcon, XIcon } from "../../ui/icons";
 import { SiteFrame } from "../../components/site/SiteFrame";
@@ -38,35 +38,65 @@ export default function SitePages() {
   const t = useT();
   const s = useSite();
   const [editing, setEditing] = useState<string | null>(null);
+  // Which language's version of the page is being edited ("" = the main language).
+  const [inLang, setInLang] = useState("");
   const c = s.config;
-  const page = c?.pages.find((p) => p.id === editing);
+  const mainPage = c?.pages.find((p) => p.id === editing);
+  const trPage = inLang ? c?.translations?.[inLang]?.pages.find((p) => p.id === editing) : undefined;
+  const page = trPage ?? mainPage;
+  const translated = (c?.languages ?? []).filter((l) => c?.translations?.[l]?.pages.some((p) => p.id === editing));
 
   const setPages = (f: (pages: Page[]) => Page[]) => s.setConfig((cfg) => ({ ...cfg, pages: f(cfg.pages) }));
   const setPage = (id: string, patch: Partial<Page>) => setPages((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
-  if (page && c) {
+  /** A change to the page in the language being edited (a translation's edits don't change the original). */
+  const changePage = (id: string, patch: Partial<Page>) => {
+    if (!trPage) return setPage(id, patch);
+    s.setConfig((cfg) => {
+      const tr = cfg.translations?.[inLang];
+      if (!tr) return cfg;
+      return { ...cfg, translations: { ...cfg.translations, [inLang]: { ...tr, pages: tr.pages.map((p) => (p.id === id ? { ...p, ...patch } : p)) } } };
+    });
+  };
+
+  if (page && c && mainPage) {
     return (
       <SiteFrame
         wide
         title={t("Edit page: {title}", { title: page.title })}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setEditing(null)}>
+            <Button variant="secondary" onClick={() => (setEditing(null), setInLang(""))}>
               ← {t("All pages")}
             </Button>
-            {!page.reviewed && (
-              <Button onClick={() => setPage(page.id, { reviewed: true })}>
+            {!mainPage.reviewed && (
+              <Button onClick={() => setPage(mainPage.id, { reviewed: true })}>
                 <CheckIcon size={14} /> {t("Looks right")}
               </Button>
             )}
           </div>
         }
       >
-        <PageEditor page={page} isHome={c.pages[0].id === page.id} onChange={(patch) => setPage(page.id, patch)} />
+        {translated.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-1 text-sm">
+            <span className="mr-1 text-xs text-slate-500">{t("Editing in:")}</span>
+            {["", ...translated].map((l) => (
+              <button
+                key={l || "main"}
+                onClick={() => setInLang(l)}
+                className={`rounded-full px-3 py-1 text-xs font-medium ${inLang === l ? "bg-forge-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              >
+                {LANGUAGES.find((x) => x.code === (l || c.language))?.native ?? l}
+              </button>
+            ))}
+            {inLang && <span className="ml-2 text-xs text-slate-400">{t("Fix the translation here. “Translate again” in Settings would replace your fixes.")}</span>}
+          </div>
+        )}
+        <PageEditor page={page} isHome={c.pages[0].id === page.id} translation={!!trPage} onChange={(patch) => changePage(page.id, patch)} />
         <div className="mt-6">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("Live preview")}</h2>
           <div className="h-[36rem] overflow-y-auto rounded-xl border border-slate-200 shadow-card">
-            <SiteView site={viewOf(c)} page={page.slug} onNavigate={() => {}} chat={(h, sent) => previewSite(publishable(c), h, sent)} contained showBlanks />
+            <SiteView site={viewOf(c)} page={page.slug} language={inLang || c.language} onNavigate={() => {}} chat={(h, sent, lang) => previewSite(publishable(c), h, sent, lang)} contained showBlanks />
           </div>
         </div>
       </SiteFrame>
@@ -159,7 +189,7 @@ function swap<T>(list: T[], a: number, b: number): T[] {
   return out;
 }
 
-function PageEditor({ page, isHome, onChange }: { page: Page; isHome: boolean; onChange: (patch: Partial<Page>) => void }) {
+function PageEditor({ page, isHome, translation = false, onChange }: { page: Page; isHome: boolean; translation?: boolean; onChange: (patch: Partial<Page>) => void }) {
   const t = useT();
   const [adding, setAdding] = useState(false);
   const setSection = (i: number, s: Section) => onChange({ sections: page.sections.map((x, j) => (j === i ? s : x)) });
@@ -177,7 +207,7 @@ function PageEditor({ page, isHome, onChange }: { page: Page; isHome: boolean; o
             <span className="font-mono text-xs text-slate-400">/</span>
             <input
               value={page.slug}
-              disabled={isHome}
+              disabled={isHome || translation}
               maxLength={40}
               onChange={(e) => onChange({ slug: slugify(e.target.value) })}
               className={`${input} font-mono disabled:bg-slate-50`}
@@ -191,7 +221,7 @@ function PageEditor({ page, isHome, onChange }: { page: Page; isHome: boolean; o
         <Card key={i} className="p-4">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-forge-700">{t(SECTION_LABEL[sec.type])}</span>
-            <span className="flex items-center gap-1 text-xs">
+            {!translation && <span className="flex items-center gap-1 text-xs">
               <button disabled={i === 0} onClick={() => onChange({ sections: swap(page.sections, i, i - 1) })} className="px-1 text-slate-400 hover:text-slate-700 disabled:opacity-30" aria-label={t("Move up")}>
                 ↑
               </button>
@@ -201,13 +231,13 @@ function PageEditor({ page, isHome, onChange }: { page: Page; isHome: boolean; o
               <button onClick={() => onChange({ sections: page.sections.filter((_, j) => j !== i) })} className="ml-1 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-red-600" aria-label={t("Remove")}>
                 <XIcon size={13} />
               </button>
-            </span>
+            </span>}
           </div>
           <SectionEditor section={sec} onChange={(s) => setSection(i, s)} />
         </Card>
       ))}
 
-      <div>
+      {!translation && <div>
         {adding ? (
           <Card className="flex flex-wrap gap-2 p-3">
             {(Object.keys(NEW_SECTION) as Section["type"][]).map((type) => (
@@ -231,7 +261,7 @@ function PageEditor({ page, isHome, onChange }: { page: Page; isHome: boolean; o
             + {t("Add a section")}
           </button>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

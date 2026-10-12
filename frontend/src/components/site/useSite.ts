@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { draftSite, publishSite, siteStatus, unpublishSite, updateSite, type AssistantConfig } from "../../api";
+import { draftSite, publishSite, siteStatus, translateSite, unpublishSite, updateSite, type AssistantConfig } from "../../api";
 import { useProject, type SiteState } from "../../state/ProjectContext";
 import type { KDoc } from "../../utils/knowledge";
 
@@ -29,6 +29,25 @@ export function countBlanks(c: AssistantConfig): number {
   return n;
 }
 
+/** A fingerprint of everything visitors read in the main language: a translation made from another is out of date. */
+export function sourceOf(c: AssistantConfig): string {
+  const text = JSON.stringify({
+    t: c.tagline,
+    g: c.greeting,
+    p: c.pages.map((p) => [p.id, p.title, p.sections]),
+    b: (c.posts ?? []).map((p) => [p.id, p.title, p.body, p.status]),
+  });
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(36) + text.length.toString(36);
+}
+
+export type TranslationState = "ready" | "stale" | "missing";
+export function translationState(c: AssistantConfig, lang: string): TranslationState {
+  const tr = c.translations?.[lang];
+  return !tr ? "missing" : tr.source === sourceOf(c) ? "ready" : "stale";
+}
+
 let statusCache: Promise<{ canPublish: boolean; reason?: string }> | null = null;
 
 /**
@@ -43,6 +62,7 @@ export function useSite() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<{ canPublish: boolean; reason?: string } | null>(null);
+  const [translating, setTranslating] = useState<string[]>([]);
 
   useEffect(() => {
     statusCache ??= siteStatus().catch(() => ({ canPublish: false, reason: "Launchpad's server can't be reached." }));
@@ -111,6 +131,24 @@ export function useSite() {
     }
   }
 
+  /** Translate the site into an extra language (N-ATLAS, with Groq's help on tricky lines). */
+  async function translate(lang: string) {
+    const cur = siteRef.current;
+    if (!cur) return;
+    // The fingerprint of what was translated — edits made meanwhile leave it "needs updating".
+    const source = sourceOf(cur.config);
+    setTranslating((l) => [...l, lang]);
+    setError(null);
+    try {
+      const tr = await translateSite(publishable(cur.config), lang);
+      setConfig((cfg) => ({ ...cfg, translations: { ...(cfg.translations ?? {}), [lang]: { ...tr, source } } }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTranslating((l) => l.filter((x) => x !== lang));
+    }
+  }
+
   const live = !!site?.slug;
   return {
     site,
@@ -127,5 +165,9 @@ export function useSite() {
     link: live ? `${window.location.origin}/a/${site!.slug}` : "",
     unreviewed: site ? site.config.pages.filter((p) => !p.reviewed).length : 0,
     blanks: site ? countBlanks(site.config) : 0,
+    translate,
+    translating,
+    /** Extra languages whose translation is missing or out of date. */
+    untranslated: site ? (site.config.languages ?? []).filter((l) => translationState(site.config, l) !== "ready") : [],
   };
 }

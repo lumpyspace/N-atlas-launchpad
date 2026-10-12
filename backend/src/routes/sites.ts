@@ -6,6 +6,7 @@
  *   POST   /api/sites/draft   { blueprint, language, knowledge? } → { config, by }
  *   POST   /api/sites/preview { config, history, sent? }          → SiteAnswer (nothing saved)
  *   POST   /api/sites/write-post { config, idea }                 → { title, body, by } (a draft post)
+ *   POST   /api/sites/translate  { config, language }             → the site's words in that language
  *   POST   /api/sites         { config }                          → { slug, ownerKey }
  *   PUT    /api/sites/:slug   { config }        x-owner-key       → { slug }
  *   DELETE /api/sites/:slug                     x-owner-key
@@ -29,6 +30,7 @@ import { answerVisitor, type Turn } from "../sites/runtime.js";
 import { publicView, sanitizeConfig } from "../sites/sanitize.js";
 import type { SiteStore } from "../sites/store.js";
 import { writePost } from "../sites/writePost.js";
+import { translateSiteTo } from "../sites/translate.js";
 
 const LANGS: LangCode[] = ["en", "pid", "yo", "ha", "ig"];
 const hash = (key: string) => createHash("sha256").update(key).digest("hex");
@@ -45,6 +47,7 @@ function parseTurns(raw: unknown): Turn[] | null {
   return last.content.length > 1000 ? null : turns;
 }
 
+const parseLang = (raw: unknown): LangCode | undefined => (LANGS.includes(raw as LangCode) ? (raw as LangCode) : undefined);
 const parseSent = (raw: unknown) => (Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string").slice(-20) : []);
 
 export function sitesRouter(
@@ -87,6 +90,19 @@ export function sitesRouter(
     }
   });
 
+  // The site's words in another language (the owner stores it with the site).
+  router.post("/sites/translate", async (req, res) => {
+    const config = sanitizeConfig(req.body?.config);
+    const language = LANGS.includes(req.body?.language) ? (req.body.language as LangCode) : null;
+    if (!config || !language || language === config.language) return res.status(400).json({ error: "Send { config, language } — a language other than the site's own." });
+    try {
+      res.json(await translateSiteTo(config, language, { brain, natlas: provider }));
+    } catch (err) {
+      logger.error("site translate failed", { reason: err instanceof Error ? err.message : String(err) });
+      res.status(502).json({ error: "Couldn't translate the site just now — please try again." });
+    }
+  });
+
   // A draft blog post from a topic (the owner reviews and publishes it).
   router.post("/sites/write-post", async (req, res) => {
     const config = sanitizeConfig(req.body?.config);
@@ -106,7 +122,7 @@ export function sitesRouter(
     const history = parseTurns(req.body?.history);
     if (!config || !history) return res.status(400).json({ error: "Send { config, history: [... ending with a message under 1,000 characters] }" });
     try {
-      res.json(await answerVisitor(config, history, { brain, natlas: provider }, parseSent(req.body?.sent)));
+      res.json(await answerVisitor(config, history, { brain, natlas: provider }, parseSent(req.body?.sent), parseLang(req.body?.lang)));
     } catch (err) {
       logger.error("site preview failed", { reason: err instanceof Error ? err.message : String(err) });
       res.status(502).json({ error: "N-ATLAS couldn't answer just now — please try again." });
@@ -169,7 +185,7 @@ export function sitesRouter(
       return res.status(429).json({ error: "This assistant has answered all it can for today. Please come back tomorrow." });
     }
     try {
-      const answer = await answerVisitor(site.config, history, { brain, natlas: provider }, parseSent(req.body?.sent));
+      const answer = await answerVisitor(site.config, history, { brain, natlas: provider }, parseSent(req.body?.sent), parseLang(req.body?.lang));
       if (answer.order) await store!.addInbox(site.slug, answer.order);
       res.json({ ...answer, order: answer.order ? { saved: true } : undefined });
     } catch (err) {

@@ -97,6 +97,20 @@ export interface AssistantConfig {
   pages: Page[];
   /** Blog posts (advanced). */
   posts: Post[];
+  /** Extra languages visitors can switch to (the main one is `language`). */
+  languages: LangCode[];
+  /** The site's words in each extra language. */
+  translations: Partial<Record<LangCode, SiteTranslation>>;
+}
+
+/** Everything visitors read, in another language (same ids and addresses as the original). */
+export interface SiteTranslation {
+  /** A fingerprint of the original it was made from: when the original changes, it needs updating. */
+  source: string;
+  tagline: string;
+  greeting: string;
+  pages: Page[];
+  posts: Post[];
 }
 
 export interface Site {

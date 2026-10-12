@@ -775,8 +775,6 @@ const dict: Record<string, string> = {
   "General": "Gbogbogbò",
   "Site title": "Àkọlé ojú-òpó",
   "Tagline": "Gbólóhùn àkọlé",
-  "Site language": "Èdè ojú-òpó",
-  "The language of the site's buttons. The assistant answers each visitor in the language they write in.": "Èdè àwọn bọ́tìnnì ojú-òpó. Olùrànlọ́wọ́ ń dá àlejò kọ̀ọ̀kan lóhùn ní èdè tí wọ́n fi kọ.",
   "Address & edit key": "Àdírẹ́sì àti kọ́kọ́rọ́ àtúnṣe",
   "There's no account: your edit key is what lets you update your site, read its inbox or take it offline. It's saved in this browser — copy it somewhere safe in case you clear your browser.": "Kò sí àkọọ́lẹ̀: kọ́kọ́rọ́ àtúnṣe rẹ ni ohun tí ń jẹ́ kí o ṣàtúnṣe ojú-òpó rẹ, ka àpótí-ìwé rẹ̀ tàbí gbé e kúrò. A fi pamọ́ sínú aṣàwákiri yìí — ṣe ẹ̀dà rẹ̀ sí ibi ààbò bí o bá pa aṣàwákiri rẹ mọ́.",
   "Start over or take it down": "Bẹ̀rẹ̀ lẹ́ẹ̀kan sí i tàbí gbé e kúrò",
@@ -826,6 +824,18 @@ const dict: Record<string, string> = {
   "No posts yet.": "Kò sí ìfiránṣẹ́ kankan síbẹ̀.",
   "No page on your site shows posts yet.": "Kò sí ojú-ìwé kankan lórí ojú-òpó rẹ tí ń fi ìfiránṣẹ́ hàn síbẹ̀.",
   "Add a Blog page to the menu": "Ṣàfikún ojú-ìwé Búlọ́ọ̀gù sí àtòjọ",
+  "Translate your site": "Túmọ̀ ojú-òpó rẹ",
+  "{n} languages need translating (new, or your pages changed).": "Èdè {n} nílò ìtumọ̀ (tuntun ni, tàbí àwọn ojú-ìwé rẹ ti yí padà).",
+  "Every language is up to date.": "Gbogbo èdè ti wà ní ìmúdójúìwọ̀n.",
+  "Main language": "Èdè àkọ́kọ́",
+  "The language you write your pages in. The assistant answers each visitor in the language they write in.": "Èdè tí o fi ń kọ àwọn ojú-ìwé rẹ. Olùrànlọ́wọ́ ń dá àlejò kọ̀ọ̀kan lóhùn ní èdè tí wọ́n fi kọ.",
+  "Languages visitors can choose": "Àwọn èdè tí àwọn àlejò lè yàn",
+  "Visitors get a language menu at the top of your site. Your pages, posts and the assistant's greeting are translated by N-ATLAS (Groq helps with tricky lines) — check them if you can, then publish.": "Àwọn àlejò yóò rí àtòjọ èdè ní òkè ojú-òpó rẹ. N-ATLAS ń túmọ̀ àwọn ojú-ìwé, ìfiránṣẹ́ àti ìkíni olùrànlọ́wọ́ (Groq ń ṣèrànwọ́ pẹ̀lú àwọn ìlà tó le) — ṣàyẹ̀wò wọn tí o bá lè ṣe é, lẹ́yìn náà tẹ̀ ẹ́ jáde.",
+  "Translated": "A ti túmọ̀ rẹ̀",
+  "Needs updating: your pages changed": "Ó nílò àtúnṣe: àwọn ojú-ìwé rẹ ti yí padà",
+  "Not translated yet": "A kò tíì túmọ̀ rẹ̀",
+  "Translate again": "Túmọ̀ lẹ́ẹ̀kan sí i",
+  "Translate now": "Túmọ̀ báyìí",
 };
 
 export default dict;

@@ -96,11 +96,28 @@ export function sanitizeConfig(raw: unknown): AssistantConfig | null {
   const kind = ["order", "booking", "enquiry"].includes(b.orders?.kind) ? b.orders.kind : "order";
   const themeId: ThemeId = THEMES.includes(r.theme?.id) ? r.theme.id : "market";
   const accent = /^#[0-9a-f]{6}$/i.test(r.theme?.accent ?? "") ? r.theme.accent : "#0f9d58";
+  const language: LangCode = LANGS.includes(r.language) ? r.language : "en";
+  // Extra languages (never the main one), and their translations of the site.
+  const languages = (Array.isArray(r.languages) ? r.languages : []).filter((l: any, i: number, a: any[]) => LANGS.includes(l) && l !== language && a.indexOf(l) === i) as LangCode[];
+  const translations: AssistantConfig["translations"] = {};
+  for (const l of languages) {
+    const tr = r.translations?.[l];
+    if (!tr || typeof tr !== "object") continue;
+    translations[l] = {
+      source: str(tr.source, 80),
+      tagline: str(tr.tagline, 200),
+      greeting: str(tr.greeting, 600),
+      pages: sanitizePages(tr.pages, name),
+      posts: sanitizePosts(tr.posts),
+    };
+  }
   return {
     name,
     tagline: str(r.tagline, 200),
     greeting: str(r.greeting, 600) || `Hello! I'm ${name}. How can I help you today?`,
-    language: LANGS.includes(r.language) ? r.language : "en",
+    language,
+    languages,
+    translations,
     instructions,
     theme: { id: themeId, accent },
     pages: sanitizePages(r.pages, name),
@@ -147,6 +164,19 @@ export function publicView(slug: string, c: AssistantConfig) {
     pages: (c.pages ?? []).map(({ reviewed: _r, ...p }) => p),
     // Only published posts, newest first.
     posts: (c.posts ?? []).filter((p) => p.status === "published").sort((a, b) => b.date.localeCompare(a.date)),
+    languages: c.languages ?? [],
+    // The site's words in each extra language (public parts only).
+    translations: Object.fromEntries(
+      Object.entries(c.translations ?? {}).map(([l, tr]) => [
+        l,
+        {
+          tagline: tr!.tagline,
+          greeting: tr!.greeting,
+          pages: tr!.pages.map(({ reviewed: _r, ...p }) => p),
+          posts: tr!.posts.filter((p) => p.status === "published").sort((a, b) => b.date.localeCompare(a.date)),
+        },
+      ]),
+    ),
     assistant: c.blocks.assistant.on,
     orders: c.blocks.orders.on ? { kind: c.blocks.orders.kind } : null,
     prices: c.blocks.prices.on ? c.blocks.prices.items : null,

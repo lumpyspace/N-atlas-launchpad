@@ -42,6 +42,18 @@ export default function SiteDashboard() {
           ? [{ done: !!(c.blocks.contact.whatsapp || c.blocks.contact.phone), title: t("Add your WhatsApp or phone"), detail: t("So visitors can reach a person."), step: "plugins" as Step }]
           : []),
         { done: true, title: t("Choose a look"), detail: t("Theme: {theme}", { theme: c.theme.id }), step: "appearance" },
+        ...((c.languages ?? []).length
+          ? [
+              {
+                done: s.untranslated.length === 0,
+                title: t("Translate your site"),
+                detail: s.untranslated.length
+                  ? t("{n} languages need translating (new, or your pages changed).", { n: s.untranslated.length })
+                  : t("Every language is up to date."),
+                step: "settings" as Step,
+              },
+            ]
+          : []),
         { done: s.live && !s.changed, title: s.live ? t("Publish your changes") : t("Publish your site"), detail: s.live ? (s.changed ? t("You have changes visitors can't see yet.") : t("Everything is live.")) : t("One click gives it a link anyone can open."), step: "site" },
       ]
     : [];

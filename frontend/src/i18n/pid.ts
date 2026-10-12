@@ -774,8 +774,6 @@ const dict: Record<string, string> = {
   "General": "General",
   "Site title": "Site title",
   "Tagline": "Tagline",
-  "Site language": "Site language",
-  "The language of the site's buttons. The assistant answers each visitor in the language they write in.": "The language for the site buttons. The assistant dey answer each visitor for the language wey dem write.",
   "Address & edit key": "Address & edit key",
   "There's no account: your edit key is what lets you update your site, read its inbox or take it offline. It's saved in this browser — copy it somewhere safe in case you clear your browser.": "No account dey: your edit key na wetin go allow you update your site, read im inbox or take am offline. E save for this browser — copy am keep for safe place in case you clear your browser.",
   "Start over or take it down": "Start again or take am down",
@@ -825,6 +823,18 @@ const dict: Record<string, string> = {
   "No posts yet.": "No post yet.",
   "No page on your site shows posts yet.": "No page for your site dey show posts yet.",
   "Add a Blog page to the menu": "Add Blog page to the menu",
+  "Translate your site": "Translate your site",
+  "{n} languages need translating (new, or your pages changed).": "{n} languages need translation (new, or your pages don change).",
+  "Every language is up to date.": "Every language don dey up to date.",
+  "Main language": "Main language",
+  "The language you write your pages in. The assistant answers each visitor in the language they write in.": "The language wey you take write your pages. The assistant dey answer each visitor for the language wey dem write.",
+  "Languages visitors can choose": "Languages wey visitors fit choose",
+  "Visitors get a language menu at the top of your site. Your pages, posts and the assistant's greeting are translated by N-ATLAS (Groq helps with tricky lines) — check them if you can, then publish.": "Visitors go get language menu for top of your site. N-ATLAS dey translate your pages, posts and the assistant greeting (Groq dey help with hard lines) — check dem if you fit, then publish.",
+  "Translated": "Translated",
+  "Needs updating: your pages changed": "E need update: your pages don change",
+  "Not translated yet": "E never translate",
+  "Translate again": "Translate again",
+  "Translate now": "Translate now",
 };
 
 export default dict;

@@ -64,7 +64,7 @@ export default function PublicAssistant({ slug, page: firstPage }: { slug: strin
         setPage(next);
         window.scrollTo(0, 0);
       }}
-      chat={(history, sent) => chatSite(slug, history, sent)}
+      chat={(history, sent, lang) => chatSite(slug, history, sent, lang)}
     />
   );
 }

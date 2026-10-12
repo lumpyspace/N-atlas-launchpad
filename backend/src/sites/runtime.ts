@@ -162,12 +162,14 @@ export async function answerVisitor(
   deps: { brain?: Brain; natlas: NAtlasProvider; signal?: AbortSignal },
   /** Orders already saved in this conversation (their fingerprints). */
   sent: string[] = [],
+  /** The language the visitor picked on the site, for when their words don't say. */
+  chosen?: LangCode,
 ): Promise<SiteAnswer> {
   const { brain, natlas, signal } = deps;
   const latest = history[history.length - 1]?.content ?? "";
   // Judged on their last few messages: one short line ("08031234567, yes") says little.
   const theirWords = history.filter((t) => t.role === "user").slice(-3).map((t) => t.content).join("\n");
-  const language = visitorLanguage(theirWords, config.language);
+  const language = visitorLanguage(theirWords, chosen ?? config.language);
 
   if (brain?.available()) {
     try {

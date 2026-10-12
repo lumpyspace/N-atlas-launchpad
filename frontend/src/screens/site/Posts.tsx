@@ -118,7 +118,7 @@ export default function SitePosts() {
           <div>
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("Live preview")}</h2>
             <div className="h-[40rem] overflow-y-auto rounded-xl border border-slate-200 shadow-card">
-              <SiteView site={view} page={`blog/${post.slug}`} onNavigate={() => {}} chat={(h, sent) => previewSite(publishable(c), h, sent)} contained showBlanks />
+              <SiteView site={view} page={`blog/${post.slug}`} onNavigate={() => {}} chat={(h, sent, lang) => previewSite(publishable(c), h, sent, lang)} contained showBlanks />
             </div>
           </div>
         </div>

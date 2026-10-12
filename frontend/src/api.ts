@@ -881,6 +881,19 @@ export interface AssistantConfig {
   theme: { id: ThemeId; accent: string };
   pages: Page[];
   posts: Post[];
+  /** Extra languages visitors can switch to (the main one is `language`). */
+  languages: string[];
+  /** The site's words in each extra language. */
+  translations: Partial<Record<string, SiteTranslation>>;
+}
+
+/** The site's words in another language. `source`: a fingerprint of the original it was made from. */
+export interface SiteTranslation {
+  source: string;
+  tagline: string;
+  greeting: string;
+  pages: Page[];
+  posts: Post[];
 }
 
 export interface SiteTurn {
@@ -918,11 +931,16 @@ export interface PublicSite {
   pages: Page[];
   /** Published posts, newest first. */
   posts: Post[];
+  /** Extra languages, and the site's words in each. */
+  languages: string[];
+  translations: Partial<Record<string, { tagline: string; greeting: string; pages: Page[]; posts: Post[] }>>;
   assistant: boolean;
   orders: { kind: string } | null;
   prices: PriceItem[] | null;
   contact: { whatsapp: string; phone: string; hours: string } | null;
 }
+
+const published = (posts: Post[]) => posts.filter((p) => p.status === "published").sort((a, b) => b.date.localeCompare(a.date));
 
 /** The public view of a config — what the live site will show. */
 export function viewOf(c: AssistantConfig, slug = ""): PublicSite {
@@ -934,7 +952,11 @@ export function viewOf(c: AssistantConfig, slug = ""): PublicSite {
     language: c.language,
     theme: c.theme,
     pages: c.pages,
-    posts: (c.posts ?? []).filter((p) => p.status === "published").sort((a, b) => b.date.localeCompare(a.date)),
+    posts: published(c.posts ?? []),
+    languages: c.languages ?? [],
+    translations: Object.fromEntries(
+      Object.entries(c.translations ?? {}).map(([l, tr]) => [l, { tagline: tr!.tagline, greeting: tr!.greeting, pages: tr!.pages, posts: published(tr!.posts) }]),
+    ),
     assistant: c.blocks.assistant.on,
     orders: c.blocks.orders.on ? { kind: c.blocks.orders.kind } : null,
     prices: c.blocks.prices.on ? c.blocks.prices.items : null,
@@ -957,8 +979,8 @@ const post = (path: string, body: unknown, key?: string, method = "POST") =>
 export const siteStatus = () => fetch(`${BASE}/api/sites/status`).then((r) => json<{ canPublish: boolean; store: string | null; reason?: string }>(r));
 export const draftSite = (blueprint: Blueprint, language: string, knowledge: string) =>
   post("/api/sites/draft", { blueprint, language, knowledge }).then((r) => json<{ config: AssistantConfig; by: string }>(r));
-export const previewSite = (config: AssistantConfig, history: SiteTurn[], sent: string[]) =>
-  post("/api/sites/preview", { config, history, sent }).then((r) => json<SiteAnswer>(r));
+export const previewSite = (config: AssistantConfig, history: SiteTurn[], sent: string[], lang?: string) =>
+  post("/api/sites/preview", { config, history, sent, lang }).then((r) => json<SiteAnswer>(r));
 export const publishSite = (config: AssistantConfig) => post("/api/sites", { config }).then((r) => json<{ slug: string; ownerKey: string }>(r));
 export const updateSite = (slug: string, key: string, config: AssistantConfig) => post(`/api/sites/${slug}`, { config }, key, "PUT").then((r) => json<{ slug: string }>(r));
 export const unpublishSite = (slug: string, key: string) =>
@@ -966,8 +988,11 @@ export const unpublishSite = (slug: string, key: string) =>
 export const siteInbox = (slug: string, key: string) =>
   fetch(`${BASE}/api/sites/${slug}/inbox`, { headers: { "x-owner-key": key } }).then((r) => json<{ items: InboxItem[]; dailyLimit: number }>(r));
 export const publicSite = (slug: string) => fetch(`${BASE}/api/sites/${slug}/public`).then((r) => json<PublicSite>(r));
-export const chatSite = (slug: string, history: SiteTurn[], sent: string[]) =>
-  post(`/api/sites/${slug}/chat`, { history, sent }).then((r) => json<SiteAnswer>(r));
+export const chatSite = (slug: string, history: SiteTurn[], sent: string[], lang?: string) =>
+  post(`/api/sites/${slug}/chat`, { history, sent, lang }).then((r) => json<SiteAnswer>(r));
+/** The site's words in another language (the caller adds `source`). */
+export const translateSite = (config: AssistantConfig, language: string) =>
+  post("/api/sites/translate", { config, language }).then((r) => json<Omit<SiteTranslation, "source">>(r));
 
 /** "Write with Groq": a draft post from a topic, in the site's language. */
 export const writeSitePost = (config: AssistantConfig, idea: string) =>

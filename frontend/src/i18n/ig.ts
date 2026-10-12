@@ -775,8 +775,6 @@ const dict: Record<string, string> = {
   "General": "Izugbe",
   "Site title": "Aha saịtị",
   "Tagline": "Okwu nkọwa",
-  "Site language": "Asụsụ saịtị",
-  "The language of the site's buttons. The assistant answers each visitor in the language they write in.": "Asụsụ bọtịnụ saịtị. Onye enyemaka na-aza onye ọbịa ọ bụla n'asụsụ o ji dee.",
   "Address & edit key": "Adreesị na igodo ndezi",
   "There's no account: your edit key is what lets you update your site, read its inbox or take it offline. It's saved in this browser — copy it somewhere safe in case you clear your browser.": "Enweghị akaụntụ: igodo ndezi gị bụ ihe na-ekwe ka ị melite saịtị gị, gụọ igbe ozi ya ma ọ bụ wepụ ya n'ịntanetị. Edebere ya na ihe nchọgharị a — detuo ya debe n'ebe nchekwa ma ọ bụrụ na ị hichapụ ihe nchọgharị gị.",
   "Start over or take it down": "Malite ọzọ ma ọ bụ wepụ ya",
@@ -826,6 +824,18 @@ const dict: Record<string, string> = {
   "No posts yet.": "Enweghị edemede ọ bụla ugbu a.",
   "No page on your site shows posts yet.": "Ọ dịbeghị ibe ọ bụla na saịtị gị na-egosi edemede.",
   "Add a Blog page to the menu": "Tinye ibe Blọọgụ na menu",
+  "Translate your site": "Tụgharịa saịtị gị",
+  "{n} languages need translating (new, or your pages changed).": "Asụsụ {n} chọrọ ntụgharị (ọhụrụ, ma ọ bụ ibe gị gbanwere).",
+  "Every language is up to date.": "Asụsụ niile dị ọhụrụ.",
+  "Main language": "Asụsụ isi",
+  "The language you write your pages in. The assistant answers each visitor in the language they write in.": "Asụsụ ị ji ede ibe gị. Onye enyemaka na-aza onye ọbịa ọ bụla n'asụsụ o ji dee.",
+  "Languages visitors can choose": "Asụsụ ndị ọbịa nwere ike ịhọrọ",
+  "Visitors get a language menu at the top of your site. Your pages, posts and the assistant's greeting are translated by N-ATLAS (Groq helps with tricky lines) — check them if you can, then publish.": "Ndị ọbịa ga-enweta menu asụsụ n'elu saịtị gị. N-ATLAS na-atụgharị ibe gị, edemede na ekele onye enyemaka (Groq na-enyere aka n'ahịrị siri ike) — lelee ha ma ọ bụrụ na ị nwere ike, wee bipụta.",
+  "Translated": "Atụgharịrị ya",
+  "Needs updating: your pages changed": "Ọ chọrọ mmelite: ibe gị gbanwere",
+  "Not translated yet": "Atụgharịbeghị ya",
+  "Translate again": "Tụgharịa ọzọ",
+  "Translate now": "Tụgharịa ugbu a",
 };
 
 export default dict;

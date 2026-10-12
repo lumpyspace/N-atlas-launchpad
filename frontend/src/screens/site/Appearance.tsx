@@ -80,7 +80,7 @@ export default function SiteAppearance() {
               <span className="ml-2 truncate rounded bg-white px-2 py-0.5 font-mono text-[11px] text-slate-500">{s.link || `…/a/${c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}{page ? `/${page}` : ""}</span>
             </div>
             <div className="h-[40rem] overflow-y-auto rounded-b-xl border border-slate-200 shadow-card">
-              <SiteView site={viewOf(c)} page={page} onNavigate={setPage} chat={(h, sent) => previewSite(publishable(c), h, sent)} contained showBlanks />
+              <SiteView site={viewOf(c)} page={page} onNavigate={setPage} chat={(h, sent, lang) => previewSite(publishable(c), h, sent, lang)} contained showBlanks />
             </div>
           </div>
         </div>
