@@ -80,10 +80,14 @@ export function createApp(config: AppConfig = loadConfig(), env: NodeJS.ProcessE
 
   // Health: sends N-ATLAS a sample message, so on a public site every visitor's
   // page load would call the model — share one result for a minute instead.
+  // A failure isn't kept (the GPU may be waking), and visitors arriving
+  // together share one check instead of each waking the server.
   let cached: { at: number; status: HealthStatus } | null = null;
+  let pending: Promise<HealthStatus> | null = null;
   app.get("/api/health", async (_req, res) => {
-    if (!publicMode || !cached || Date.now() - cached.at > 60_000) {
-      const status = await provider.health();
+    if (!publicMode || !cached || Date.now() - cached.at > (cached.status.ok ? 60_000 : 5_000)) {
+      pending ??= provider.health().finally(() => (pending = null));
+      const status = { ...(await pending) };
       // Say which kind of key problem it is (never the key itself).
       if (!status.ok && /HTTP 401|HTTP 403/.test(status.detail)) {
         status.detail += provider.connection()?.apiKey

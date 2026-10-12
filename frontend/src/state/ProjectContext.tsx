@@ -15,6 +15,7 @@ import type {
   DesignSlot,
   DesignSnapshot,
   Improvement,
+  LiveCheck,
   NarrationSection,
   NarrationValue,
   SecurityRunResult,
@@ -42,7 +43,8 @@ export type Step =
   | "compare"
   | "secure"
   | "improve"
-  | "export";
+  | "export"
+  | "golive";
 
 
 /** A single developer-saved test case from the Playground. */
@@ -84,6 +86,10 @@ export interface ProjectState {
   design: DesignState;
   /** When the starter project was last downloaded. */
   exportedAt?: string;
+  /** The language of the last download (the Go live guide explains that project). */
+  exportLang?: "js" | "python";
+  /** Go live: the conversation with the deploy guide, and the last check of the live link. */
+  goLive?: GoLiveState;
   /** Saved versions of the system prompt, newest first. */
   promptVersions: PromptVersion[];
   /** The app's documents; relevant passages are added to each question. */
@@ -117,6 +123,11 @@ export interface PromptVersion {
   savedAt: string;
   label: string;
   text: string;
+}
+
+export interface GoLiveState {
+  messages: DesignMessage[];
+  check?: LiveCheck;
 }
 
 /** A saved project in the workspace. */
@@ -186,7 +197,8 @@ type Action =
   | { type: "patchBlueprint"; patch: Partial<Blueprint> }
   | { type: "setPlaygroundData"; data: string }
   | { type: "setDesign"; design: DesignState }
-  | { type: "markExported" }
+  | { type: "markExported"; lang?: "js" | "python" }
+  | { type: "setGoLive"; goLive: GoLiveState }
   | { type: "savePromptVersion"; label: string }
   | { type: "deletePromptVersion"; id: string }
   | { type: "addKnowledge"; doc: KDoc }
@@ -300,7 +312,9 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, narration: { ...state.narration, byLanguage: { ...state.narration.byLanguage, [action.language]: current } } };
     }
     case "markExported":
-      return { ...state, exportedAt: new Date().toISOString() };
+      return { ...state, exportedAt: new Date().toISOString(), exportLang: action.lang ?? state.exportLang };
+    case "setGoLive":
+      return { ...state, goLive: action.goLive };
     case "reset":
       return { ...initialState };
     default:

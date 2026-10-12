@@ -132,18 +132,16 @@ export async function relay(opts: {
   }
 
   // 2. The brain thinks, in English.
+  // One system message: some OpenAI-compatible APIs (Gemini's) keep only the last one.
+  const howToReply =
+    language === "en"
+      ? "Reply in clear English."
+      : `Reply in clear, simple English: N-ATLAS will translate your reply into ${name} for the developer. Keep names, numbers and prices exact.`;
+  const [first, ...rest] = messages;
   const thought = await brain.chat(
-    [
-      ...messages.slice(0, 1),
-      {
-        role: "system",
-        content:
-          language === "en"
-            ? "Reply in clear English."
-            : `Reply in clear, simple English: N-ATLAS will translate your reply into ${name} for the developer. Keep names, numbers and prices exact.`,
-      },
-      ...messages.slice(1),
-    ],
+    first?.role === "system"
+      ? [{ role: "system", content: `${first.content}\n\n${howToReply}` }, ...rest]
+      : [{ role: "system", content: howToReply }, ...messages],
     { maxTokens: opts.maxTokens ?? 400, signal },
   );
   onEvent({ type: "thought", english: thought.text, brain: thought.provider });

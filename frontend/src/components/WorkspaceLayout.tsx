@@ -1,7 +1,29 @@
 import { useState, type ReactNode } from "react";
 import { projectKind, projectName, useProject, useWorkspace } from "../state/ProjectContext";
-import { nextStep, stages } from "../utils/projectStatus";
+import { hostOf, isLive, nextStep, stages, type StageKey } from "../utils/projectStatus";
 import { useT } from "../i18n";
+import {
+  ArrowRightIcon,
+  BookIcon,
+  ChatIcon,
+  CheckIcon,
+  ExternalIcon,
+  FlaskIcon,
+  LayersIcon,
+  PackageIcon,
+  PenIcon,
+  RocketIcon,
+} from "../ui/icons";
+
+const STAGE_ICON: Record<StageKey, typeof ChatIcon> = {
+  design: ChatIcon,
+  build: LayersIcon,
+  prompt: PenIcon,
+  knowledge: BookIcon,
+  test: FlaskIcon,
+  ship: PackageIcon,
+  live: RocketIcon,
+};
 
 /**
  * The project workspace: a sidebar with the project's stages (open any of
@@ -26,9 +48,13 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
     setEditing(false);
   }
 
+  const doneCount = list.filter((s) => s.done).length;
+  const live = isLive(state) ? state.goLive!.check!.url : null;
+
   const nav = (compact: boolean) =>
     list.map((s) => {
       const active = s.steps.includes(state.step);
+      const Icon = STAGE_ICON[s.key];
       return (
         <button
           key={s.key}
@@ -43,12 +69,12 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
         >
           <span
             className={[
-              "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
-              s.done ? "bg-forge-500 text-white" : active ? "border-2 border-forge-500 text-forge-600" : "border border-slate-300 text-slate-400",
+              "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg",
+              s.done ? "bg-forge-500 text-white" : active ? "bg-white text-forge-600 ring-2 ring-forge-500" : s.available ? "bg-slate-100 text-slate-500" : "bg-slate-50 text-slate-300",
             ].join(" ")}
             aria-hidden
           >
-            {s.done ? "✓" : ""}
+            {s.done ? <CheckIcon size={13} /> : <Icon size={13} />}
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-semibold">{s.label}</span>
@@ -86,13 +112,27 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
             <span className="ml-1 text-xs text-slate-300 opacity-0 group-hover:opacity-100">✎</span>
           </button>
         )}
-        {kind && <span className="mb-4 text-xs text-slate-500">{t(kind)}</span>}
-        {!kind && <span className="mb-4 text-xs text-slate-400">{t("New project")}</span>}
+        {kind && <span className="text-xs text-slate-500">{t(kind)}</span>}
+        {!kind && <span className="text-xs text-slate-400">{t("New project")}</span>}
 
-        <nav className="space-y-1">{nav(false)}</nav>
+        <div className="mb-4 mt-3">
+          <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
+            <span>{t("{done} of {total} done", { done: doneCount, total: list.length })}</span>
+            {live && (
+              <a href={live} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-forge-700 hover:underline">
+                <span className="h-1.5 w-1.5 rounded-full bg-forge-500" /> {hostOf(live)} <ExternalIcon size={10} />
+              </a>
+            )}
+          </div>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-gradient-to-r from-forge-400 to-forge-600 transition-all" style={{ width: `${(doneCount / list.length) * 100}%` }} />
+          </div>
+        </div>
+
+        <nav className="space-y-0.5">{nav(false)}</nav>
 
         {next && (
-          <div className="mt-6 rounded-lg border border-forge-200 bg-forge-50/60 p-3">
+          <div className="mt-6 rounded-xl border border-forge-200 bg-gradient-to-br from-forge-50 to-white p-3">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-forge-700">{t("Next step")}</div>
             <p className="mt-1 text-xs leading-relaxed text-slate-600">{next.text}</p>
             {!list.find((s) => s.steps.includes(next.step))?.steps.includes(state.step) && (
@@ -100,7 +140,9 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
                 onClick={() => dispatch({ type: "setStep", step: next.step })}
                 className="mt-2 text-xs font-semibold text-forge-700 hover:underline"
               >
-                {t("Go →")}
+                <span className="inline-flex items-center gap-1">
+                  {t("Go")} <ArrowRightIcon size={12} />
+                </span>
               </button>
             )}
           </div>

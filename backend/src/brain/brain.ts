@@ -4,8 +4,9 @@
  * reads the developer's language and says the answer back in it (see
  * relay.ts). Optional: with no keys, Launchpad runs on N-ATLAS alone.
  *
- * Providers are tried in order (Gemini, then Groq, then any other
- * OpenAI-compatible endpoint); one that's out of quota is skipped for a while.
+ * Providers are tried in BRAIN_ORDER (default: Groq — fastest — then Gemini,
+ * then any other OpenAI-compatible endpoint); one that's out of quota is
+ * skipped for a while, and a slow one gives way after 45 seconds.
  * A daily request budget protects the account behind a public link.
  * Keys stay on the server: they're read from the environment and never sent
  * to the browser.
@@ -79,7 +80,13 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainPro
       apiKey: cleanSecret(env.BRAIN_API_KEY, "BRAIN_API_KEY"),
     });
   }
-  return out;
+  // BRAIN_ORDER, e.g. "gemini,groq": names first in the list are tried first.
+  const order = (env.BRAIN_ORDER?.trim() || "groq,gemini").toLowerCase().split(",").map((s) => s.trim());
+  const rank = (p: BrainProvider) => {
+    const i = order.indexOf(p.name.toLowerCase());
+    return i < 0 ? order.length : i;
+  };
+  return out.map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i).map(({ p }) => p);
 }
 
 /** The text up to its last complete sentence ("" if there's none). */
@@ -179,7 +186,7 @@ export class Brain {
 
   private async call(p: BrainProvider, messages: BrainMessage[], o: BrainOptions): Promise<string> {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 60_000);
+    const timer = setTimeout(() => ctrl.abort(), 45_000);
     o.signal?.addEventListener("abort", () => ctrl.abort(), { once: true });
     let res: Response;
     try {

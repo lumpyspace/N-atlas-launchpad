@@ -9,6 +9,7 @@ import { useT } from "../i18n";
 import { RunProgress } from "../components/RunProgress";
 import { catLabel, useSecurityRun } from "./Secure";
 import { isHardened } from "../utils/prompt";
+import { ArrowRightIcon, RocketIcon } from "../ui/icons";
 
 export default function Export() {
   const { state, dispatch } = useProject();
@@ -70,7 +71,7 @@ export default function Export() {
     try {
       await downloadProjectZip(input, lang);
       setDone(true);
-      dispatch({ type: "markExported" });
+      dispatch({ type: "markExported", lang });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -144,6 +145,22 @@ export default function Export() {
           <Badge tone="green">{t("Downloaded ✓ — unzip and follow the README")}</Badge>
         )}
       </div>
+
+      <button
+        onClick={() => dispatch({ type: "setStep", step: "golive" })}
+        className="mt-6 flex w-full items-center justify-between gap-4 rounded-xl border border-forge-200 bg-gradient-to-r from-forge-50 to-white px-5 py-4 text-left transition-colors hover:border-forge-400"
+      >
+        <span className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-forge-500 text-white">
+            <RocketIcon size={18} />
+          </span>
+          <span>
+            <span className="block font-semibold text-ink">{t("Next: put it online")}</span>
+            <span className="block text-sm text-slate-500">{t("Ask the Go live guide how — Vercel, Modal, Render or your own server — in your language.")}</span>
+          </span>
+        </span>
+        <ArrowRightIcon size={18} className="text-forge-600" />
+      </button>
 
       <SdkCard lang={lang} />
 

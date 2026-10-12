@@ -753,3 +753,44 @@ export type DoctorEvent = { type: "check"; result: DoctorResult } | { type: "err
 export async function streamDoctor(onEvent: (e: DoctorEvent) => void, signal?: AbortSignal): Promise<void> {
   await streamRun<never, never>("/api/doctor", {}, (e) => onEvent(e as unknown as DoctorEvent), signal);
 }
+
+// ── Go live ──────────────────────────────────────────────────────────────────
+
+/** What the live-link check found (backend/src/deploy/check.ts). */
+export interface LiveCheck {
+  url: string;
+  checkedAt: string;
+  page: { ok: boolean; ms?: number; title?: string; problem?: string };
+  chat: { ok: boolean; ms?: number; reply?: string; problem?: string };
+  guards: { ok: boolean; problem?: string };
+}
+
+/** The project the Go live guide explains. */
+export interface GuideProject {
+  name: string;
+  lang: "js" | "python";
+  channel: string;
+  knowledge: boolean;
+}
+
+/** Ask the Go live guide; events as in the Design chat (question = the answer in English). */
+export async function streamDeployAnswer(
+  body: { project: GuideProject; history: DesignMessage[]; language?: string },
+  onEvent: (e: DesignEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const history = body.history.map((m) => ({ role: m.role, content: m.content }));
+  await streamRun<never, never>("/api/deploy/ask", { ...body, history }, (e) => onEvent(e as unknown as DesignEvent), signal);
+}
+
+/** Open the live app like a first visitor: the page, an N-ATLAS answer, the safety checks. */
+export async function checkLiveLink(url: string, message: string): Promise<LiveCheck> {
+  const res = await fetch(`${BASE}/api/deploy/check`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url, message }),
+  });
+  const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  return data as LiveCheck;
+}

@@ -8,7 +8,7 @@ import type { ProjectState, Step } from "../state/ProjectContext";
 
 const EN: T = (text, vars) => translate("en", text, vars);
 
-export type StageKey = "design" | "build" | "prompt" | "knowledge" | "test" | "ship";
+export type StageKey = "design" | "build" | "prompt" | "knowledge" | "test" | "ship" | "live";
 
 export interface StageStatus {
   key: StageKey;
@@ -116,6 +116,19 @@ export function stages(p: ProjectState, t: T = EN): StageStatus[] {
       available: built,
       detail: p.exportedAt ? t("Downloaded {when}", { when: timeAgo(p.exportedAt, t) }) : t("Get your code, tests and CI"),
     },
+    {
+      key: "live",
+      label: t("Go live"),
+      step: "golive",
+      steps: ["golive"],
+      done: isLive(p),
+      available: built,
+      detail: isLive(p)
+        ? t("Live at {host}", { host: hostOf(p.goLive!.check!.url) })
+        : p.goLive?.messages.length
+          ? t("Putting it online")
+          : t("Ask how to put it online"),
+    },
   ];
 }
 
@@ -131,7 +144,22 @@ export function nextStep(p: ProjectState, t: T = EN): { step: Step; text: string
   const sec = p.securityResult;
   if (!sec || sec.partial) return { step: "secure", text: t("Run the security tests before you ship.") };
   if (!byKey.ship.done) return { step: "export", text: t("Download your starter project, tests and CI.") };
+  if (!byKey.live.done) return { step: "golive", text: t("Put your app online: ask the Go live guide how, then check your live link.") };
   return null;
+}
+
+/** The live link was checked and both the page and an N-ATLAS answer worked. */
+export function isLive(p: ProjectState): boolean {
+  const c = p.goLive?.check;
+  return !!c && c.page.ok && c.chat.ok;
+}
+
+export function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }
 
 export function timeAgo(iso: string, t: T = EN): string {

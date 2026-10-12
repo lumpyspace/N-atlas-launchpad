@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { LANGUAGES, isLangCode, useT } from "../i18n";
 import { useWorkspace } from "../state/ProjectContext";
+import { GlobeIcon } from "../ui/icons";
 
 /**
  * The language Launchpad's pages are shown in and N-ATLAS replies in. Inside a
@@ -21,7 +22,7 @@ export default function LanguageSwitcher({ compact = false }: { compact?: boolea
 
   return (
     <label className="flex items-center gap-1.5 text-xs text-slate-500" title={title}>
-      <span aria-hidden>🌍</span>
+      <GlobeIcon size={14} className="hidden text-slate-400 sm:block" />
       {!compact && <span className="hidden md:inline">{t("Language")}</span>}
       <select
         value={language}
@@ -32,7 +33,7 @@ export default function LanguageSwitcher({ compact = false }: { compact?: boolea
         {LANGUAGES.map((l) => (
           <option key={l.code} value={l.code}>
             {l.native}
-            {l.native !== l.english ? ` (${l.english})` : ""}
+            {!compact && l.native !== l.english ? ` (${l.english})` : ""}
           </option>
         ))}
       </select>

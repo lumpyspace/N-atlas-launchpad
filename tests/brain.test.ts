@@ -43,9 +43,11 @@ function fakeNatlas(reply: (prompt: string, system?: string) => string) {
 
 test("brain: providers come from the environment, in order; keys never appear in the status", () => {
   const ps = providersFromEnv({ GEMINI_API_KEY: "secret-g", GROQ_API_KEY: "secret-q" } as any);
-  assert.deepEqual(ps.map((p) => `${p.name}/${p.model}`), ["Gemini/gemini-3.8-flash", "Gemini/gemini-3.5-flash", "Groq/openai/gpt-oss-120b"]);
+  assert.deepEqual(ps.map((p) => `${p.name}/${p.model}`), ["Groq/openai/gpt-oss-120b", "Gemini/gemini-3.8-flash", "Gemini/gemini-3.5-flash"]);
+  const geminiFirst = providersFromEnv({ GEMINI_API_KEY: "g", GROQ_API_KEY: "q", BRAIN_ORDER: "gemini,groq" } as any);
+  assert.deepEqual(geminiFirst.map((p) => p.name), ["Gemini", "Gemini", "Groq"]);
   assert.deepEqual(providersFromEnv({ GEMINI_API_KEY: "k", GEMINI_MODEL: "gemini-3.7-flash" } as any).map((p) => p.model), ["gemini-3.7-flash"]);
-  assert.equal(ps[0].baseURL, "https://generativelanguage.googleapis.com/v1beta/openai");
+  assert.equal(ps[1].baseURL, "https://generativelanguage.googleapis.com/v1beta/openai");
   assert.equal(providersFromEnv({} as any).length, 0);
   const status = JSON.stringify(new Brain(ps).status());
   assert.ok(!status.includes("secret"), "no keys in the status");
