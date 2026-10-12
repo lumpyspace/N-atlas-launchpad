@@ -115,6 +115,19 @@ export function invents(original: string, translated: string): boolean {
   return (translated.match(CODE_LIKE) ?? []).some((w) => !known.has(w));
 }
 
+/**
+ * Measurements ("50kg", "2 litres") and naira amounts ("₦82,000"): a small
+ * model may swap the unit ("fam 50"), reformat the number or spell it out.
+ * They stay in the text to translate, and must come back exactly.
+ */
+const QUANTITY = /\b\d[\d,.]*\s?(?:kg|g|mg|tonnes?|tons?|l|litres?|liters?|ml|cl|km|m|cm|mm|ft|%)(?![\p{L}\d])|₦\s?\d[\d,.]*\d|₦\s?\d|\bN\d[\d,]*\d(?![\p{L}\d])/gu;
+
+export function keepsQuantities(original: string, translated: string): boolean {
+  const norm = (s: string) => s.replace(/[\s,]/g, "").toLowerCase();
+  const have = norm(translated);
+  return (original.match(QUANTITY) ?? []).every((q) => have.includes(norm(q)));
+}
+
 /** A line's markdown lead-in ("2. ", "- ", "### ") — kept out of translation. */
 const LEAD = /^(\s*(?:\d+[.)]\s+|[-*•]\s+|#{1,4}\s+)?)/;
 
@@ -155,7 +168,7 @@ export async function translatePieces(
     const dress = (said: string) => lead + (bold ? `**${said.trim()}**` : said);
     const markers = body.match(MARKER) ?? [];
     const faithful = (said: string) =>
-      !!said && markers.every((m) => said.split(m).length === 2) && keepsNumbers(body, said) && !invents(body, said);
+      !!said && markers.every((m) => said.split(m).length === 2) && keepsNumbers(body, said) && keepsQuantities(body, said) && !invents(body, said);
     for (let attempt = 0; attempt < 2; attempt++) {
       const said = (
         await natlasText(natlas, translateSystem(name), `Translate into ${name}:\n${body}`, Math.min(400, Math.ceil(body.length / 1.5) + 40), null, signal)

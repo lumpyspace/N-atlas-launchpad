@@ -12,6 +12,12 @@ import Blueprint from "./screens/Blueprint";
 import Compare from "./screens/Compare";
 import Export from "./screens/Export";
 import GoLive from "./screens/GoLive";
+import SiteDashboard from "./screens/site/Dashboard";
+import SitePages from "./screens/site/Pages";
+import SiteAppearance from "./screens/site/Appearance";
+import SitePlugins from "./screens/site/Plugins";
+import SiteInbox from "./screens/site/Inbox";
+import SiteSettings from "./screens/site/Settings";
 import Test from "./screens/Test";
 import PromptStudio from "./screens/PromptStudio";
 import Knowledge from "./screens/Knowledge";
@@ -219,6 +225,18 @@ function renderStep(step: string, health: HealthStatus | null) {
       return <Export />;
     case "golive":
       return <GoLive />;
+    case "site":
+      return <SiteDashboard />;
+    case "pages":
+      return <SitePages />;
+    case "appearance":
+      return <SiteAppearance />;
+    case "plugins":
+      return <SitePlugins />;
+    case "inbox":
+      return <SiteInbox />;
+    case "settings":
+      return <SiteSettings />;
     default:
       return <Describe />;
   }

@@ -8,7 +8,10 @@ import type { Mode, ProjectState, Step } from "../state/ProjectContext";
 
 const EN: T = (text, vars) => translate("en", text, vars);
 
-export type StageKey = "design" | "build" | "prompt" | "knowledge" | "test" | "ship" | "live";
+export type StageKey = "design" | "build" | "prompt" | "knowledge" | "site" | "test" | "ship" | "live";
+
+/** The site's admin screens, WordPress-style (shown under "Your site"). */
+export const SITE_STEPS: Step[] = ["site", "pages", "appearance", "plugins", "inbox", "settings"];
 
 export interface StageStatus {
   key: StageKey;
@@ -41,8 +44,9 @@ export function stages(p: ProjectState, t: T = EN, mode: Mode = "developer"): St
     ship: t("Download"),
     live: t("Put it online"),
   };
+  // Simple mode is the WordPress way: set it up and publish it here — no code, no hosting.
   return all
-    .filter((s) => s.key !== "prompt")
+    .filter((s) => !["prompt", "test", "ship", "live"].includes(s.key))
     .map((s) =>
       s.key === "test"
         ? {
@@ -122,6 +126,21 @@ function allStages(p: ProjectState, t: T): StageStatus[] {
             : t("Optional: documents to answer from"),
     },
     {
+      key: "site",
+      label: t("Your site"),
+      step: "site",
+      steps: SITE_STEPS,
+      done: !!p.site?.slug,
+      available: built,
+      detail: !built
+        ? t("Design your app first")
+        : p.site?.slug
+          ? t("Live at /a/{slug}", { slug: p.site.slug })
+          : p.site
+            ? blockSummary(p, t)
+            : t("A website with your assistant on it"),
+    },
+    {
       key: "test",
       label: t("Test"),
       step: "playground",
@@ -167,10 +186,9 @@ export function nextStep(p: ProjectState, t: T = EN, mode: Mode = "developer"): 
   const s = stages(p, t);
   if (mode === "simple") {
     if (!p.blueprint) return { step: "describe", text: p.design.messages.length ? t("Keep talking it through, then press Build it.") : t("Describe your idea to start.") };
-    if (p.blueprint.buildPlan?.knowledge?.needed && !p.knowledge?.length) return { step: "knowledge", text: t("Add the facts your assistant should answer from — a price list, an FAQ, opening hours.") };
-    if (!p.savedTestCases.length) return { step: "playground", text: t("Chat with your assistant as a customer would. Keep a 👍 or 👎 on a few answers.") };
-    if (!p.exportedAt) return { step: "export", text: t("Download your assistant: it's ready to run.") };
-    if (!isLive(p)) return { step: "golive", text: t("Ask how to put it online, then check your link.") };
+    if (!p.site) return { step: "site", text: t("Create your site: Groq writes the pages from your plan.") };
+    if (p.site.config.pages.some((pg) => !pg.reviewed)) return { step: "pages", text: t("Check the pages Groq wrote, and fill in every ….") };
+    if (!p.site.slug) return { step: "site", text: t("Publish it: you'll get a link anyone can open.") };
     return null;
   }
   const byKey = Object.fromEntries(s.map((x) => [x.key, x])) as Record<StageKey, StageStatus>;
@@ -184,6 +202,13 @@ export function nextStep(p: ProjectState, t: T = EN, mode: Mode = "developer"): 
   if (!byKey.ship.done) return { step: "export", text: t("Download your starter project, tests and CI.") };
   if (!byKey.live.done) return { step: "golive", text: t("Put your app online: ask the Go live guide how, then check your live link.") };
   return null;
+}
+
+/** "Answers · Prices · Orders" — the blocks that are on. */
+function blockSummary(p: ProjectState, t: T): string {
+  const b = p.site!.config.blocks;
+  const on = [b.info.on && t("Answers"), b.prices.on && t("Prices"), b.orders.on && t("Orders"), b.contact.on && t("A person")].filter(Boolean);
+  return on.length ? on.join(" · ") : t("No blocks switched on");
 }
 
 /** The live link was checked and both the page and an N-ATLAS answer worked. */

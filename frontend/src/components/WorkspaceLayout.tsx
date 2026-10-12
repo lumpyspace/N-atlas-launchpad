@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { projectKind, projectName, useProject, useWorkspace } from "../state/ProjectContext";
 import { hostOf, isLive, nextStep, stages, type StageKey } from "../utils/projectStatus";
+import type { Step } from "../state/ProjectContext";
+import { N_ } from "../i18n";
 import { useT } from "../i18n";
 import { ModeSwitch } from "./ModeSwitch";
 import {
@@ -14,13 +16,26 @@ import {
   PackageIcon,
   PenIcon,
   RocketIcon,
+  SlidersIcon,
+  GlobeIcon,
 } from "../ui/icons";
+
+/** The site's admin menu, WordPress-style. */
+const SITE_MENU: { step: Step; label: string; icon: typeof ChatIcon }[] = [
+  { step: "site", label: N_("Dashboard"), icon: GlobeIcon },
+  { step: "pages", label: N_("Pages"), icon: LayersIcon },
+  { step: "appearance", label: N_("Appearance"), icon: PenIcon },
+  { step: "plugins", label: N_("Plugins"), icon: SlidersIcon },
+  { step: "inbox", label: N_("Inbox"), icon: PackageIcon },
+  { step: "settings", label: N_("Settings"), icon: BookIcon },
+];
 
 const STAGE_ICON: Record<StageKey, typeof ChatIcon> = {
   design: ChatIcon,
   build: LayersIcon,
   prompt: PenIcon,
   knowledge: BookIcon,
+  site: GlobeIcon,
   test: FlaskIcon,
   ship: PackageIcon,
   live: RocketIcon,
@@ -56,7 +71,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
     list.map((s) => {
       const active = s.steps.includes(state.step);
       const Icon = STAGE_ICON[s.key];
-      return (
+      const button = (
         <button
           key={s.key}
           disabled={!s.available}
@@ -82,6 +97,42 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
             {!compact && <span className="block truncate text-[11px] text-slate-400">{s.detail}</span>}
           </span>
         </button>
+      );
+      // Under "Your site": its admin menu, once you're in it.
+      if (s.key !== "site" || !active) return button;
+      if (compact) {
+        // Narrow screens: the site's menu follows in the tab row.
+        return [
+          button,
+          ...SITE_MENU.map((m) => (
+            <button
+              key={`menu-${m.step}`}
+              onClick={() => dispatch({ type: "setStep", step: m.step })}
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-sm ${state.step === m.step ? "bg-forge-50 font-semibold text-forge-800" : "text-slate-600 hover:bg-slate-100"}`}
+            >
+              {t(m.label)}
+            </button>
+          )),
+        ];
+      }
+      return (
+        <div key={s.key}>
+          {button}
+          <div className="ml-6 mt-0.5 space-y-0.5 border-l border-slate-200 pl-3">
+            {SITE_MENU.map((m) => (
+              <button
+                key={m.step}
+                onClick={() => dispatch({ type: "setStep", step: m.step })}
+                className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[13px] transition-colors ${
+                  state.step === m.step ? "bg-forge-50 font-semibold text-forge-800" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <m.icon size={13} className={state.step === m.step ? "text-forge-600" : "text-slate-400"} />
+                {t(m.label)}
+              </button>
+            ))}
+          </div>
+        </div>
       );
     });
 

@@ -16,6 +16,7 @@ import type {
   DesignSnapshot,
   Improvement,
   LiveCheck,
+  AssistantConfig,
   NarrationSection,
   NarrationValue,
   SecurityRunResult,
@@ -44,7 +45,14 @@ export type Step =
   | "secure"
   | "improve"
   | "export"
-  | "golive";
+  | "golive"
+  // The site's admin (WordPress-style)
+  | "site"
+  | "pages"
+  | "appearance"
+  | "plugins"
+  | "inbox"
+  | "settings";
 
 
 /** A single developer-saved test case from the Playground. */
@@ -90,6 +98,8 @@ export interface ProjectState {
   exportLang?: "js" | "python";
   /** Go live: the conversation with the deploy guide, and the last check of the live link. */
   goLive?: GoLiveState;
+  /** The assistant built from building blocks, and where it's published. */
+  site?: SiteState;
   /** Saved versions of the system prompt, newest first. */
   promptVersions: PromptVersion[];
   /** The app's documents; relevant passages are added to each question. */
@@ -125,6 +135,19 @@ export interface PromptVersion {
   savedAt: string;
   label: string;
   text: string;
+}
+
+export interface SiteState {
+  config: AssistantConfig;
+  /** Who set it up ("Groq", or "Launchpad" for the defaults). */
+  by?: string;
+  /** Set once published: its address is /a/<slug>. */
+  slug?: string;
+  /** The only way to edit it later (kept in this browser). */
+  ownerKey?: string;
+  publishedAt?: string;
+  /** The config as last published, to tell whether there are changes to publish. */
+  publishedConfig?: string;
 }
 
 export interface GoLiveState {
@@ -201,6 +224,7 @@ type Action =
   | { type: "setDesign"; design: DesignState }
   | { type: "markExported"; lang?: "js" | "python" }
   | { type: "setGoLive"; goLive: GoLiveState }
+  | { type: "setSite"; site: SiteState | undefined }
   | { type: "savePromptVersion"; label: string }
   | { type: "deletePromptVersion"; id: string }
   | { type: "addKnowledge"; doc: KDoc }
@@ -317,6 +341,8 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return { ...state, exportedAt: new Date().toISOString(), exportLang: action.lang ?? state.exportLang };
     case "setGoLive":
       return { ...state, goLive: action.goLive };
+    case "setSite":
+      return { ...state, site: action.site };
     case "reset":
       return { ...initialState };
     default:

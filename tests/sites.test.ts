@@ -32,8 +32,8 @@ const natlas = {
   },
   async generateStream(prompt: string, _o: unknown, onChunk: (c: any) => void) {
     const body = prompt.split("\n").slice(1).join(" ");
-    // Hausa words only, keeping the numbers and code markers, as the checks require.
-    const kept = (body.match(/\[\[C\d+\]\]|\d[\d,.]*\d|\d/g) ?? []).join(" ");
+    // Hausa words only, keeping code markers, prices, weights and numbers exactly, as the checks require.
+    const kept = (body.match(/\[\[C\d+\]\]|₦\s?\d[\d,.]*\d|\d[\d,.]*\s?(?:kg|g|l|ml|%)(?![\p{L}\d])|\d[\d,.]*\d|\d/gu) ?? []).join(" ");
     const out = prompt.startsWith("Translate into English") ? "How much is a bag of rice?" : `Ga amsar da Hausa sosai kuma muna farin cikin taimaka maka a yau ${kept}`;
     onChunk({ type: "delta", delta: out });
   },
@@ -187,4 +187,26 @@ test("Upstash store speaks Redis over REST", async () => {
   assert.equal((await s.getSite("a"))?.config.name, "Kano Grains");
   assert.equal(await s.countUse("site:a", "2026-10-12"), 1);
   assert.deepEqual(calls.map((c) => c[0]), ["SET", "GET", "INCR", "EXPIRE"]);
+});
+
+test("a site's pages teach the assistant — but only pages the owner has checked", async () => {
+  const { pagesText } = await import("../backend/src/sites/runtime.ts");
+  const c = sanitizeConfig({
+    name: "Kano Grains",
+    pages: [
+      { title: "Home", sections: [{ type: "hero", heading: "Kano Grains", text: "Grain at Dawanau market.", button: "order" }], reviewed: true },
+      { title: "Contact", slug: "contact", sections: [{ type: "text", heading: "Opening hours", text: "Monday-Saturday 8am-6pm" }], reviewed: false },
+      { title: "FAQ", slug: "faq", sections: [{ type: "faq", heading: "FAQ", items: [{ q: "Do you deliver?", a: "Yes, within …" }, { q: "Where are you?", a: "Shop 12, Dawanau." }] }] },
+    ],
+  })!;
+  const text = pagesText(c);
+  assert.match(text, /Grain at Dawanau market/);
+  assert.doesNotMatch(text, /8am-6pm/, "a draft nobody checked isn't a fact");
+  assert.doesNotMatch(text, /within …/, "a blank isn't a fact");
+  assert.match(text, /Shop 12, Dawanau/);
+  assert.equal(c.pages[0].slug, "");
+  assert.equal(c.pages[1].slug, "contact");
+  const view = publicView("kano-grains-abc123", c);
+  assert.ok(view.pages.every((p: any) => !("reviewed" in p)), "visitors don't see the owner's checks");
+  assert.equal(view.assistant, true);
 });

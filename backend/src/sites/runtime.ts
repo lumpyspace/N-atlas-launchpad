@@ -42,11 +42,38 @@ export interface SiteAnswer {
 export const SAFE_REPLY = "Sorry, I can't help with that. Please ask me something else.";
 const naira = (n: number) => `₦${n.toLocaleString("en-US")}`;
 
-/** The owner's building blocks, as the only facts the assistant may use. */
+/** A blank the owner hasn't filled in yet ("…", "____"): not a fact. */
+const BLANK = /…|\.\.\.|_{3,}/;
+
+/** What the site's pages say: the assistant knows its own website. */
+export function pagesText(config: AssistantConfig): string {
+  const lines: string[] = [];
+  for (const p of config.pages ?? []) {
+    // A draft nobody has checked may contain guesses: not a source of facts.
+    if (p.reviewed === false) continue;
+    const own: string[] = [];
+    for (const s of p.sections) {
+      if (s.type === "hero" || s.type === "text") {
+        const body = [s.heading, s.text].filter((x) => x && x.trim()).join(": ");
+        if (body) own.push(body);
+      } else if (s.type === "faq") {
+        for (const i of s.items) own.push(`Q: ${i.q} A: ${i.a}`);
+      }
+    }
+    // Lines with blanks are drafts, not facts.
+    const facts = own.filter((l) => !BLANK.test(l));
+    if (facts.length) lines.push(`[${p.title}]\n${facts.join("\n")}`);
+  }
+  return lines.join("\n\n").slice(0, 12000);
+}
+
+/** The owner's site and plugins, as the only facts the assistant may use. */
 export function factsFor(config: AssistantConfig): string {
   const b = config.blocks;
   const parts: string[] = [];
-  if (b.info.on && b.info.text.trim()) parts.push(`INFORMATION FROM THE OWNER:\n${b.info.text.trim()}`);
+  const site = pagesText(config);
+  if (site) parts.push(`THE WEBSITE'S PAGES:\n${site}`);
+  if (b.info.on && b.info.text.trim()) parts.push(`MORE INFORMATION FROM THE OWNER:\n${b.info.text.trim()}`);
   if (b.prices.on && b.prices.items.length) {
     parts.push(
       "PRICE LIST (naira; quote exactly; an item without a price means: say you'll need to check with the owner):\n" +
@@ -77,6 +104,7 @@ function brainSystem(config: AssistantConfig, visitor: LangCode): string {
   return `${config.instructions}
 
 Use ONLY these facts. Never invent prices, stock, dates, opening hours, phone numbers or policies; if something isn't here, say so and offer what you can.
+Visitors may write in Pidgin, Yoruba, Hausa or Igbo. Asked about an item, "how much" words — "nawa" (Hausa), "eélò"/"elo" (Yoruba), "ego ole"/"ole" (Igbo), "how much"/"wetin be the price" (Pidgin) — usually mean its price.
 
 ${factsFor(config)}
 
@@ -155,7 +183,7 @@ export async function answerVisitor(
         }
       }
       if (english === SAFE_REPLY) order = undefined;
-      const said = await speakIn({ brain, natlas, language, english, brainName: r.provider, keep: [config.name, ...config.blocks.prices.items.map((i) => i.name)], signal });
+      const said = await speakIn({ brain, natlas, language, english, brainName: r.provider, keep: [config.name], signal });
       return { reply: said.text, english, language, voice: said.voice, brain: r.provider, order, orderKey };
     } catch (err) {
       if (signal?.aborted) throw err;

@@ -816,3 +816,137 @@ export async function streamHelpAnswer(
   const history = body.history.map((m) => ({ role: m.role, content: m.content }));
   await streamRun<never, never>("/api/help/ask", { ...body, history }, (e) => onEvent(e as unknown as DesignEvent), signal);
 }
+
+// ── Published assistants (building blocks) ──────────────────────────────────
+
+export interface PriceItem {
+  name: string;
+  unit: string;
+  /** Naira; null until the owner sets it. */
+  price: number | null;
+  note?: string;
+}
+
+/** Plugins (WordPress-style): features switched on or off. */
+export interface Blocks {
+  assistant: { on: boolean };
+  info: { on: boolean; text: string };
+  prices: { on: boolean; items: PriceItem[] };
+  orders: { on: boolean; kind: "order" | "booking" | "enquiry"; fields: string[] };
+  contact: { on: boolean; whatsapp: string; phone: string; hours: string };
+}
+
+export type Section =
+  | { type: "hero"; heading: string; text: string; button: "chat" | "order" | "whatsapp" | "none" }
+  | { type: "text"; heading: string; text: string }
+  | { type: "faq"; heading: string; items: { q: string; a: string }[] }
+  | { type: "prices"; heading: string }
+  | { type: "contact"; heading: string };
+
+export interface Page {
+  id: string;
+  title: string;
+  /** "" for the home page. */
+  slug: string;
+  inMenu: boolean;
+  sections: Section[];
+  /** The owner has checked this page. Until then it's a draft by Groq, and the assistant doesn't take facts from it. */
+  reviewed?: boolean;
+}
+
+export type ThemeId = "market" | "clean" | "warm" | "night";
+
+export interface AssistantConfig {
+  /** Site title. */
+  name: string;
+  tagline: string;
+  greeting: string;
+  language: string;
+  instructions: string;
+  blocks: Blocks;
+  theme: { id: ThemeId; accent: string };
+  pages: Page[];
+}
+
+export interface SiteTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface SiteAnswer {
+  reply: string;
+  english: string;
+  language: string;
+  voice: string;
+  brain?: string;
+  /** Preview: the order it would save. Live: { saved: true }. */
+  order?: { fields?: Record<string, string>; kind?: string; saved?: boolean };
+  orderKey?: string;
+}
+
+export interface InboxItem {
+  id: string;
+  kind: string;
+  fields: Record<string, string>;
+  language: string;
+  at: string;
+}
+
+/** What visitors see of a site (and what the admin previews). */
+export interface PublicSite {
+  slug: string;
+  name: string;
+  tagline: string;
+  greeting: string;
+  language: string;
+  theme: { id: ThemeId; accent: string };
+  pages: Page[];
+  assistant: boolean;
+  orders: { kind: string } | null;
+  prices: PriceItem[] | null;
+  contact: { whatsapp: string; phone: string; hours: string } | null;
+}
+
+/** The public view of a config — what the live site will show. */
+export function viewOf(c: AssistantConfig, slug = ""): PublicSite {
+  return {
+    slug,
+    name: c.name,
+    tagline: c.tagline,
+    greeting: c.greeting,
+    language: c.language,
+    theme: c.theme,
+    pages: c.pages,
+    assistant: c.blocks.assistant.on,
+    orders: c.blocks.orders.on ? { kind: c.blocks.orders.kind } : null,
+    prices: c.blocks.prices.on ? c.blocks.prices.items : null,
+    contact: c.blocks.contact.on ? { whatsapp: c.blocks.contact.whatsapp, phone: c.blocks.contact.phone, hours: c.blocks.contact.hours } : null,
+  };
+}
+
+async function json<T>(res: Response): Promise<T> {
+  const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  return data as T;
+}
+const post = (path: string, body: unknown, key?: string, method = "POST") =>
+  fetch(`${BASE}${path}`, {
+    method,
+    headers: { "content-type": "application/json", ...(key ? { "x-owner-key": key } : {}) },
+    body: JSON.stringify(body),
+  });
+
+export const siteStatus = () => fetch(`${BASE}/api/sites/status`).then((r) => json<{ canPublish: boolean; store: string | null; reason?: string }>(r));
+export const draftSite = (blueprint: Blueprint, language: string, knowledge: string) =>
+  post("/api/sites/draft", { blueprint, language, knowledge }).then((r) => json<{ config: AssistantConfig; by: string }>(r));
+export const previewSite = (config: AssistantConfig, history: SiteTurn[], sent: string[]) =>
+  post("/api/sites/preview", { config, history, sent }).then((r) => json<SiteAnswer>(r));
+export const publishSite = (config: AssistantConfig) => post("/api/sites", { config }).then((r) => json<{ slug: string; ownerKey: string }>(r));
+export const updateSite = (slug: string, key: string, config: AssistantConfig) => post(`/api/sites/${slug}`, { config }, key, "PUT").then((r) => json<{ slug: string }>(r));
+export const unpublishSite = (slug: string, key: string) =>
+  fetch(`${BASE}/api/sites/${slug}`, { method: "DELETE", headers: { "x-owner-key": key } }).then((r) => json<{ ok: true }>(r));
+export const siteInbox = (slug: string, key: string) =>
+  fetch(`${BASE}/api/sites/${slug}/inbox`, { headers: { "x-owner-key": key } }).then((r) => json<{ items: InboxItem[]; dailyLimit: number }>(r));
+export const publicSite = (slug: string) => fetch(`${BASE}/api/sites/${slug}/public`).then((r) => json<PublicSite>(r));
+export const chatSite = (slug: string, history: SiteTurn[], sent: string[]) =>
+  post(`/api/sites/${slug}/chat`, { history, sent }).then((r) => json<SiteAnswer>(r));

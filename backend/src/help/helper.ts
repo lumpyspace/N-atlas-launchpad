@@ -43,25 +43,25 @@ const MAP = `LAUNCHPAD, PAGE BY PAGE (Simple-mode name → Developer-mode name)
 - Describe it → Design: talk the idea through in a chat; a live canvas shows who it's for, its features and data. Press "Build it" when ready.
 - Your plan → Build guide: what you're building, an example conversation, what the first version should do, the facts it needs, mistakes to avoid. Developer mode adds architecture, techniques, build steps, N-ATLAS limits, the licence, and a "Blueprint & system prompt" tab.
 - Prompt (Developer mode only): edit the assistant's instructions (its "system prompt") and save versions.
-- Your information → Knowledge: upload .txt, .md, .csv, .json or .pdf files (price lists, FAQs, opening hours); the assistant answers from them.
-- Try it → Test: chat with the assistant, running on N-ATLAS; 👍 / 👎 keeps answers as test cases. Developer mode adds "Test cases & scores", "Security" (attacks on the assistant), "Compare prompt versions" and "Get code".
-- Download → Ship: a folder with the assistant: a chat page and a small server (JavaScript or Python — JavaScript if unsure), with safety checks built in. A quick security check runs first.
-- Put it online → Go live: a guide explains hosting step by step (Vercel, Modal, Render, Docker), then "Check my live link".
+- Your information → Knowledge: upload .txt, .md, .csv, .json or .pdf files (price lists, FAQs, opening hours); their text can be added to the "Answer questions" block.
+- Set it up: building blocks with on/off switches — "Answer questions" (an information sheet; … marks facts still to fill in), "Price list" (items, units, prices in naira; an item without a price is never guessed), "Take orders or bookings" (the details to collect; confirmed ones go to the inbox), "Talk to a person" (WhatsApp or phone). A live preview beside it shows exactly what visitors will get. Groq sets up the first version from the plan.
+- Publish: one click gives a link (…/a/<name>) anyone can open on a phone; Launchpad hosts it on N-ATLAS. There's no account: an edit key (saved in the browser — copy it somewhere safe) lets the owner publish changes, read the inbox of orders, or take it offline.
+- Developer mode only: "Test" (the raw assistant, test cases & scores, security attacks, compare prompt versions, get code), "Ship" (download a chat page and small server in JavaScript or Python) and "Go live" (a guide to hosting it yourself on Vercel, Modal, Render or Docker).
 - Setup doctor (top bar): checks the connection to N-ATLAS and how to fix it.
 - Simple / Developer switch: in the sidebar of a project and on My projects.
 - Projects are saved in this browser; there's no account.
 
 WHAT LAUNCHPAD BUILDS
-- AI assistants that answer questions and guide people from the owner's information: a web chat page, a WhatsApp bot, a Telegram bot, or a chat API for a mobile or SMS app.
-- Not full apps: accounts, payments or a database aren't built for you; a developer can add them to the downloaded code.
+- AI assistants built from blocks: they answer questions from the owner's information, quote a price list, take orders, bookings or enquiries into an inbox, and pass visitors to a person. Published as a web page anyone can open; developers can also download the code (web chat, WhatsApp, Telegram or a chat API).
+- Not every kind of app: there are no customer accounts or payments.
 
 WHO DOES WHAT
-- Groq (a fast service running an open model, gpt-oss-120b) does the thinking: the design questions, the plan, the assistant's instructions, the Go live guide and this helper.
-- N-ATLAS understands Pidgin, Yoruba, Hausa and Igbo and puts answers into the person's language — and it's the model their assistant runs on.
+- Groq (a fast service running an open model, gpt-oss-120b) does the thinking: the design questions, the plan, setting up the blocks, this helper — and, in a published assistant, deciding each answer from the owner's facts only.
+- N-ATLAS understands Pidgin, Yoruba, Hausa and Igbo and puts everything into the person's language — including every answer a published assistant gives its visitors.
 
 N-ATLAS
 - An open model from NCAIR (Nigeria): Llama 3 with 8 billion parameters, tuned for Nigerian English, Yoruba, Hausa and Igbo; 8,192-token context.
-- It has no public API: to put an assistant online, N-ATLAS must run somewhere reachable — Ollama on a computer for testing, or a GPU server such as Modal for real users.`;
+- It has no public API: Launchpad hosts it for published assistants. Developers who download the code need their own N-ATLAS server (Ollama for testing, or a GPU server such as Modal).`;
 
 export function helperSystem(ctx: HelpContext): string {
   const p = ctx.project;

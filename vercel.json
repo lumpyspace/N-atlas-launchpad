@@ -5,7 +5,18 @@
   "buildCommand": "npm run build --prefix backend && npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
   "functions": {
-    "api/index.mjs": { "maxDuration": 300 }
+    "api/index.mjs": {
+      "maxDuration": 300
+    }
   },
-  "rewrites": [{ "source": "/api/(.*)", "destination": "/api/index.mjs" }]
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.mjs"
+    },
+    {
+      "source": "/a/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }

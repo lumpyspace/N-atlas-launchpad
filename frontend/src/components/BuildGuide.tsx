@@ -290,9 +290,8 @@ export function BuildGuide({
           <ol className="mt-3 space-y-2 text-sm text-slate-600">
             {[
               [t("Add your information"), t("the facts your assistant answers from: prices, opening hours, an FAQ."), "knowledge"],
-              [t("Try it"), t("chat with it as your users would, and keep a 👍 or 👎 on answers."), "playground"],
-              [t("Download it"), t("a ready-to-run chat page and server, with safety checks built in."), "export"],
-              [t("Put it online"), t("ask the guide how, step by step, in your language."), "golive"],
+              [t("Your site"), t("Groq writes your website's pages; you check them, pick a look and switch on plugins — prices, orders, WhatsApp."), "site"],
+              [t("Publish"), t("one click gives it a link anyone can open. No code, no server."), "site"],
             ].map(([title, what, step], i) => (
               <li key={step} className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-forge-50 text-xs font-bold text-forge-700">{i + 1}</span>
