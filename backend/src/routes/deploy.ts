@@ -61,6 +61,7 @@ export function deployRouter(provider: NAtlasProvider, brain: Brain | undefined,
             words: language === "en" ? "" : latest,
             maxTokens: 900,
             protectCode: true,
+            keep: [project.name],
             signal: sse.signal,
             onEvent: (e) => {
               if (e.type === "thought") {

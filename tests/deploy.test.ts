@@ -91,9 +91,13 @@ test("guide relay: N-ATLAS says it in Hausa, the commands stay exactly as writte
       throw new Error("unused");
     },
     async generateStream(prompt: string, _o: unknown, onChunk: (c: any) => void) {
+      // Line by line, as the relay asks: list numbers and code lines never reach N-ATLAS.
+      assert.ok(!/^\d+\.|\[\[C1\]\]/m.test(prompt.split("\n").slice(1).join("\n")), prompt);
       const out = prompt.startsWith("Translate into English")
         ? "How do I put my app online?"
-        : "1. Shigar da Modal:\n[[C1]]\n2. Tura shi da [[C2]] kuma ka manna hanyar haɗin a ƙasa domin a duba shi sosai.";
+        : prompt.includes("Install Modal")
+          ? "Shigar da Modal:"
+          : "Tura shi da [[C2]] kuma ka manna hanyar haɗin a ƙasa domin a duba shi sosai.";
       onChunk({ type: "delta", delta: out });
     },
     async health() {
@@ -153,4 +157,46 @@ test("live check: page, a real answer, and the safety checks — on a running ap
   assert.equal(isPrivateAddress("::ffff:127.0.0.1"), true);
   assert.equal(isPrivateAddress("8.8.8.8"), false);
   await assert.rejects(checkableUrl("ftp://x.com", true), /http/);
+});
+
+test("the app's name and step titles survive translation", async () => {
+  const { translatePieces } = await import("../backend/src/brain/relay.ts");
+  const natlas = {
+    name: "fake",
+    isMock: true,
+    async generate() {
+      throw new Error("unused");
+    },
+    async generateStream(prompt: string, _o: unknown, onChunk: (c: any) => void) {
+      const body = prompt.split("\n").slice(1).join("\n");
+      assert.ok(!body.includes("**") && !body.includes("Kano Crop Prices"), body);
+      const map: Record<string, string> = {
+        "Put [[C1]] online": "Saka [[C1]] a intanet",
+        "Install the tools": "Shigar da kayan aiki",
+        "Then deploy it and open the link in your browser.": "Sannan ka tura shi kuma ka buɗe hanyar haɗin a cikin burauzarka.",
+      };
+      onChunk({ type: "delta", delta: map[body] ?? body });
+    },
+    async health() {
+      return { ok: true } as any;
+    },
+  };
+  const r = await translatePieces(
+    natlas as any,
+    "**Put Kano Crop Prices online**\n\n1. **Install the tools**\n2. Then deploy it and open the link in your browser.",
+    "ha",
+    undefined,
+    undefined,
+    ["Kano Crop Prices"],
+  );
+  assert.equal(r?.text, "**Saka Kano Crop Prices a intanet**\n\n1. **Shigar da kayan aiki**\n2. Sannan ka tura shi kuma ka buɗe hanyar haɗin a cikin burauzarka.");
+});
+
+test("a translation that invents settings or runs on is caught", async () => {
+  const { invents } = await import("../backend/src/brain/relay.ts");
+  const line = "In the Vercel dashboard, open Settings, then Environment Variables, and add:";
+  assert.equal(invents(line, "A cikin kwamitin Vercel, buɗe Saituna, sannan Canje-canjen yanayi, ka ƙara:"), false);
+  assert.equal(invents(line, "A cikin kwamitin Vercel, ƙara: REACT_APP_CLIENT_ID = 'YOUR_CLIENT_ID'"), true);
+  assert.equal(invents("Open the link.", "Buɗe hanyar haɗin. " + "Sannan ka gwada shi sosai a kowace rana. ".repeat(3)), true);
+  assert.equal(invents("Add NATLAS_API_KEY in settings.", "Ƙara NATLAS_API_KEY a saituna."), false);
 });

@@ -14,6 +14,7 @@
 import { detectLanguage, LANG_NAMES, type LangCode } from "../eval/lang.js";
 import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 import type { Brain, BrainMessage } from "./brain.js";
+import { logger } from "../logger.js";
 
 export type RelayEvent =
   | { type: "understood"; english: string } // N-ATLAS's English reading of the developer's words
@@ -80,9 +81,13 @@ const translateSystem = (to: string) =>
  * Swap code blocks and `inline code` for markers like [[C1]] so translation
  * can't touch commands, then put them back.
  */
-export function protectCode(text: string) {
+export function protectCode(text: string, keep: string[] = []) {
   const parts: string[] = [];
-  const masked = text.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+  // Also names that must stay as they are (the app's name), longest first.
+  const names = keep.filter((k) => k.trim().length > 1).sort((a, b) => b.length - a.length);
+  const escaped = names.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const pattern = new RegExp(["```[\\s\\S]*?```", "`[^`\\n]+`", ...escaped].join("|"), "g");
+  const masked = text.replace(pattern, (m) => {
     parts.push(m);
     return `[[C${parts.length}]]`;
   });
@@ -92,6 +97,88 @@ export function protectCode(text: string) {
     complete: (t: string) => parts.every((_, i) => t.split(`[[C${i + 1}]]`).length === 2),
     restore: (t: string) => parts.reduce((out, part, i) => out.replace(`[[C${i + 1}]]`, () => part), t),
   };
+}
+
+const MARKER = /\[\[C\d+\]\]/g;
+
+/** Code-like words: SETTING_NAMES, web addresses, file.names, key=value. */
+const CODE_LIKE = /\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b|https?:\/\/\S+|\b[\w-]+\.(?:js|py|json|yaml|yml|ts|env|com|app|io|run)\b|\b\w+\s*=\s*\S+/g;
+
+/**
+ * Did the translation make things up? An 8B model sometimes keeps going after
+ * a line that ends in "add:", inventing settings or commands. Too long, or a
+ * code-like word the original didn't have, means it did.
+ */
+export function invents(original: string, translated: string): boolean {
+  if (translated.length > original.length * 2.2 + 30) return true;
+  const known = new Set(original.match(CODE_LIKE) ?? []);
+  return (translated.match(CODE_LIKE) ?? []).some((w) => !known.has(w));
+}
+
+/** A line's markdown lead-in ("2. ", "- ", "### ") — kept out of translation. */
+const LEAD = /^(\s*(?:\d+[.)]\s+|[-*•]\s+|#{1,4}\s+)?)/;
+
+export interface PiecesResult {
+  text: string;
+  /** Lines N-ATLAS couldn't translate faithfully, done by the fallback instead. */
+  helped: number;
+  lines: number;
+}
+
+/**
+ * Translate text with code in it line by line (in parallel), code, list
+ * numbers and table rows kept out. Each line must keep its markers and
+ * numbers; a failing line gets one more try, then the fallback (the brain)
+ * translates that line alone. Null if the result isn't in the language.
+ */
+export async function translatePieces(
+  natlas: NAtlasProvider,
+  english: string,
+  language: LangCode,
+  signal?: AbortSignal,
+  fallback?: (line: string) => Promise<string>,
+  keep: string[] = [],
+): Promise<PiecesResult | null> {
+  const name = LANG_NAMES[language];
+  const masked = protectCode(english, keep);
+  const lines = masked.text.split("\n");
+  let helped = 0;
+  const one = async (line: string): Promise<string> => {
+    // Tables, rules and lines without words stay as they are.
+    if (/^\s*\|/.test(line) || !/\p{L}{2,}/u.test(line.replace(MARKER, ""))) return line;
+    const lead = line.match(LEAD)![1];
+    // Bold doesn't survive word-order changes: translate the plain words, and
+    // bold the whole line again if it started bold (a step's title).
+    const rawBody = line.slice(lead.length);
+    const bold = rawBody.trimStart().startsWith("**");
+    const body = rawBody.replace(/\*\*/g, "").replace(/(^|\s)\*(\S[^*\n]*?\S)\*(?=\s|[.,:;]|$)/g, "$1$2");
+    const dress = (said: string) => lead + (bold ? `**${said.trim()}**` : said);
+    const markers = body.match(MARKER) ?? [];
+    const faithful = (said: string) =>
+      !!said && markers.every((m) => said.split(m).length === 2) && keepsNumbers(body, said) && !invents(body, said);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const said = (
+        await natlasText(natlas, translateSystem(name), `Translate into ${name}:\n${body}`, Math.min(400, Math.ceil(body.length / 1.5) + 40), null, signal)
+      ).replace(/\n+/g, " ");
+      if (faithful(said)) return dress(said);
+      logger.warn("N-ATLAS line failed its checks", { language, attempt, markers: markers.every((m) => said.split(m).length === 2), numbers: keepsNumbers(body, said) });
+    }
+    if (!fallback) throw new Error("no faithful translation");
+    helped++;
+    return dress((await fallback(body)).replace(/\n+/g, " "));
+  };
+  let out: string[];
+  try {
+    out = await Promise.all(lines.map(one));
+  } catch {
+    return null;
+  }
+  const joined = out.join("\n");
+  if (!inLanguage(joined.replace(MARKER, ""), language)) {
+    logger.warn("N-ATLAS translation isn't in the language", { language });
+    return null;
+  }
+  return { text: masked.restore(joined), helped, lines: lines.filter((l) => /\p{L}{2,}/u.test(l.replace(MARKER, ""))).length };
 }
 
 /** N-ATLAS's English reading of the developer's words ("" when they're already English). */
@@ -115,6 +202,8 @@ export async function relay(opts: {
   maxTokens?: number;
   /** The reply holds commands or code: keep them out of the translation (it arrives in one piece, not streamed). */
   protectCode?: boolean;
+  /** Names to keep exactly as they are when translating (with protectCode), e.g. the app's name. */
+  keep?: string[];
 }): Promise<RelayResult> {
   const { brain, natlas, language, onEvent, signal } = opts;
   const name = LANG_NAMES[language];
@@ -153,24 +242,42 @@ export async function relay(opts: {
   }
 
   // 3. N-ATLAS speaks: translate, check, retry once.
-  const masked = opts.protectCode ? protectCode(thought.text) : null;
-  const source = masked ? masked.text : thought.text;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt) onEvent({ type: "reset" });
-    else onEvent({ type: "voice", voice: "N-ATLAS" });
-    const said = await natlasText(
-      natlas,
-      translateSystem(name),
-      `Translate into ${name}:\n${source}`,
-      Math.min(1200, Math.ceil(source.length / 1.5) + 80),
-      masked ? null : (d) => onEvent({ type: "delta", delta: d }),
-      signal,
-    );
-    const words = said.replace(/\[\[C\d+\]\]/g, "");
-    if (said && inLanguage(words, language) && keepsNumbers(source, said) && (!masked || masked.complete(said))) {
-      const text = masked ? masked.restore(said) : said;
-      if (masked) onEvent({ type: "delta", delta: text });
-      return { text, english: thought.text, brain: thought.provider, voice: "N-ATLAS" };
+  onEvent({ type: "voice", voice: "N-ATLAS" });
+  if (opts.protectCode) {
+    // Step-by-step answers with commands: paragraph by paragraph, all at once —
+    // an 8B model stays faithful on short pieces, and the server runs them together.
+    // A line N-ATLAS can't keep faithful (a number, a command) goes to the brain on its own.
+    const lineByBrain = async (line: string) =>
+      (
+        await brain.chat(
+          [
+            { role: "system", content: translateSystem(name) },
+            { role: "user", content: `Translate into ${name}:\n${line}` },
+          ],
+          { maxTokens: 300, signal },
+        )
+      ).text;
+    const done = await translatePieces(natlas, thought.text, language, signal, lineByBrain, opts.keep);
+    // Mostly N-ATLAS's words: say so; if the brain had to write a third or more, say that instead.
+    if (done && done.helped * 3 < Math.max(1, done.lines)) {
+      onEvent({ type: "delta", delta: done.text });
+      return { text: done.text, english: thought.text, brain: thought.provider, voice: "N-ATLAS" };
+    }
+  } else {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt) onEvent({ type: "reset" });
+      const said = await natlasText(
+        natlas,
+        translateSystem(name),
+        `Translate into ${name}:\n${thought.text}`,
+        Math.min(900, Math.ceil(thought.text.length / 1.5) + 80),
+        (d) => onEvent({ type: "delta", delta: d }),
+        signal,
+      );
+      if (said && inLanguage(said, language) && keepsNumbers(thought.text, said)) {
+        return { text: said, english: thought.text, brain: thought.provider, voice: "N-ATLAS" };
+      }
+      logger.warn("N-ATLAS translation failed its checks", { language, attempt, inLanguage: inLanguage(said, language), numbers: keepsNumbers(thought.text, said) });
     }
   }
 
