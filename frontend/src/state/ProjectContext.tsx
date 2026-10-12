@@ -105,6 +105,8 @@ export interface NarrationEntry {
   value?: NarrationValue;
   problem?: string;
   at: string;
+  /** Who thought (e.g. "Groq"; "" when N-ATLAS wrote it alone) and who wrote the words shown. */
+  by?: { brain: string; voice: string };
 }
 
 export interface Narration {
@@ -334,7 +336,11 @@ export interface WorkspaceState {
   view: View;
   /** Language for pages outside a project, and for new projects. */
   language: LangCode;
+  /** Simple: plain words and only what a first-timer needs. Developer: every tool. */
+  mode: Mode;
 }
+
+export type Mode = "simple" | "developer";
 
 type WorkspaceAction =
   | { type: "project"; action: Action }
@@ -344,7 +350,8 @@ type WorkspaceAction =
   | { type: "duplicateProject"; id: string }
   | { type: "deleteProject"; id: string }
   | { type: "setView"; view: View }
-  | { type: "setLanguage"; language: LangCode };
+  | { type: "setLanguage"; language: LangCode }
+  | { type: "setMode"; mode: Mode };
 
 function newId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -414,6 +421,8 @@ function workspaceReducer(ws: WorkspaceState, action: WorkspaceAction): Workspac
       return { ...ws, view: action.view };
     case "setLanguage":
       return { ...ws, language: action.language };
+    case "setMode":
+      return { ...ws, mode: action.mode };
   }
 }
 
@@ -436,7 +445,7 @@ const STORAGE_KEY = "natlas-launchpad-workspace-v1";
 /** The single-project store used before workspaces; imported once, never deleted. */
 const LEGACY_KEY = "natlas-launchpad-project-v2";
 
-const EMPTY_WORKSPACE: WorkspaceState = { projects: {}, order: [], currentId: null, view: "landing", language: "en" };
+const EMPTY_WORKSPACE: WorkspaceState = { projects: {}, order: [], currentId: null, view: "landing", language: "en", mode: "simple" };
 
 function loadWorkspace(): WorkspaceState {
   try {
@@ -483,6 +492,8 @@ interface WorkspaceContextValue {
   setLanguage: (language: LangCode) => void;
   /** Update the open project (same actions screens use). */
   dispatchProject: (action: Action) => void;
+  mode: Mode;
+  setMode: (mode: Mode) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -517,6 +528,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     deleteProject: (id) => dispatch({ type: "deleteProject", id }),
     setView: (view) => dispatch({ type: "setView", view }),
     dispatchProject: (action) => dispatch({ type: "project", action }),
+    mode: workspace.mode ?? "simple",
+    setMode: (mode) => dispatch({ type: "setMode", mode }),
   };
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

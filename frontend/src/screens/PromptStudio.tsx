@@ -95,6 +95,11 @@ export default function PromptStudio() {
               "The instructions N-ATLAS follows for every reply. The doctor checks them for N-ATLAS's known quirks; save versions as you go so you can compare and roll back.",
             )}
           </p>
+          {state.blueprint?.promptBy && (
+            <p className="mt-1 text-xs text-slate-400">
+              {t("{brain} wrote these instructions for your app; Launchpad added the security rules.", { brain: state.blueprint.promptBy })}
+            </p>
+          )}
         </div>
         <Button onClick={() => dispatch({ type: "setStep", step: "playground" })}>{t("Test it →")}</Button>
       </div>

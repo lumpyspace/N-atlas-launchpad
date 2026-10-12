@@ -13,6 +13,8 @@ export interface NarrationView {
   value: <T extends NarrationValue>(section: NarrationSection) => T | undefined;
   /** Why N-ATLAS's text wasn't used (the engine's text is shown instead). */
   problem: (section: NarrationSection) => string | undefined;
+  /** Who thought and who wrote a section. */
+  by: (section: NarrationSection) => { brain: string; voice: string } | undefined;
   /** The section N-ATLAS is writing now, and what it has written so far. */
   writing: { section: NarrationSection; text: string } | null;
   running: boolean;
@@ -66,7 +68,7 @@ export function useNarration(bp: Blueprint | null): NarrationView {
               key,
               language: lang,
               section: e.section,
-              entry: { value: e.value, problem: e.problem, at: new Date().toISOString() },
+              entry: { value: e.value, problem: e.problem, by: e.by, at: new Date().toISOString() },
             });
             setWriting(null);
           } else if (e.type === "error") setError(e.message);
@@ -98,6 +100,7 @@ export function useNarration(bp: Blueprint | null): NarrationView {
   return {
     value: <T extends NarrationValue>(s: NarrationSection) => entries[s]?.value as T | undefined,
     problem: (s) => entries[s]?.problem,
+    by: (s) => entries[s]?.by,
     writing,
     running,
     error,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getHealth, switchMode, type HealthStatus } from "./api";
 import { ProjectProvider, useWorkspace } from "./state/ProjectContext";
 import LanguageSwitcher from "./components/LanguageSwitcher";
+import { HelpChat } from "./components/HelpChat";
 import { useT } from "./i18n";
 import WorkspaceLayout from "./components/WorkspaceLayout";
 import Home from "./screens/Home";
@@ -97,6 +98,7 @@ function Shell() {
     <>
       <TopBar health={health} wake={wake} since={since} onHealthChange={setHealth} />
       <WakeBanner wake={wake} since={since} justWoke={justWoke} />
+      <HelpChat />
     </>
   );
 

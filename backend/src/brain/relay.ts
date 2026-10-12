@@ -294,3 +294,36 @@ export async function relay(opts: {
   onEvent({ type: "delta", delta: direct.text });
   return { text: direct.text, english: thought.text, brain: thought.provider, voice: direct.provider };
 }
+
+/**
+ * Text the brain wrote in English, said in the developer's language — not
+ * streamed. N-ATLAS translates line by line (the brain helps with lines it
+ * can't keep faithful); if that doesn't hold up, the brain translates it all.
+ * English is returned as it is. `voice` says who wrote the words shown.
+ */
+export async function speakIn(opts: {
+  brain: Brain;
+  natlas: NAtlasProvider;
+  language: LangCode;
+  english: string;
+  brainName: string;
+  keep?: string[];
+  signal?: AbortSignal;
+}): Promise<{ text: string; voice: string }> {
+  const { brain, natlas, language, english, brainName, keep, signal } = opts;
+  if (language === "en") return { text: english, voice: brainName };
+  const name = LANG_NAMES[language];
+  const byBrain = async (text: string, maxTokens: number) =>
+    (
+      await brain.chat(
+        [
+          { role: "system", content: translateSystem(name) },
+          { role: "user", content: `Translate into ${name}:\n${text}` },
+        ],
+        { maxTokens, signal },
+      )
+    ).text;
+  const done = await translatePieces(natlas, english, language, signal, (line) => byBrain(line, 300), keep);
+  if (done && done.helped * 3 < Math.max(1, done.lines)) return { text: done.text, voice: "N-ATLAS" };
+  return { text: await byBrain(english, 900), voice: brainName };
+}

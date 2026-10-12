@@ -26,6 +26,8 @@ export interface Blueprint {
   risks: string[];
   /** The generated, editable system prompt (contains a planted canary). */
   systemPrompt: string;
+  /** Who wrote the system prompt when it wasn't the template (e.g. "Groq"). */
+  promptBy?: string;
   suggestedEvalCategories: string[];
   suggestedSecurityTests: string[];
   /** How to actually build this app with N-ATLAS: architecture, steps, fit, licence. */

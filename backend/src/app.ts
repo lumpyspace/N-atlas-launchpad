@@ -27,6 +27,7 @@ import { promptRouter } from "./routes/prompt.js";
 import { narrateRouter } from "./routes/narrate.js";
 import { doctorRouter } from "./routes/doctor.js";
 import { deployRouter } from "./routes/deploy.js";
+import { helpRouter } from "./routes/help.js";
 import { Brain, providersFromEnv } from "./brain/brain.js";
 
 export function isPublic(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -103,7 +104,7 @@ export function createApp(config: AppConfig = loadConfig(), env: NodeJS.ProcessE
     app.use("/api", rateLimit(Number(env.PUBLIC_PER_MINUTE ?? 20), Number(env.PUBLIC_PER_HOUR ?? 300)));
   }
   app.use("/api", generateRouter(provider));
-  app.use("/api", blueprintRouter());
+  app.use("/api", blueprintRouter(brain));
   app.use("/api", evaluateRouter(provider));
   app.use("/api", securityRouter(provider));
   app.use("/api", improveRouter());
@@ -119,9 +120,10 @@ export function createApp(config: AppConfig = loadConfig(), env: NodeJS.ProcessE
   // What the assistant model is (never its keys).
   app.get("/api/brain", (_req, res) => res.json(brain.status()));
   app.use("/api", promptRouter());
-  app.use("/api", narrateRouter(provider));
+  app.use("/api", narrateRouter(provider, brain));
   app.use("/api", doctorRouter(provider));
   app.use("/api", deployRouter(provider, brain, publicMode));
+  app.use("/api", helpRouter(provider, brain));
 
   // Root gives a quick sanity response and points at the health check.
   app.get("/api", (_req, res) => {

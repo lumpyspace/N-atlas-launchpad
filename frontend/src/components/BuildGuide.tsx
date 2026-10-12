@@ -52,7 +52,10 @@ export function BuildGuide({
   appName,
   onChangeUseCase,
   narr,
+  simple = false,
 }: {
+  /** Simple mode: the plain-language parts only (no architecture, techniques, model limits or licence). */
+  simple?: boolean;
   plan: Plan;
   appName: string;
   /** Rebuild the blueprint for a different kind of app. */
@@ -70,7 +73,7 @@ export function BuildGuide({
       <NarrationBar narr={narr} />
       {language !== "en" && narr.done > 0 && (
         <p className="-mt-3 text-[11px] text-slate-400">
-          {t("Sections marked ✍ N-ATLAS were written by N-ATLAS in your language; the rest of this guide is still in English.")}
+          {t("Sections marked ✍ were written for your app in your language; the rest of this guide is still in English.")}
         </p>
       )}
       {/* What you're building */}
@@ -124,6 +127,8 @@ export function BuildGuide({
         </div>
       </Card>
 
+      {!simple && (
+        <>
       {/* Architecture */}
       <Card className="p-5">
         <h2 className="font-semibold text-slate-900">{t("How your app fits together")}</h2>
@@ -172,6 +177,9 @@ export function BuildGuide({
         </Card>
       )}
 
+        </>
+      )}
+
       {/* Data sources */}
       {plan.dataSources.length > 0 && (
         <Card className="p-5">
@@ -195,6 +203,8 @@ export function BuildGuide({
         </Card>
       )}
 
+      {!simple && (
+        <>
       {/* Steps */}
       <div>
         <h2 className="font-semibold text-slate-900">{t("Build it, step by step")}</h2>
@@ -226,6 +236,9 @@ export function BuildGuide({
         </ol>
       </div>
 
+        </>
+      )}
+
       {/* Risks */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="p-4">
@@ -237,12 +250,14 @@ export function BuildGuide({
             <Bullets items={narr.value<string[]>("pitfalls") ?? plan.pitfalls} />
           </Narrated>
         </Card>
+        {!simple && (
         <Card className="p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-600">{t("N-ATLAS limits to plan for")}</h3>
           <Bullets items={plan.watchOut} />
           <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-forge-600">{t("Where N-ATLAS fits well")}</h3>
           <Bullets items={plan.goodFit} />
         </Card>
+        )}
       </div>
 
       {/* Success */}
@@ -269,6 +284,30 @@ export function BuildGuide({
         </div>
       </Card>
 
+      {simple ? (
+        <Card className="p-5">
+          <h2 className="font-semibold text-slate-900">{t("What happens next")}</h2>
+          <ol className="mt-3 space-y-2 text-sm text-slate-600">
+            {[
+              [t("Add your information"), t("the facts your assistant answers from: prices, opening hours, an FAQ."), "knowledge"],
+              [t("Try it"), t("chat with it as your users would, and keep a 👍 or 👎 on answers."), "playground"],
+              [t("Download it"), t("a ready-to-run chat page and server, with safety checks built in."), "export"],
+              [t("Put it online"), t("ask the guide how, step by step, in your language."), "golive"],
+            ].map(([title, what, step], i) => (
+              <li key={step} className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-forge-50 text-xs font-bold text-forge-700">{i + 1}</span>
+                <span>
+                  <button onClick={() => go(step as Step)} className="font-semibold text-forge-700 hover:underline">
+                    {title}
+                  </button>{" "}
+                  — {what}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      ) : (
+        <>
       {/* Licence */}
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -289,6 +328,8 @@ export function BuildGuide({
           {t("before deploying.")}
         </p>
       </Card>
+        </>
+      )}
     </div>
   );
 }
@@ -303,7 +344,7 @@ function NarrationBar({ narr }: { narr: NarrationView }) {
     return (
       <div className={`${box} border-forge-200 bg-forge-50 text-forge-800`}>
         <span className="h-2 w-2 animate-pulse rounded-full bg-forge-500" />
-        <b>{t("✍ N-ATLAS is writing this guide in {language}…", { language: name })}</b>
+        <b>{t("✍ Writing this guide in {language}…", { language: name })}</b>
         <span>{t("{done} of {total} sections", { done: narr.done, total: narr.total })}</span>
         <span className="text-forge-700/70">{t("You can read the guide meanwhile; sections update as they're written.")}</span>
         <button onClick={narr.stop} className="ml-auto font-medium hover:underline">
@@ -315,7 +356,7 @@ function NarrationBar({ narr }: { narr: NarrationView }) {
   if (narr.error) {
     return (
       <div className={`${box} border-amber-200 bg-amber-50 text-amber-800`}>
-        {t("N-ATLAS couldn't write the guide: {error}", { error: narr.error })}
+        {t("The guide couldn't be written: {error}", { error: narr.error })}
         <button onClick={() => narr.write()} className="ml-auto font-medium hover:underline">
           {t("Try again")}
         </button>
@@ -326,14 +367,14 @@ function NarrationBar({ narr }: { narr: NarrationView }) {
     return (
       <div className={`${box} border-slate-200 bg-white text-slate-600`}>
         <button onClick={() => narr.write()} className="font-medium text-forge-700 hover:underline">
-          ✍ {t("Let N-ATLAS write this guide in {language}", { language: name })}
+          ✍ {t("Write this guide in {language}", { language: name })}
         </button>
       </div>
     );
   }
   return (
     <div className={`${box} border-slate-200 bg-white text-slate-500`}>
-      <span>✍ {t("{n} sections written by N-ATLAS in {language}", { n: narr.done, language: name })}</span>
+      <span>✍ {t("{n} sections written in {language}", { n: narr.done, language: name })}</span>
       {narr.failed.length > 0 && (
         <span title={narr.failed.map((s) => `${s}: ${narr.problem(s)}`).join("\n")}>
           · {t("{n} kept the guide's own text", { n: narr.failed.length })}
@@ -346,14 +387,21 @@ function NarrationBar({ narr }: { narr: NarrationView }) {
   );
 }
 
-/** "✍ N-ATLAS" next to a section N-ATLAS wrote, with a button to rewrite it. */
+/** Who wrote a section ("✍ Groq · N-ATLAS": Groq thought it through, N-ATLAS put it in your language), with a button to rewrite it. */
 export function ByNatlas({ narr, section }: { narr: NarrationView; section: NarrationSection }) {
   const t = useT();
   if (!narr.value(section)) return null;
+  const by = narr.by(section);
+  const label = by?.brain ? (by.voice !== by.brain ? `${by.brain} · ${by.voice}` : by.brain) : "N-ATLAS";
+  const title = by?.brain
+    ? by.voice !== by.brain
+      ? t("Written by {brain}; put into your language by {voice}", { brain: by.brain, voice: by.voice })
+      : t("Written by {brain}", { brain: by.brain })
+    : t("Written by N-ATLAS");
   return (
     <span className="inline-flex items-center gap-1 normal-case tracking-normal">
-      <span title={t("Written by N-ATLAS")} className="rounded-full bg-forge-50 px-2 py-0.5 text-[10px] font-semibold text-forge-700">
-        ✍ N-ATLAS
+      <span title={title} className="rounded-full bg-forge-50 px-2 py-0.5 text-[10px] font-semibold text-forge-700">
+        ✍ {label}
       </span>
       {!narr.running && (
         <button onClick={() => narr.write([section])} className="text-[10px] font-normal text-slate-400 hover:text-forge-700">
@@ -371,7 +419,7 @@ export function Narrated({ narr, section, children }: { narr: NarrationView; sec
     return (
       <div className="mt-2 rounded-lg border border-dashed border-forge-300 bg-forge-50/40 p-3 text-sm text-slate-700">
         <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-forge-600">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-forge-500" /> {t("N-ATLAS is writing…")}
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-forge-500" /> {t("Writing…")}
         </div>
         <div className="whitespace-pre-wrap">{narr.writing.text || "…"}</div>
       </div>

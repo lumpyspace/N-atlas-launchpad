@@ -25,8 +25,16 @@ const FLOW: { icon: Icon; label: string; blurb: string }[] = [
   { icon: LayersIcon, label: N_("Build"), blurb: N_("A step-by-step build guide, blueprint and system prompt.") },
   { icon: BookIcon, label: N_("Knowledge"), blurb: N_("Upload the documents your app answers from.") },
   { icon: FlaskIcon, label: N_("Test"), blurb: N_("Try your app, save replies as test cases, and attack it — security is built in from the start.") },
-  { icon: PackageIcon, label: N_("Ship"), blurb: N_("Download an app you can open in a browser, with tests, CI and safety checks in code.") },
+  { icon: PackageIcon, label: N_("Ship"), blurb: N_("Download your assistant, ready to run, with safety checks built in.") },
   { icon: RocketIcon, label: N_("Go live"), blurb: N_("Ask how to put it online — Vercel, Modal, Render or your own server — then check the live link.") },
+];
+
+/** The kinds of assistant Launchpad builds (the export's channels). */
+const KINDS: { icon: Icon; title: string; body: string }[] = [
+  { icon: ChatIcon, title: N_("A chat page"), body: N_("A web page where customers ask questions — prices, opening hours, how-tos.") },
+  { icon: ZapIcon, title: N_("A WhatsApp bot"), body: N_("The same assistant answering on WhatsApp, where most of your users already are.") },
+  { icon: RocketIcon, title: N_("A Telegram bot"), body: N_("For communities and groups that live on Telegram.") },
+  { icon: LayersIcon, title: N_("A chat API"), body: N_("For developers: plug it into your mobile app or an SMS/USSD service.") },
 ];
 
 const DEV_FEATURES: { icon: Icon; title: string; body: string }[] = [
@@ -119,11 +127,11 @@ export default function Landing({ publicSite = false }: { publicSite?: boolean }
             <SparklesIcon size={12} /> {t("Powered by N-ATLAS · Nigeria's open multilingual LLM")}
           </span>
           <h1 className="mt-6 text-4xl font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl lg:text-[2.75rem] xl:text-[3.25rem]">
-            {t("Build an AI app in your own language — from idea to live link.")}
+            {t("Build an AI assistant that speaks your users' language — from idea to live link.")}
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-slate-600 lg:mx-0">
             {t(
-              "Describe your idea in English, Pidgin, Yoruba, Hausa or Igbo. Launchpad designs it with you, writes the build guide and prompt, tests and attacks it, exports a real app — and walks you through putting it online.",
+              "Describe it in English, Pidgin, Yoruba, Hausa or Igbo. Launchpad plans it with you, writes its instructions, lets you try it and checks it's safe, then gives you a ready-to-run assistant — a web chat, a WhatsApp or a Telegram bot — and walks you through putting it online.",
             )}
           </p>
           <div className="mt-7 flex flex-col items-center gap-2 lg:items-start">
@@ -150,6 +158,46 @@ export default function Landing({ publicSite = false }: { publicSite?: boolean }
         </div>
 
         <HeroPreview language={language} />
+      </section>
+
+      <section className="relative mx-auto max-w-6xl px-6 pb-16">
+        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-forge-600">{t("What you can build")}</h2>
+        <p className="mx-auto mt-2 max-w-2xl text-center text-2xl font-bold tracking-tight text-ink">
+          {t("An assistant that answers questions and guides people — from your own information, in their language.")}
+        </p>
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {KINDS.map((k) => (
+            <Card key={k.title} className="p-4">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-forge-50 text-forge-600">
+                <k.icon size={18} />
+              </span>
+              <div className="mt-3 font-semibold text-slate-900">{t(k.title)}</div>
+              <p className="mt-1 text-sm leading-relaxed text-slate-500">{t(k.body)}</p>
+            </Card>
+          ))}
+        </div>
+        <div className="mx-auto mt-5 max-w-3xl rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
+          <b>{t("Good to know:")}</b>{" "}
+          {t(
+            "Launchpad builds assistants, not every kind of app. Accounts, payments or a database aren't built for you — a developer can add them to the code you download. And to put your assistant online, it needs an N-ATLAS server; the Go live guide explains your options.",
+          )}
+        </div>
+        <div className="mx-auto mt-3 grid max-w-3xl gap-3 sm:grid-cols-2">
+          <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+            <SparklesIcon size={16} className="mt-0.5 text-forge-600" />
+            <span>
+              <b className="text-slate-900">{t("Groq does the thinking")}</b>
+              <span className="block text-slate-500">{t("It asks the questions, writes the plan and your assistant's instructions, and answers your questions along the way.")}</span>
+            </span>
+          </div>
+          <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+            <GlobeIcon size={16} className="mt-0.5 text-forge-600" />
+            <span>
+              <b className="text-slate-900">{t("N-ATLAS speaks your language")}</b>
+              <span className="block text-slate-500">{t("It understands you in Pidgin, Yoruba, Hausa or Igbo, puts everything into your language — and it's the model your assistant runs on.")}</span>
+            </span>
+          </div>
+        </div>
       </section>
 
       <section id="how" className="relative mx-auto max-w-6xl px-6 pb-16">

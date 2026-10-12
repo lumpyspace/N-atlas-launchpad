@@ -255,6 +255,8 @@ export interface Blueprint {
   nigerianContext: string[];
   risks: string[];
   systemPrompt: string;
+  /** Who wrote the system prompt when it wasn't the template (e.g. "Groq"). */
+  promptBy?: string;
   suggestedEvalCategories: string[];
   suggestedSecurityTests: string[];
   /** Missing on blueprints saved before build plans existed. */
@@ -297,7 +299,7 @@ export interface BuildPlan {
 export async function getBlueprint(
   description: string,
   useCase?: string,
-  extra: { tasks?: string[]; targetUsers?: string } = {},
+  extra: { tasks?: string[]; targetUsers?: string; promptBy?: false } = {},
 ): Promise<Blueprint> {
   const res = await fetch(`${BASE}/api/blueprint`, {
     method: "POST",
@@ -720,7 +722,8 @@ export type NarrationValue = string | string[] | { user: string; app: string } |
 export type NarrationEvent =
   | { type: "start"; section: NarrationSection }
   | { type: "delta"; section: NarrationSection; delta: string }
-  | { type: "section"; section: NarrationSection; value?: NarrationValue; problem?: string }
+  /** by: who thought (brain, "" for N-ATLAS alone) and who wrote the words shown (voice). */
+  | { type: "section"; section: NarrationSection; value?: NarrationValue; problem?: string; by?: { brain: string; voice: string } }
   | { type: "error"; section: NarrationSection; message: string }
   | { type: "done" };
 
@@ -793,4 +796,23 @@ export async function checkLiveLink(url: string, message: string): Promise<LiveC
   const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
   return data as LiveCheck;
+}
+
+// ── Page helper ──────────────────────────────────────────────────────────────
+
+/** Where the person is, so the helper's answers fit (backend/src/help/helper.ts). */
+export interface HelpContext {
+  page: string;
+  mode: "simple" | "developer";
+  project?: { name: string; kind?: string; stages: { label: string; done: boolean; detail: string }[]; next?: string };
+}
+
+/** Ask the page helper; events as in the Design chat. */
+export async function streamHelpAnswer(
+  body: { history: DesignMessage[]; language?: string; context: HelpContext },
+  onEvent: (e: DesignEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const history = body.history.map((m) => ({ role: m.role, content: m.content }));
+  await streamRun<never, never>("/api/help/ask", { ...body, history }, (e) => onEvent(e as unknown as DesignEvent), signal);
 }

@@ -1,6 +1,6 @@
 import type { HealthStatus } from "../api";
 import Playground from "../components/Playground";
-import { useProject } from "../state/ProjectContext";
+import { useProject, useWorkspace } from "../state/ProjectContext";
 import { Badge, Button } from "../ui";
 import Evaluate from "./Evaluate";
 import Secure from "./Secure";
@@ -14,11 +14,34 @@ import { useT } from "../i18n";
  */
 export default function Test({ health }: { health: HealthStatus | null }) {
   const { state, dispatch } = useProject();
+  const { mode } = useWorkspace();
   const t = useT();
   const tab = state.step === "evaluate" ? "evaluate" : state.step === "secure" || state.step === "improve" ? "secure" : "playground";
   const sec = state.securityResult;
   const saved = state.savedTestCases.length;
   const bp = state.blueprint;
+
+  // Simple mode: just talk to the assistant (the security check runs by itself before download).
+  if (mode === "simple") {
+    return (
+      <div>
+        <div className="mx-auto max-w-6xl px-6 pt-8">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-ink">{bp?.name ? t("Try {name}", { name: bp.name }) : t("Try your assistant")}</h1>
+              <p className="mt-1 max-w-2xl text-sm text-slate-500">
+                {t(
+                  "This is your assistant, running on N-ATLAS. Chat with it the way your users would. Give a 👍 or 👎 to answers: Launchpad keeps them, so you can check the assistant still answers well after any change.",
+                )}
+              </p>
+            </div>
+            <Button onClick={() => dispatch({ type: "setStep", step: "export" })}>{t("Continue to download →")}</Button>
+          </div>
+        </div>
+        <Playground health={health} embedded />
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ModeSwitch } from "../components/ModeSwitch";
 import { LANGUAGES, useT } from "../i18n";
 import { projectKind, projectName, useWorkspace, type Project } from "../state/ProjectContext";
 import { Button, Card } from "../ui";
@@ -18,6 +19,7 @@ export default function Home() {
           <p className="mt-1 text-sm text-slate-500">
             {t("Every N-ATLAS app you're building — pick up where you left off, or start something new.")}
           </p>
+          <ModeSwitch className="mt-3" />
         </div>
         <Button onClick={newProject}>{t("+ New project")}</Button>
       </div>
@@ -54,12 +56,12 @@ export default function Home() {
 }
 
 function ProjectCard({ p }: { p: Project }) {
-  const { openProject, renameProject, duplicateProject, deleteProject } = useWorkspace();
+  const { openProject, renameProject, duplicateProject, deleteProject, mode } = useWorkspace();
   const t = useT();
   const [menu, setMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const list = stages(p, t);
-  const next = nextStep(p, t);
+  const list = stages(p, t, mode);
+  const next = nextStep(p, t, mode);
   const kind = projectKind(p);
   const idea = p.design.answers.idea || p.description;
   const lang = LANGUAGES.find((l) => l.code === p.language);

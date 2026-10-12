@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { generate, streamGenerate, type GenerateOptions, type HealthStatus } from "../api";
-import { useProject, type SavedTestCase } from "../state/ProjectContext";
+import { useProject, useWorkspace, type SavedTestCase } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 import { checkLangMismatch, detectLang, hasYorubaToneMarks } from "../utils/langDetect";
 import { BAD_REASONS, checksForRating, suggestChecks, withContext } from "../utils/testCases";
@@ -136,6 +136,7 @@ function formatMs(ms: number): string {
 
 export default function Playground({ health, embedded = false }: { health: HealthStatus | null; embedded?: boolean }) {
   const { state, dispatch } = useProject();
+  const { mode: uiMode } = useWorkspace();
   const t = useT();
   const bp = state.blueprint;
   // How this kind of app is tried out: chat, or its own task forms.
@@ -833,6 +834,8 @@ export default function Playground({ health, embedded = false }: { health: Healt
             </div>
           </Card>
 
+          {/* Developer mode only: instructions, model settings, code. */}
+          {uiMode === "developer" && (
           <Card className="p-4">
             <button
               onClick={() => setSettingsOpen((o) => !o)}
@@ -914,6 +917,7 @@ export default function Playground({ health, embedded = false }: { health: Healt
               </div>
             )}
           </Card>
+          )}
           {codeOpen && (
             <GetCode
               onClose={() => setCodeOpen(false)}

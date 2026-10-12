@@ -13,7 +13,8 @@ import { ArrowRightIcon, RocketIcon } from "../ui/icons";
 
 export default function Export() {
   const { state, dispatch } = useProject();
-  const { setView, newProject } = useWorkspace();
+  const { setView, newProject, mode } = useWorkspace();
+  const simple = mode === "simple";
   const t = useT();
   const [lang, setLang] = useState<ExportLang>("js");
   const [busy, setBusy] = useState(false);
@@ -27,7 +28,7 @@ export default function Export() {
   const oldServer = !!bp?.buildPlan?.starter && !bp.buildPlan.starter.code.includes("loadEnvFile");
   useEffect(() => {
     if (!oldServer || !bp?.buildPlan || !state.description) return;
-    getBlueprint(state.description, bp.buildPlan.useCase.ids[0])
+    getBlueprint(state.description, bp.buildPlan.useCase.ids[0], { promptBy: false })
       .then((fresh) => {
         if (fresh.buildPlan?.starter) {
           dispatch({ type: "patchBlueprint", patch: { buildPlan: { ...bp.buildPlan!, starter: fresh.buildPlan.starter } } });
@@ -81,11 +82,15 @@ export default function Export() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-bold text-ink">{t("Ship your N-ATLAS app")}</h1>
+      <h1 className="text-2xl font-bold text-ink">{simple ? t("Download your assistant") : t("Ship your N-ATLAS app")}</h1>
       <p className="mt-1 text-slate-500">
-        {t(
-          "Download a real, runnable starter project — your system prompt, the N-ATLAS SDK, your test cases with a scored runner, a GitHub Actions workflow, security tests and fine-tuning data. Not a screenshot: actual code.",
-        )}
+        {simple
+          ? t(
+              "You get a folder with your assistant inside: a chat page your users open, and a small server that talks to N-ATLAS with your instructions, your information and the safety checks. Pick the language it's written in — if you're not sure, choose JavaScript.",
+            )
+          : t(
+              "Download a real, runnable starter project — your system prompt, the N-ATLAS SDK, your test cases with a scored runner, a GitHub Actions workflow, security tests and fine-tuning data. Not a screenshot: actual code.",
+            )}
       </p>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr]">
@@ -116,6 +121,7 @@ export default function Export() {
           </dl>
         </Card>
 
+        {!simple && (
         <Card className="p-5">
           <h2 className="text-sm font-semibold text-slate-900">{t("Files in your export")}</h2>
           <ul className="mt-3 space-y-1 font-mono text-xs text-slate-600">
@@ -127,6 +133,7 @@ export default function Export() {
             ))}
           </ul>
         </Card>
+        )}
       </div>
 
       <LaunchCheck />
@@ -162,7 +169,7 @@ export default function Export() {
         <ArrowRightIcon size={18} className="text-forge-600" />
       </button>
 
-      <SdkCard lang={lang} />
+      {!simple && <SdkCard lang={lang} />}
 
       <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-6">
         <Button

@@ -47,10 +47,15 @@ export function factsFor(bp: Blueprint): string {
     .join("\n");
 }
 
-function systemFor(language: LangCode): string {
+/** Who writes: N-ATLAS in the project's language, or the assistant model in English (N-ATLAS then translates). */
+export type Writer = "natlas" | "assistant";
+
+function systemFor(language: LangCode, writer: Writer = "natlas"): string {
   const name = LANG_NAMES[language];
   return (
-    "You are N-ATLAS, writing part of the build guide for a developer's app in N-ATLAS Launchpad. " +
+    (writer === "natlas"
+      ? "You are N-ATLAS, writing part of the build guide for a developer's app in N-ATLAS Launchpad. "
+      : "You write part of the build guide for a developer's app in N-ATLAS Launchpad; the app runs on N-ATLAS. ") +
     `Write in ${language === "en" ? "clear Nigerian English" : `natural, everyday ${name}`}. ` +
     "Use only the facts you are given: do not invent prices, laws, statistics, dates, partners or features. " +
     "Keep product names (N-ATLAS, WhatsApp, Telegram) and technical words (API, JSON, SMS, USSD) as they are. " +
@@ -62,11 +67,11 @@ function systemFor(language: LangCode): string {
 }
 
 /** The prompt for one section, built from the blueprint's facts and the engine's own text as a starting point. */
-export function sectionPrompt(section: SectionId, bp: Blueprint, language: LangCode): SectionPrompt {
+export function sectionPrompt(section: SectionId, bp: Blueprint, language: LangCode, writer: Writer = "natlas"): SectionPrompt {
   const plan = bp.buildPlan;
   const facts = `Facts about the app:\n${factsFor(bp)}\n\n`;
   const lang = language === "en" ? "English" : LANG_NAMES[language];
-  const system = systemFor(language);
+  const system = systemFor(language, writer);
   switch (section) {
     case "purpose":
       return {
@@ -104,7 +109,7 @@ export function sectionPrompt(section: SectionId, bp: Blueprint, language: LangC
       };
     case "features":
       // Written one feature at a time (featurePrompt): an 8B model loses count in one long list.
-      return featurePrompt(bp, 0, language);
+      return featurePrompt(bp, 0, language, writer);
     case "pitfalls":
       return {
         system,
@@ -142,11 +147,11 @@ export function sectionPrompt(section: SectionId, bp: Blueprint, language: LangC
 }
 
 /** One feature, explained in the project's language. */
-export function featurePrompt(bp: Blueprint, index: number, language: LangCode): SectionPrompt {
+export function featurePrompt(bp: Blueprint, index: number, language: LangCode, writer: Writer = "natlas"): SectionPrompt {
   const f = bp.buildPlan.features[index];
   const lang = language === "en" ? "English" : LANG_NAMES[language];
   return {
-    system: systemFor(language),
+    system: systemFor(language, writer),
     maxTokens: 160,
     prompt:
       `Facts about the app:\n${factsFor(bp)}\n\n` +

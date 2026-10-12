@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { projectKind, projectName, useProject, useWorkspace } from "../state/ProjectContext";
 import { hostOf, isLive, nextStep, stages, type StageKey } from "../utils/projectStatus";
 import { useT } from "../i18n";
+import { ModeSwitch } from "./ModeSwitch";
 import {
   ArrowRightIcon,
   BookIcon,
@@ -31,10 +32,10 @@ const STAGE_ICON: Record<StageKey, typeof ChatIcon> = {
  */
 export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   const { state, dispatch } = useProject();
-  const { setView, renameProject } = useWorkspace();
+  const { setView, renameProject, mode } = useWorkspace();
   const t = useT();
-  const list = stages(state, t);
-  const next = nextStep(state, t);
+  const list = stages(state, t, mode);
+  const next = nextStep(state, t, mode);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const kind = projectKind(state);
@@ -130,6 +131,10 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="space-y-0.5">{nav(false)}</nav>
+
+        <div className="mt-4">
+          <ModeSwitch />
+        </div>
 
         {next && (
           <div className="mt-6 rounded-xl border border-forge-200 bg-gradient-to-br from-forge-50 to-white p-3">

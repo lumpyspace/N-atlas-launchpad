@@ -4,7 +4,7 @@
  */
 
 import { plural, translate, type T } from "../i18n";
-import type { ProjectState, Step } from "../state/ProjectContext";
+import type { Mode, ProjectState, Step } from "../state/ProjectContext";
 
 const EN: T = (text, vars) => translate("en", text, vars);
 
@@ -26,7 +26,37 @@ export interface StageStatus {
 
 const SLOTS_TOTAL = 8;
 
-export function stages(p: ProjectState, t: T = EN): StageStatus[] {
+/**
+ * In Simple mode the stages use plain words, and the Prompt stage (editing the
+ * instructions) is left out; Test is just "Try it".
+ */
+export function stages(p: ProjectState, t: T = EN, mode: Mode = "developer"): StageStatus[] {
+  const all = allStages(p, t);
+  if (mode === "developer") return all;
+  const plain: Partial<Record<StageKey, string>> = {
+    design: t("Describe it"),
+    build: t("Your plan"),
+    knowledge: t("Your information"),
+    test: t("Try it"),
+    ship: t("Download"),
+    live: t("Put it online"),
+  };
+  return all
+    .filter((s) => s.key !== "prompt")
+    .map((s) =>
+      s.key === "test"
+        ? {
+            ...s,
+            label: plain.test!,
+            steps: ["playground", "evaluate", "compare", "secure", "improve"] as Step[],
+            done: p.savedTestCases.length > 0,
+            detail: p.savedTestCases.length ? plural(t, p.savedTestCases.length, "{n} answer kept", "{n} answers kept") : t("Chat with it as your users would"),
+          }
+        : { ...s, label: plain[s.key] ?? s.label },
+    );
+}
+
+function allStages(p: ProjectState, t: T): StageStatus[] {
   const built = !!p.blueprint;
   const answered = Object.keys(p.design.answers).filter((k) => k !== "notes").length;
   const tests = p.savedTestCases.length;
@@ -133,8 +163,16 @@ export function stages(p: ProjectState, t: T = EN): StageStatus[] {
 }
 
 /** The most useful thing to do next, in plain words. */
-export function nextStep(p: ProjectState, t: T = EN): { step: Step; text: string } | null {
+export function nextStep(p: ProjectState, t: T = EN, mode: Mode = "developer"): { step: Step; text: string } | null {
   const s = stages(p, t);
+  if (mode === "simple") {
+    if (!p.blueprint) return { step: "describe", text: p.design.messages.length ? t("Keep talking it through, then press Build it.") : t("Describe your idea to start.") };
+    if (p.blueprint.buildPlan?.knowledge?.needed && !p.knowledge?.length) return { step: "knowledge", text: t("Add the facts your assistant should answer from — a price list, an FAQ, opening hours.") };
+    if (!p.savedTestCases.length) return { step: "playground", text: t("Chat with your assistant as a customer would. Keep a 👍 or 👎 on a few answers.") };
+    if (!p.exportedAt) return { step: "export", text: t("Download your assistant: it's ready to run.") };
+    if (!isLive(p)) return { step: "golive", text: t("Ask how to put it online, then check your link.") };
+    return null;
+  }
   const byKey = Object.fromEntries(s.map((x) => [x.key, x])) as Record<StageKey, StageStatus>;
   if (!byKey.build.done) {
     return { step: "describe", text: p.design.messages.length ? t("Keep talking it through, then press Build it.") : t("Describe your idea to start.") };

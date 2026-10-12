@@ -2,7 +2,7 @@ import { useState } from "react";
 import { getBlueprint } from "../api";
 import { BuildGuide, ByNatlas, Narrated } from "../components/BuildGuide";
 import { useNarration } from "../components/useNarration";
-import { useProject } from "../state/ProjectContext";
+import { useProject, useWorkspace } from "../state/ProjectContext";
 import { Badge, Button, Card, Spinner } from "../ui";
 import { N_, useT } from "../i18n";
 
@@ -10,6 +10,7 @@ type Tab = "guide" | "blueprint";
 
 export default function Blueprint() {
   const { state, dispatch } = useProject();
+  const { mode } = useWorkspace();
   const t = useT();
   const bp = state.blueprint;
   // N-ATLAS writes the guide's words in the project's language (the engine keeps the facts).
@@ -71,6 +72,7 @@ export default function Blueprint() {
         </div>
       </div>
 
+      {mode === "developer" && (
       <div className="mt-6 flex gap-1 border-b border-slate-200">
         {([
           ["guide", N_("How to build it")],
@@ -89,14 +91,16 @@ export default function Blueprint() {
           </button>
         ))}
       </div>
+      )}
 
-      {tab === "guide" ? (
+      {tab === "guide" || mode === "simple" ? (
         <div className="mt-6">
           {bp.buildPlan?.useCase ? (
             <BuildGuide
               plan={bp.buildPlan}
               appName={bp.name}
               narr={narr}
+              simple={mode === "simple"}
               onChangeUseCase={async (id) => {
                 const fresh = await getBlueprint(state.description, id);
                 dispatch({ type: "setBlueprint", blueprint: fresh });
