@@ -82,7 +82,14 @@ export function createApp(config: AppConfig = loadConfig(), env: NodeJS.ProcessE
   let cached: { at: number; status: HealthStatus } | null = null;
   app.get("/api/health", async (_req, res) => {
     if (!publicMode || !cached || Date.now() - cached.at > 60_000) {
-      cached = { at: Date.now(), status: await provider.health() };
+      const status = await provider.health();
+      // Say which kind of key problem it is (never the key itself).
+      if (!status.ok && /HTTP 401|HTTP 403/.test(status.detail)) {
+        status.detail += provider.connection()?.apiKey
+          ? " — the server refused NATLAS_API_KEY: check it matches the key your N-ATLAS server expects."
+          : " — no NATLAS_API_KEY is set on this server.";
+      }
+      cached = { at: Date.now(), status };
     }
     res.status(cached.status.ok ? 200 : 503).json({ ...cached.status, public: publicMode });
   });
