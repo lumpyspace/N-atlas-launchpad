@@ -55,3 +55,11 @@ test("public mode: a 429 explains the limit", async () => {
     server.close();
   }
 });
+
+test("secrets pasted into a dashboard: quotes and a NAME= prefix are forgiven", async () => {
+  const { cleanSecret } = await import("../backend/src/config.ts");
+  assert.equal(cleanSecret(' "abc123" ', "NATLAS_API_KEY"), "abc123");
+  assert.equal(cleanSecret("NATLAS_API_KEY=abc123", "NATLAS_API_KEY"), "abc123");
+  assert.equal(cleanSecret("NATLAS_API_KEY='abc123'", "NATLAS_API_KEY"), "abc123");
+  assert.equal(cleanSecret(undefined, "X"), "");
+});

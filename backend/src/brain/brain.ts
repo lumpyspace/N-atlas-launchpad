@@ -11,6 +11,7 @@
  * to the browser.
  */
 
+import { cleanSecret } from "../config.js";
 import { logger } from "../logger.js";
 
 export interface BrainProvider {
@@ -54,7 +55,7 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainPro
       name: "Gemini",
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
       model,
-      apiKey: env.GEMINI_API_KEY!.trim(),
+      apiKey: cleanSecret(env.GEMINI_API_KEY, "GEMINI_API_KEY"),
       // Gemini thinks before answering, and the thinking counts against max_tokens.
       extra: { reasoning_effort: "low" },
       thinkingTokens: 1024,
@@ -65,7 +66,7 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainPro
       name: "Groq",
       baseURL: "https://api.groq.com/openai/v1",
       model: env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b",
-      apiKey: env.GROQ_API_KEY.trim(),
+      apiKey: cleanSecret(env.GROQ_API_KEY, "GROQ_API_KEY"),
       extra: { reasoning_effort: "low" },
       thinkingTokens: 1024,
     });
@@ -75,7 +76,7 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): BrainPro
       name: env.BRAIN_NAME?.trim() || "Assistant model",
       baseURL: env.BRAIN_BASE_URL.trim().replace(/\/+$/, "").replace(/\/chat\/completions$/, ""),
       model: env.BRAIN_MODEL.trim(),
-      apiKey: env.BRAIN_API_KEY?.trim() ?? "",
+      apiKey: cleanSecret(env.BRAIN_API_KEY, "BRAIN_API_KEY"),
     });
   }
   return out;

@@ -55,12 +55,23 @@ function parseProvider(value: string | undefined): ProviderKind {
   throw new Error(`NATLAS_PROVIDER must be "http", got "${value}"`);
 }
 
+/**
+ * A secret as pasted into a hosting dashboard: forgives the usual slips —
+ * surrounding quotes, or the whole `NAME=value` line pasted as the value.
+ */
+export function cleanSecret(raw: string | undefined, name: string): string {
+  let v = (raw ?? "").trim();
+  if (v.startsWith(name + "=")) v = v.slice(name.length + 1).trim();
+  if (v.length > 1 && (v[0] === '"' || v[0] === "'") && v[v.length - 1] === v[0]) v = v.slice(1, -1).trim();
+  return v;
+}
+
 export function loadConfig(): AppConfig {
   return {
     port: Number(process.env.PORT ?? 8787),
     provider: parseProvider(process.env.NATLAS_PROVIDER),
     natlasEndpoint: (process.env.NATLAS_ENDPOINT ?? "").trim(),
-    natlasApiKey: (process.env.NATLAS_API_KEY ?? "").trim(),
+    natlasApiKey: cleanSecret(process.env.NATLAS_API_KEY, "NATLAS_API_KEY"),
     natlasModel: (process.env.NATLAS_MODEL ?? "n-atlas").trim(),
     requestTimeoutMs: Number(process.env.NATLAS_REQUEST_TIMEOUT_MS ?? 120_000),
     repetitionPenalty: Number(process.env.NATLAS_REPETITION_PENALTY) || undefined,
