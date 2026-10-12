@@ -169,6 +169,8 @@ async function askNatlas(question) {
 }
 
 const app = express();
+// Behind a host's proxy (Modal, Render, Vercel…), req.ip is the visitor, so each one gets their own message limit.
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "20kb" }));
 app.use(express.static(fileURLToPath(new URL("../public", import.meta.url)))); // the chat page
 
@@ -229,7 +231,9 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\`));
+// On Vercel the platform runs the app (api/index.js); everywhere else it listens.
+if (!process.env.VERCEL) app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\`));
+export default app;
 `,
       };
     case "telegram":
@@ -256,7 +260,9 @@ app.post("/telegram", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\`));
+// On Vercel the platform runs the app (api/index.js); everywhere else it listens.
+if (!process.env.VERCEL) app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\`));
+export default app;
 `,
       };
     default:
@@ -271,7 +277,9 @@ app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\
         code:
           common +
           `
-app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\`));
+// On Vercel the platform runs the app (api/index.js); everywhere else it listens.
+if (!process.env.VERCEL) app.listen(PORT, () => console.log(\`Running — open http://localhost:\${PORT}\`));
+export default app;
 `,
       };
   }
@@ -364,5 +372,7 @@ app.post("/npc/event", async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT ?? 3000);
+// On Vercel the platform runs the app (api/index.js); everywhere else it listens.
+if (!process.env.VERCEL) app.listen(process.env.PORT ?? 3000);
+export default app;
 `;

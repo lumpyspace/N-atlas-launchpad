@@ -72,8 +72,27 @@ async function natlasText(
 }
 
 const translateSystem = (to: string) =>
-  `You translate text into natural, everyday ${to}. Keep names, numbers, prices and product names exactly as they are. ` +
+  `You translate text into natural, everyday ${to}. Keep names, numbers, prices, product names, code, commands, file names ` +
+  `and markers like [[C1]] exactly as they are. ` +
   `Reply with only the ${to} translation — no notes, no quotation marks.`;
+
+/**
+ * Swap code blocks and `inline code` for markers like [[C1]] so translation
+ * can't touch commands, then put them back.
+ */
+export function protectCode(text: string) {
+  const parts: string[] = [];
+  const masked = text.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+    parts.push(m);
+    return `[[C${parts.length}]]`;
+  });
+  return {
+    text: masked,
+    /** Every marker came back exactly once. */
+    complete: (t: string) => parts.every((_, i) => t.split(`[[C${i + 1}]]`).length === 2),
+    restore: (t: string) => parts.reduce((out, part, i) => out.replace(`[[C${i + 1}]]`, () => part), t),
+  };
+}
 
 /** N-ATLAS's English reading of the developer's words ("" when they're already English). */
 export async function understand(natlas: NAtlasProvider, words: string, signal?: AbortSignal): Promise<string> {
@@ -94,6 +113,8 @@ export async function relay(opts: {
   onEvent: (e: RelayEvent) => void;
   signal?: AbortSignal;
   maxTokens?: number;
+  /** The reply holds commands or code: keep them out of the translation (it arrives in one piece, not streamed). */
+  protectCode?: boolean;
 }): Promise<RelayResult> {
   const { brain, natlas, language, onEvent, signal } = opts;
   const name = LANG_NAMES[language];
@@ -134,19 +155,24 @@ export async function relay(opts: {
   }
 
   // 3. N-ATLAS speaks: translate, check, retry once.
+  const masked = opts.protectCode ? protectCode(thought.text) : null;
+  const source = masked ? masked.text : thought.text;
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt) onEvent({ type: "reset" });
     else onEvent({ type: "voice", voice: "N-ATLAS" });
     const said = await natlasText(
       natlas,
       translateSystem(name),
-      `Translate into ${name}:\n${thought.text}`,
-      Math.min(900, Math.ceil(thought.text.length / 1.5) + 80),
-      (d) => onEvent({ type: "delta", delta: d }),
+      `Translate into ${name}:\n${source}`,
+      Math.min(1200, Math.ceil(source.length / 1.5) + 80),
+      masked ? null : (d) => onEvent({ type: "delta", delta: d }),
       signal,
     );
-    if (said && inLanguage(said, language) && keepsNumbers(thought.text, said)) {
-      return { text: said, english: thought.text, brain: thought.provider, voice: "N-ATLAS" };
+    const words = said.replace(/\[\[C\d+\]\]/g, "");
+    if (said && inLanguage(words, language) && keepsNumbers(source, said) && (!masked || masked.complete(said))) {
+      const text = masked ? masked.restore(said) : said;
+      if (masked) onEvent({ type: "delta", delta: text });
+      return { text, english: thought.text, brain: thought.provider, voice: "N-ATLAS" };
     }
   }
 

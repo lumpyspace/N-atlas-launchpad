@@ -182,6 +182,12 @@ def check_message(message, user):
     return ""
 
 
+def client_ip(handler):
+    """The visitor: behind a host's proxy (Modal, Render…), the address it added; else the socket's."""
+    forwarded = handler.headers.get("x-forwarded-for")
+    return forwarded.split(",")[-1].strip() if forwarded else handler.client_address[0]
+
+
 def leaks_prompt(reply):
     return bool(CANARY and CANARY in reply) or any(line in reply for line in PROMPT_LINES)
 
@@ -210,7 +216,7 @@ class Handler(BaseHTTPRequestHandler):
             message = str(json.loads(self.rfile.read(length) or b"{}").get("message", ""))
         except ValueError:
             return self._json(400, {"error": "Send JSON: {\"message\": \"...\"}"})
-        problem = check_message(message, self.client_address[0])
+        problem = check_message(message, client_ip(self))
         if problem:
             return self._json(429 if problem.startswith("Too many") else 400, {"error": problem})
         try:

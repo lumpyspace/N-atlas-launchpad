@@ -13,6 +13,7 @@ import type { KDoc } from "../utils/knowledge";
 import { SDK_JS, SDK_PY } from "./sdkSource";
 import { chatPage, ENGLISH_PAGE, JS_ENV, PY_SERVER, type PageText } from "./appKit";
 import { readme, type ExportLang } from "./readme";
+import { deployFiles, exportSlug, modalAppName } from "./deployKit";
 
 export interface ProjectInput {
   blueprint: Blueprint;
@@ -86,15 +87,7 @@ function applyLanguage(files: Record<string, string>, lang: ExportLang, language
 
 export type { ExportLang };
 
-function slug(name: string): string {
-  return (
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 48) || "natlas-app"
-  );
-}
+const slug = exportSlug;
 
 function evalTests(run: SuiteRunResult | null) {
   return (run?.cases ?? []).map((c) => ({
@@ -157,6 +150,9 @@ export function buildProject(
   if (channel !== "game") {
     files["public/index.html"] = chatPage(name, input.blueprint.purpose, input.language ?? "en", input.page ?? ENGLISH_PAGE);
     if (lang === "python") files["server.py"] = PY_SERVER;
+    // Ready to put online: Modal, Vercel, Render or any container host.
+    Object.assign(files, deployFiles(slug(name), lang));
+    files["README.md"] += putOnline(slug(name), lang);
   }
   for (const f of Object.keys(files)) {
     if (lang === "js" && (f === "src/chat.js" || /^tests\/run-[\w-]+\.js$/.test(f))) files[f] = JS_ENV + files[f];
@@ -166,6 +162,29 @@ export function buildProject(
   applyLanguage(files, lang, input.language ?? "en");
 
   return { files, rootDir: root };
+}
+
+/** README section: the ways to give the app a public link. */
+function putOnline(appSlug: string, lang: ExportLang): string {
+  const js = lang === "js";
+  return `
+## Put it online
+
+N-ATLAS has to be reachable from the internet for a hosted app — for example N-ATLAS on a
+Modal GPU — so set \`NATLAS_BASE_URL\` to that, not localhost. Launchpad's **Go live** step can
+do all of this with one click and check the live link for you.
+
+- **Modal** (\`deploy/modal_app.py\`): \`pip install modal\`, \`modal setup\` once, then
+  \`modal deploy deploy/modal_app.py\`. Your \`.env\` goes to Modal as a secret; the link looks like
+  \`https://<your-workspace>--${modalAppName(appSlug)}-web.modal.run\`. It sleeps after 5 idle minutes.
+- **Vercel** (\`vercel.json\`, \`${js ? "api/index.js" : "api/index.py"}\`): \`npm i -g vercel\`, then \`vercel deploy --prod\`.
+  Add NATLAS_BASE_URL, NATLAS_MODEL and NATLAS_API_KEY under Project → Settings → Environment Variables.
+- **Render** (\`render.yaml\`): push to GitHub, then New → Blueprint in Render, and fill in the same three settings.
+- **Anywhere else** (\`Dockerfile\`): \`docker build -t ${appSlug} .\` then
+  \`docker run -p 3000:3000 --env-file .env ${appSlug}\`.
+
+The safety checks travel with the app: each visitor gets their own message limit behind the host's proxy.
+`;
 }
 
 // --- JavaScript -------------------------------------------------------------

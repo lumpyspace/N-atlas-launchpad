@@ -26,6 +26,7 @@ import { designRouter } from "./routes/design.js";
 import { promptRouter } from "./routes/prompt.js";
 import { narrateRouter } from "./routes/narrate.js";
 import { doctorRouter } from "./routes/doctor.js";
+import { deployRouter } from "./routes/deploy.js";
 import { Brain, providersFromEnv } from "./brain/brain.js";
 
 export function isPublic(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -116,6 +117,7 @@ export function createApp(config: AppConfig = loadConfig(), env: NodeJS.ProcessE
   app.use("/api", promptRouter());
   app.use("/api", narrateRouter(provider));
   app.use("/api", doctorRouter(provider));
+  app.use("/api", deployRouter(provider, brain, publicMode));
 
   // Root gives a quick sanity response and points at the health check.
   app.get("/api", (_req, res) => {
