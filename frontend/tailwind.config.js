@@ -14,7 +14,8 @@ export default {
           600: "#0b7f46",
           700: "#096538",
         },
-        ink: "#0b1220", // near-black for headings
+        ink: "#1c1917", // warm near-black: text and the main buttons
+        paper: "#f8f6f1", // the page
       },
       boxShadow: {
         card: "0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06)",

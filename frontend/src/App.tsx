@@ -279,13 +279,13 @@ function TopBar({
   }
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/85 backdrop-blur-md">
+    <header className="sticky top-0 z-20 border-b border-stone-200 bg-paper/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-[90rem] items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
         <div className="flex shrink-0 items-center gap-3 sm:gap-6">
           <button onClick={() => setView("landing")} className="flex shrink-0 items-center gap-2.5">
             <Logo />
-            <span className="hidden text-[15px] font-bold tracking-tight text-ink sm:inline">
-              N-ATLAS <span className="font-semibold text-slate-500">Launchpad</span>
+            <span className="hidden font-serif text-[19px] tracking-tight text-ink sm:inline">
+              N-ATLAS <em className="italic text-forge-600">Launchpad</em>
             </span>
           </button>
           {hasProjects && (

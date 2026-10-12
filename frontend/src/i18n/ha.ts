@@ -295,7 +295,6 @@ const dict: Record<string, string> = {
   "Send all →": "Aika duka →",
   "Sensitive Information": "Bayanai masu muhimmanci",
   "Settings": "Saituna",
-  "Ship": "Fitar",
   "Short answers": "Gajerun amsoshi",
   "Shouldn't have answered": "Bai kamata ya amsa ba",
   "Show English translation": "Nuna fassarar Turanci",
@@ -836,6 +835,8 @@ const dict: Record<string, string> = {
   "Not translated yet": "Ba a fassara ba tukuna",
   "Translate again": "Sake fassarawa",
   "Translate now": "Fassara yanzu",
+  "Editing in:": "Kana gyara a cikin:",
+  "Fix the translation here. “Translate again” in Settings would replace your fixes.": "Gyara fassarar a nan. “Sake fassarawa” a cikin Saituna zai maye gurbin gyaran da ka yi.",
 };
 
 export default dict;

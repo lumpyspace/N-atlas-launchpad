@@ -295,7 +295,6 @@ const dict: Record<string, string> = {
   "Send all →": "Ziga ha niile →",
   "Sensitive Information": "Ozi dị nro",
   "Settings": "Ntọala",
-  "Ship": "Wepụta",
   "Short answers": "Azịza dị mkpirikpi",
   "Shouldn't have answered": "O kwesịghị ịza",
   "Show English translation": "Gosi ntụgharị Bekee",
@@ -836,6 +835,8 @@ const dict: Record<string, string> = {
   "Not translated yet": "Atụgharịbeghị ya",
   "Translate again": "Tụgharịa ọzọ",
   "Translate now": "Tụgharịa ugbu a",
+  "Editing in:": "Ị na-edezi n'asụsụ:",
+  "Fix the translation here. “Translate again” in Settings would replace your fixes.": "Dozie ntụgharị ahụ ebe a. “Tụgharịa ọzọ” na Ntọala ga-edochi ndozi gị.",
 };
 
 export default dict;

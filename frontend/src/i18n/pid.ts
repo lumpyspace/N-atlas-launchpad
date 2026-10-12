@@ -294,7 +294,6 @@ const dict: Record<string, string> = {
   "Send all →": "Send all →",
   "Sensitive Information": "Sensitive Information",
   "Settings": "Settings",
-  "Ship": "Ship",
   "Short answers": "Short answers",
   "Shouldn't have answered": "E no suppose answer",
   "Show English translation": "Show English translation",
@@ -835,6 +834,8 @@ const dict: Record<string, string> = {
   "Not translated yet": "E never translate",
   "Translate again": "Translate again",
   "Translate now": "Translate now",
+  "Editing in:": "You dey edit for:",
+  "Fix the translation here. “Translate again” in Settings would replace your fixes.": "Correct the translation here. “Translate again” for Settings go replace wetin you correct.",
 };
 
 export default dict;

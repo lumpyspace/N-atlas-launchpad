@@ -2,17 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Editorial: warm paper, ink text, serif headlines, hairlines instead of shadows. */
 body {
-  @apply bg-slate-50 text-slate-800 antialiased;
+  @apply bg-paper text-stone-800 antialiased;
 }
 
-/* Subtle page background: a faint grid wash, like modern dev dashboards. */
 #root {
   min-height: 100vh;
-  background-image: radial-gradient(
-    circle at 1px 1px,
-    rgba(15, 23, 42, 0.035) 1px,
-    transparent 0
-  );
-  background-size: 22px 22px;
+}
+
+/* Page titles across Launchpad are set in the serif (published sites style their own). */
+h1,
+.font-display {
+  font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
+  font-weight: 450 !important;
+  letter-spacing: -0.015em;
 }

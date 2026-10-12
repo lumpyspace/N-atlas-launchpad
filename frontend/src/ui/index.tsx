@@ -8,10 +8,10 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "sm" | "md";
 
 const BTN_BASE =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forge-500/40";
+  "inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-wide transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forge-500/40";
 
 const BTN_VARIANT: Record<ButtonVariant, string> = {
-  primary: "bg-forge-500 text-white hover:bg-forge-600",
+  primary: "bg-ink text-paper hover:bg-stone-800",
   secondary:
     "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
   ghost: "text-slate-600 hover:bg-slate-100",
@@ -52,7 +52,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-slate-200 bg-white shadow-card ${className}`}
+      className={`rounded-lg border border-stone-200 bg-white ${className}`}
     >
       {children}
     </div>

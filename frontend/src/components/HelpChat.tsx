@@ -126,7 +126,7 @@ export function HelpChat() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-2 rounded-full bg-forge-600 px-4 py-3 text-sm font-semibold text-white shadow-pop transition-colors hover:bg-forge-700"
+        className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium tracking-wide text-paper shadow-pop transition-colors hover:bg-stone-800"
         aria-label={t("Ask for help")}
       >
         <ChatIcon size={18} />
