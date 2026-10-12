@@ -15,8 +15,10 @@ import { generateBlueprint } from "../blueprint/generate.js";
 import { listUseCases } from "../blueprint/useCases.js";
 import { writeSystemPrompt } from "../blueprint/promptWriter.js";
 import type { Brain } from "../brain/brain.js";
+import { understand } from "../brain/relay.js";
+import type { NAtlasProvider } from "../providers/NAtlasProvider.js";
 
-export function blueprintRouter(brain?: Brain): Router {
+export function blueprintRouter(brain?: Brain, natlas?: NAtlasProvider): Router {
   const router = Router();
 
   router.post("/blueprint", async (req, res) => {
@@ -33,7 +35,9 @@ export function blueprintRouter(brain?: Brain): Router {
       : undefined;
     const targetUsers = typeof req.body?.targetUsers === "string" ? req.body.targetUsers.slice(0, 300) : undefined;
     try {
-      const bp = generateBlueprint(description, { useCase, tasks, targetUsers });
+      // Described in Pidgin, Yoruba, Hausa or Igbo? N-ATLAS reads it into English for the plan.
+      const english = natlas ? await understand(natlas, description).catch(() => "") : "";
+      const bp = generateBlueprint(english || description, { useCase, tasks, targetUsers });
       // { promptBy: false } asks for the template's prompt only (e.g. refreshing an old export's server).
       if (brain?.available() && req.body?.promptBy !== false) {
         const written = await writeSystemPrompt(bp, brain);

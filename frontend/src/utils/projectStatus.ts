@@ -8,7 +8,7 @@ import type { Mode, ProjectState, Step } from "../state/ProjectContext";
 
 const EN: T = (text, vars) => translate("en", text, vars);
 
-export type StageKey = "design" | "build" | "prompt" | "knowledge" | "site" | "test" | "ship" | "live";
+export type StageKey = "design" | "build" | "prompt" | "knowledge" | "site" | "test";
 
 /** The site's admin screens, WordPress-style (shown under "Your site"). */
 export const SITE_STEPS: Step[] = ["site", "pages", "appearance", "plugins", "inbox", "settings"];
@@ -41,12 +41,10 @@ export function stages(p: ProjectState, t: T = EN, mode: Mode = "developer"): St
     build: t("Your plan"),
     knowledge: t("Your information"),
     test: t("Try it"),
-    ship: t("Download"),
-    live: t("Put it online"),
   };
   // Simple mode is the WordPress way: set it up and publish it here — no code, no hosting.
   return all
-    .filter((s) => !["prompt", "test", "ship", "live"].includes(s.key))
+    .filter((s) => !["prompt", "test"].includes(s.key))
     .map((s) =>
       s.key === "test"
         ? {
@@ -156,28 +154,6 @@ function allStages(p: ProjectState, t: T): StageStatus[] {
           (sec ? " · " + t("Security score {score}", { score: sec.summary.score }) : "")
         : t("Try it and save test cases"),
     },
-    {
-      key: "ship",
-      label: t("Ship"),
-      step: "export",
-      steps: ["export"],
-      done: !!p.exportedAt,
-      available: built,
-      detail: p.exportedAt ? t("Downloaded {when}", { when: timeAgo(p.exportedAt, t) }) : t("Get your code, tests and CI"),
-    },
-    {
-      key: "live",
-      label: t("Go live"),
-      step: "golive",
-      steps: ["golive"],
-      done: isLive(p),
-      available: built,
-      detail: isLive(p)
-        ? t("Live at {host}", { host: hostOf(p.goLive!.check!.url) })
-        : p.goLive?.messages.length
-          ? t("Putting it online")
-          : t("Ask how to put it online"),
-    },
   ];
 }
 
@@ -199,8 +175,8 @@ export function nextStep(p: ProjectState, t: T = EN, mode: Mode = "developer"): 
   if (!byKey.test.done) return { step: "evaluate", text: t("Run your test cases to get a baseline.") };
   const sec = p.securityResult;
   if (!sec || sec.partial) return { step: "secure", text: t("Run the security tests before you ship.") };
-  if (!byKey.ship.done) return { step: "export", text: t("Download your starter project, tests and CI.") };
-  if (!byKey.live.done) return { step: "golive", text: t("Put your app online: ask the Go live guide how, then check your live link.") };
+  if (!p.site) return { step: "site", text: t("Create your site: Groq writes the pages from your plan.") };
+  if (!p.site.slug) return { step: "site", text: t("Publish it: you'll get a link anyone can open.") };
   return null;
 }
 

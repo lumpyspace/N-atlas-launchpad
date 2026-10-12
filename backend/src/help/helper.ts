@@ -40,13 +40,13 @@ export function parseHelpContext(raw: unknown): HelpContext {
 
 const MAP = `LAUNCHPAD, PAGE BY PAGE (Simple-mode name → Developer-mode name)
 - Language: English, Pidgin, Yoruba, Hausa or Igbo, from the menu at the top. Pages and replies use it; it can be changed any time.
-- Describe it → Design: talk the idea through in a chat; a live canvas shows who it's for, its features and data. Press "Build it" when ready.
+- Describe it → Describe: write the idea in a sentence or two (or pick an example: Education, Agriculture, Finance…), then "Generate blueprint".
 - Your plan → Build guide: what you're building, an example conversation, what the first version should do, the facts it needs, mistakes to avoid. Developer mode adds architecture, techniques, build steps, N-ATLAS limits, the licence, and a "Blueprint & system prompt" tab.
 - Prompt (Developer mode only): edit the assistant's instructions (its "system prompt") and save versions.
 - Your information → Knowledge: upload .txt, .md, .csv, .json or .pdf files (price lists, FAQs, opening hours); their text can be added to the "Answer questions" block.
 - Set it up: building blocks with on/off switches — "Answer questions" (an information sheet; … marks facts still to fill in), "Price list" (items, units, prices in naira; an item without a price is never guessed), "Take orders or bookings" (the details to collect; confirmed ones go to the inbox), "Talk to a person" (WhatsApp or phone). A live preview beside it shows exactly what visitors will get. Groq sets up the first version from the plan.
 - Publish: one click gives a link (…/a/<name>) anyone can open on a phone; Launchpad hosts it on N-ATLAS. There's no account: an edit key (saved in the browser — copy it somewhere safe) lets the owner publish changes, read the inbox of orders, or take it offline.
-- Developer mode only: "Test" (the raw assistant, test cases & scores, security attacks, compare prompt versions, get code), "Ship" (download a chat page and small server in JavaScript or Python) and "Go live" (a guide to hosting it yourself on Vercel, Modal, Render or Docker).
+- Developer mode only: "Prompt" and "Test" (the raw assistant, test cases & scores, security attacks, compare prompt versions, get code). There's no code download: sites are published from "Your site".
 - Setup doctor (top bar): checks the connection to N-ATLAS and how to fix it.
 - Simple / Developer switch: in the sidebar of a project and on My projects.
 - Projects are saved in this browser; there's no account.

@@ -43,7 +43,7 @@ const STEP_LINK: Record<string, { step: Step; label: string }> = {
   evaluate: { step: "evaluate", label: N_("Open Test → Test cases") },
   compare: { step: "compare", label: N_("Open Compare") },
   secure: { step: "secure", label: N_("Open Test → Security") },
-  export: { step: "export", label: N_("Open Export") },
+  export: { step: "site", label: N_("Open Your site") },
 };
 
 /** "How to build it": a plan specific to this app idea. */

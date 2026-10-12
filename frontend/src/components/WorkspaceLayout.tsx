@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { projectKind, projectName, useProject, useWorkspace } from "../state/ProjectContext";
-import { hostOf, isLive, nextStep, stages, type StageKey } from "../utils/projectStatus";
+import { nextStep, stages, type StageKey } from "../utils/projectStatus";
 import type { Step } from "../state/ProjectContext";
 import { N_ } from "../i18n";
 import { useT } from "../i18n";
@@ -15,7 +15,6 @@ import {
   LayersIcon,
   PackageIcon,
   PenIcon,
-  RocketIcon,
   SlidersIcon,
   GlobeIcon,
 } from "../ui/icons";
@@ -37,8 +36,6 @@ const STAGE_ICON: Record<StageKey, typeof ChatIcon> = {
   knowledge: BookIcon,
   site: GlobeIcon,
   test: FlaskIcon,
-  ship: PackageIcon,
-  live: RocketIcon,
 };
 
 /**
@@ -65,7 +62,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   }
 
   const doneCount = list.filter((s) => s.done).length;
-  const live = isLive(state) ? state.goLive!.check!.url : null;
+  const live = state.site?.slug ? `/a/${state.site.slug}` : null;
 
   const nav = (compact: boolean) =>
     list.map((s) => {
@@ -172,7 +169,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
             <span>{t("{done} of {total} done", { done: doneCount, total: list.length })}</span>
             {live && (
               <a href={live} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-forge-700 hover:underline">
-                <span className="h-1.5 w-1.5 rounded-full bg-forge-500" /> {hostOf(live)} <ExternalIcon size={10} />
+                <span className="h-1.5 w-1.5 rounded-full bg-forge-500" /> {live} <ExternalIcon size={10} />
               </a>
             )}
           </div>

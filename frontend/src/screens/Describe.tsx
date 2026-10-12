@@ -2,7 +2,6 @@ import { useState } from "react";
 import { getBlueprint } from "../api";
 import { useProject } from "../state/ProjectContext";
 import { Button, Card, Spinner } from "../ui";
-import DesignChat from "./DesignChat";
 import { N_, useT } from "../i18n";
 
 const EXAMPLES: { label: string; prompt: string }[] = [
@@ -37,13 +36,8 @@ const EXAMPLES: { label: string; prompt: string }[] = [
   },
 ];
 
-/** Step 1: talk the idea through (Design chat), or describe it in one sentence. */
+/** Step 1: describe the idea in a sentence or two (or start from an example). */
 export default function Describe() {
-  const [quick, setQuick] = useState(false);
-  return quick ? <QuickDescribe onTalk={() => setQuick(false)} /> : <DesignChat onQuick={() => setQuick(true)} />;
-}
-
-function QuickDescribe({ onTalk }: { onTalk: () => void }) {
   const { state, dispatch } = useProject();
   const t = useT();
   const [text, setText] = useState(state.description);
@@ -72,10 +66,7 @@ function QuickDescribe({ onTalk }: { onTalk: () => void }) {
     <div className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-2xl font-bold text-ink">{t("What do you want to build?")}</h1>
       <p className="mt-2 text-slate-500">
-        {t("Describe your idea in a sentence. We'll turn it into an N-ATLAS application blueprint — name, system prompt, and the tests to run.")}{" "}
-        <button onClick={onTalk} className="font-medium text-forge-600 hover:underline">
-          {t("Prefer to talk it through? Use the Design chat →")}
-        </button>
+        {t("Describe your idea in a sentence or two, in any language you like. We'll turn it into a plan — and then a website with an N-ATLAS assistant on it.")}
       </p>
 
       <Card className="mt-6 p-5">

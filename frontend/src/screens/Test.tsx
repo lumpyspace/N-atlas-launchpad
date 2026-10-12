@@ -35,7 +35,7 @@ export default function Test({ health }: { health: HealthStatus | null }) {
                 )}
               </p>
             </div>
-            <Button onClick={() => dispatch({ type: "setStep", step: "export" })}>{t("Continue to download →")}</Button>
+            <Button onClick={() => dispatch({ type: "setStep", step: "site" })}>{t("Continue to Your site →")}</Button>
           </div>
         </div>
         <Playground health={health} embedded />
@@ -55,7 +55,7 @@ export default function Test({ health }: { health: HealthStatus | null }) {
               )}
             </p>
           </div>
-          <Button onClick={() => dispatch({ type: "setStep", step: "export" })}>{t("Continue to Ship →")}</Button>
+          <Button onClick={() => dispatch({ type: "setStep", step: "site" })}>{t("Continue to Your site →")}</Button>
         </div>
 
         <div className="mt-5 flex gap-1 border-b border-slate-200">

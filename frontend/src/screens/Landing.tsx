@@ -11,7 +11,6 @@ import {
   FlaskIcon,
   GlobeIcon,
   LayersIcon,
-  PackageIcon,
   RocketIcon,
   ShieldIcon,
   SparklesIcon,
@@ -21,11 +20,11 @@ import {
 type Icon = ComponentType<{ size?: number; className?: string }>;
 
 const FLOW: { icon: Icon; label: string; blurb: string }[] = [
-  { icon: ChatIcon, label: N_("Design"), blurb: N_("Talk your idea through with N-ATLAS and watch it take shape.") },
+  { icon: ChatIcon, label: N_("Describe"), blurb: N_("Say what you want in a sentence or two — in your own language.") },
   { icon: LayersIcon, label: N_("Build"), blurb: N_("A step-by-step build guide, blueprint and system prompt.") },
   { icon: BookIcon, label: N_("Knowledge"), blurb: N_("Upload the documents your app answers from.") },
   { icon: FlaskIcon, label: N_("Your site"), blurb: N_("Groq writes your website's pages; you check them, pick a look and switch on plugins — prices, orders, WhatsApp.") },
-  { icon: RocketIcon, label: N_("Publish"), blurb: N_("One click gives it a link anyone can open. Developers can still download the code.") },
+  { icon: RocketIcon, label: N_("Publish"), blurb: N_("One click gives it a link anyone can open. Share it on WhatsApp.") },
 ];
 
 /** The kinds of assistant Launchpad builds (the export's channels). */
@@ -33,17 +32,10 @@ const KINDS: { icon: Icon; title: string; body: string }[] = [
   { icon: LayersIcon, title: N_("A website"), body: N_("Pages for your business — home, prices, questions, contact — in a theme you pick.") },
   { icon: ChatIcon, title: N_("An assistant on every page"), body: N_("It answers from your own pages, in English, Pidgin, Yoruba, Hausa or Igbo.") },
   { icon: ZapIcon, title: N_("Orders & bookings"), body: N_("Visitors order in conversation; confirmed ones land in your inbox. Plus a WhatsApp button.") },
-  { icon: RocketIcon, title: N_("For developers"), body: N_("Download the code instead: a web chat, a WhatsApp or Telegram bot, or a chat API.") },
+  { icon: RocketIcon, title: N_("Publish in one click"), body: N_("A link anyone can open on a phone — no code, no server, no hosting to set up.") },
 ];
 
 const DEV_FEATURES: { icon: Icon; title: string; body: string }[] = [
-  {
-    icon: ChatIcon,
-    title: N_("Design chat"),
-    body: N_(
-      "Describe your idea in your own words — English, Pidgin, Yoruba, Hausa or Igbo. N-ATLAS asks the right questions while a live canvas shows who it's for, its features, data and architecture.",
-    ),
-  },
   {
     icon: GlobeIcon,
     title: N_("Built for Nigerian languages"),
@@ -70,13 +62,6 @@ const DEV_FEATURES: { icon: Icon; title: string; body: string }[] = [
     title: N_("The N-ATLAS SDK"),
     body: N_(
       "One-file, zero-dependency clients for JavaScript and Python: language hints, answers from your documents, streaming, and errors that say how to fix them.",
-    ),
-  },
-  {
-    icon: PackageIcon,
-    title: N_("Export that keeps working"),
-    body: N_(
-      "A JavaScript or Python app with its own chat page — unzip, start it, open it in your browser — plus a scored test runner, a GitHub Actions workflow and your 👍 replies as fine-tuning data.",
     ),
   },
 ];
@@ -178,7 +163,7 @@ export default function Landing({ publicSite = false }: { publicSite?: boolean }
         <div className="mx-auto mt-5 max-w-3xl rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
           <b>{t("Good to know:")}</b>{" "}
           {t(
-            "Launchpad builds small websites with an assistant, WordPress-style — not every kind of app: there are no customer accounts or payments. Publishing puts your site online here, on N-ATLAS; developers can download the code and take it further.",
+            "Launchpad builds small websites with an assistant, WordPress-style — not every kind of app: there are no customer accounts or payments. Publishing puts your site online here, on N-ATLAS.",
           )}
         </div>
         <div className="mx-auto mt-3 grid max-w-3xl gap-3 sm:grid-cols-2">
@@ -272,7 +257,7 @@ export default function Landing({ publicSite = false }: { publicSite?: boolean }
   );
 }
 
-/** A glimpse of the product: the Design chat in the visitor's language, through to a live link. */
+/** A glimpse of the product: a customer chatting with the assistant in their language, through to a live link. */
 function HeroPreview({ language }: { language: LangCode }) {
   const t = useT();
   const s = SAMPLE[language] ?? SAMPLE.en;
@@ -286,7 +271,7 @@ function HeroPreview({ language }: { language: LangCode }) {
           <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
           <span className="h-2.5 w-2.5 rounded-full bg-forge-400" />
           <span className="ml-2 text-xs font-medium text-slate-500">
-            {t("Design chat")} · {s.tag}
+            {t("Your assistant")} · {s.tag}
           </span>
         </div>
         <div className="space-y-3 p-5">

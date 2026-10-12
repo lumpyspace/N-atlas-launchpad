@@ -10,8 +10,6 @@ import Landing from "./screens/Landing";
 import Describe from "./screens/Describe";
 import Blueprint from "./screens/Blueprint";
 import Compare from "./screens/Compare";
-import Export from "./screens/Export";
-import GoLive from "./screens/GoLive";
 import SiteDashboard from "./screens/site/Dashboard";
 import SitePages from "./screens/site/Pages";
 import SiteAppearance from "./screens/site/Appearance";
@@ -221,10 +219,6 @@ function renderStep(step: string, health: HealthStatus | null) {
       return <Test health={health} />;
     case "compare":
       return <Compare />;
-    case "export":
-      return <Export />;
-    case "golive":
-      return <GoLive />;
     case "site":
       return <SiteDashboard />;
     case "pages":

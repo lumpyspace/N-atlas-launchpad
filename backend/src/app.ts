@@ -110,7 +110,7 @@ export function createApp(config: AppConfig = loadConfig(), env: NodeJS.ProcessE
     app.use("/api", rateLimit(Number(env.PUBLIC_PER_MINUTE ?? 20), Number(env.PUBLIC_PER_HOUR ?? 300)));
   }
   app.use("/api", generateRouter(provider));
-  app.use("/api", blueprintRouter(brain));
+  app.use("/api", blueprintRouter(brain, provider));
   app.use("/api", evaluateRouter(provider));
   app.use("/api", securityRouter(provider));
   app.use("/api", improveRouter());

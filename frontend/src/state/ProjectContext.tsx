@@ -44,8 +44,6 @@ export type Step =
   | "compare"
   | "secure"
   | "improve"
-  | "export"
-  | "golive"
   // The site's admin (WordPress-style)
   | "site"
   | "pages"
