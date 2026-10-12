@@ -51,7 +51,9 @@ for (const [lang, qs] of Object.entries(questions)) {
     const ms = Date.now() - started;
     // Judged on what the visitor read, not the English behind it.
     const correct = r.status === 200 && checks[topic].test(r.reply ?? "");
-    rows.push({ lang, topic, question: q, reply: r.reply, english: r.english, replyLanguage: r.language, voice: r.voice, status: r.status, ms, correct });
+    // Translated = the visitor didn't get the English fallback (a reply left in English equals its English).
+    const translated = r.status === 200 && (r.reply ?? "").trim() !== (r.english ?? "").trim();
+    rows.push({ lang, topic, question: q, reply: r.reply, english: r.english, translated, voice: translated ? r.voice : "left in English", status: r.status, ms, correct });
     console.error(`${lang} ${topic.padEnd(5)} ${r.status} ${(ms / 1000).toFixed(1)}s ${correct ? "✓" : "✗"} ${r.voice ?? r.error ?? ""}`);
     await new Promise((s) => setTimeout(s, 6000)); // about ten questions a minute: within Groq's free per-minute limit
   }
@@ -63,7 +65,7 @@ const summary = {
   answers: rows.length,
   succeeded: ok.length,
   correct: rows.filter((r) => r.correct).length,
-  inTheirLanguage: ok.filter((r) => r.replyLanguage === r.lang).length,
+  translated: ok.filter((r) => r.translated).length,
   spokenByNatlas: ok.filter((r) => r.voice === "N-ATLAS").length,
   spokenByGroq: ok.filter((r) => r.voice === "Groq").length,
   medianMs: sorted[Math.floor(sorted.length / 2)] ?? null,

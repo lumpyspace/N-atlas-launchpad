@@ -131,6 +131,8 @@ export interface BrainOptions {
   signal?: AbortSignal;
   /** The request reads or writes Yoruba, Hausa or Igbo: only models good at them may answer. */
   nigerian?: boolean;
+  /** Plain English work: try the smaller models first, keeping the strong one's per-minute budget for Nigerian languages. */
+  english?: boolean;
 }
 
 export class Brain {
@@ -176,7 +178,8 @@ export class Brain {
     if (!this.configured) throw new BrainError("No assistant model is configured", false);
     if (this.used >= this.dailyLimit) throw new BrainError("Today's assistant-model budget is used up", false);
     let last: BrainError | null = null;
-    const able = this.providers.filter((p) => !options.nigerian || p.nigerian !== false);
+    let able = this.providers.filter((p) => !options.nigerian || p.nigerian !== false);
+    if (options.english) able = [...able.filter((p) => p.nigerian === false), ...able.filter((p) => p.nigerian !== false)];
     // A strong model resting a few seconds (a per-minute limit) is worth the wait.
     if (options.nigerian && able.length && able.every((p) => this.isCooling(p))) {
       const wait = Math.min(...able.map((p) => this.cooldown.get(key(p))! - this.now()));

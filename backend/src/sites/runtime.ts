@@ -179,7 +179,7 @@ export async function answerVisitor(
       if (reading) {
         turns[turns.length - 1] = { role: "user", content: `${latest}\n\n(N-ATLAS read this as: "${reading}". If they disagree, trust the words as written.)` };
       }
-      const r = await brain.chat([{ role: "system", content: brainSystem(config, language) }, ...turns], { maxTokens: 700, temperature: 0.3, signal });
+      const r = await brain.chat([{ role: "system", content: brainSystem(config, language) }, ...turns], { maxTokens: 700, temperature: 0.3, signal, english: true });
       const parsed = parseReply(r.text);
       let english = leaks(config, parsed.reply) ? SAFE_REPLY : parsed.reply;
       let order: InboxItem | undefined;

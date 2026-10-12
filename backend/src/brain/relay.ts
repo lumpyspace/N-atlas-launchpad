@@ -252,7 +252,7 @@ export async function relay(opts: {
     first?.role === "system"
       ? [{ role: "system", content: `${first.content}\n\n${howToReply}` }, ...rest]
       : [{ role: "system", content: howToReply }, ...messages],
-    { maxTokens: opts.maxTokens ?? 400, signal },
+    { maxTokens: opts.maxTokens ?? 400, signal, english: true },
   );
   onEvent({ type: "thought", english: thought.text, brain: thought.provider });
 

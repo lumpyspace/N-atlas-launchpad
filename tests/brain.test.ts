@@ -237,3 +237,11 @@ test("no assistant model free: a reply keeps its facts (English lines) instead o
   const said = await speakIn({ brain: busy, natlas: natlas as any, language: "ha", english: "A 50 kg bag of rice is ₦82,000.", brainName: "Groq" });
   assert.match(said.text, /₦82,000/);
 });
+
+test("plain English work goes to the smaller models first, saving the strong one for Nigerian languages", async () => {
+  const small: BrainProvider = { name: "Groq", baseURL: "https://small.test/v1", model: "small", apiKey: "k3", nigerian: false };
+  const calls: { host: string; body: any }[] = [];
+  const brain = new Brain([groq, small], 50, fakeFetch({ "groq.test": "strong", "small.test": "small" }, calls));
+  assert.equal((await brain.chat([{ role: "user", content: "Decide the answer" }], { english: true })).text, "small");
+  assert.equal((await brain.chat([{ role: "user", content: "Write the site" }])).text, "strong");
+});
